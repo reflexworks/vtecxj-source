@@ -69,3 +69,7 @@ Desktop.ini
 
 /out
 /lib
+
+# vte.cx build
+build.txt
+/build
