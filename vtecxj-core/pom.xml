@@ -1,0 +1,46 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>jp.reflexworks</groupId>
+  <artifactId>vtecxj-core</artifactId>
+  <version>9.0.0</version>
+  <packaging>jar</packaging>
+
+  <description>vte.cx core</description>
+  <name>vte.cx core</name>
+
+  <organization>
+    <name>Virtual Technology</name>
+    <url>http://www.virtual-tech.net/</url>
+  </organization>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <basedir>.</basedir>
+    <vtecxj-common-version>9.0.0</vtecxj-common-version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>jp.reflexworks</groupId>
+      <artifactId>vtecxj-common</artifactId>
+      <version>${vtecxj-common-version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20250107</version>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.2</version>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+</project>
