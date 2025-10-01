@@ -48,8 +48,10 @@ import jp.sourceforge.reflex.util.StringUtils;
 public class IndexCommonManager {
 
 	/** Feed検索条件の符号区切り文字をエンコードしたもの */
-	private static final String ENCODED_EQUATIONS_DELIMITER =
-			urlEncode(Condition.DELIMITER);
+	//private static final String ENCODED_EQUATIONS_DELIMITER =
+	//		UrlUtil.urlEncode(Condition.DELIMITER);
+	/** Feed検索条件の符号区切り文字 */
+	private static final String ENCODED_EQUATIONS = Condition.DELIMITER;
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -738,13 +740,18 @@ public class IndexCommonManager {
 		if (conditions != null) {
 			for (Condition condition : conditions) {
 				sb.append("&");
-				sb.append(urlEncode(condition.getProp()));
-				sb.append(ENCODED_EQUATIONS_DELIMITER);
-				sb.append(urlEncode(condition.getEquations()));
+				//sb.append(UrlUtil.urlEncode(condition.getProp()));
+				//sb.append(ENCODED_EQUATIONS_DELIMITER);
+				//sb.append(UrlUtil.urlEncode(condition.getEquations()));
+				sb.append(condition.getProp());
+				sb.append(ENCODED_EQUATIONS);
+				sb.append(condition.getEquations());
 				String val = condition.getValue();
 				if (!StringUtils.isBlank(val)) {
-					sb.append(ENCODED_EQUATIONS_DELIMITER);
-					sb.append(urlEncode(val));
+					//sb.append(ENCODED_EQUATIONS_DELIMITER);
+					//sb.append(UrlUtil.urlEncode(val));
+					sb.append(ENCODED_EQUATIONS);
+					sb.append(val);
 				}
 			}
 		}
@@ -818,18 +825,10 @@ public class IndexCommonManager {
 			sb.append("&");
 			sb.append(RequestParam.PARAM_NEXT);
 			sb.append("=");
-			sb.append(urlEncode(cursorStr));
+			//sb.append(UrlUtil.urlEncode(cursorStr));
+			sb.append(cursorStr);
 		}
 		return sb.toString();
-	}
-
-	/**
-	 * URLエンコード
-	 * @param str 文字列
-	 * @return URLエンコードした文字列
-	 */
-	private static String urlEncode(String str) {
-		return UrlUtil.urlEncode(str);
 	}
 
 }

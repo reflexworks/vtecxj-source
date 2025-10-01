@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
-import jp.reflexworks.servlet.util.UrlUtil;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
@@ -316,7 +315,8 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 		sb.append("&");
 		sb.append(RequestParam.PARAM_NEXT);
 		sb.append("=");
-		sb.append(UrlUtil.urlEncode(cursorStr));
+		//sb.append(UrlUtil.urlEncode(cursorStr));
+		sb.append(cursorStr);
 		return sb.toString();
 	}
 

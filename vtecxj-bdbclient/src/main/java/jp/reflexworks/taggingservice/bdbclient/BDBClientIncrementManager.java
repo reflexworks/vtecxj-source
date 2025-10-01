@@ -17,10 +17,10 @@ import jp.reflexworks.taggingservice.exception.BDBClientException;
 import jp.reflexworks.taggingservice.exception.OutOfRangeException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
-import jp.reflexworks.taggingservice.requester.BDBRequester;
-import jp.reflexworks.taggingservice.requester.BDBRequesterUtil;
 import jp.reflexworks.taggingservice.requester.BDBClientServerConst.BDBResponseType;
 import jp.reflexworks.taggingservice.requester.BDBClientServerConst.BDBServerType;
+import jp.reflexworks.taggingservice.requester.BDBRequester;
+import jp.reflexworks.taggingservice.requester.BDBRequesterUtil;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -324,7 +324,8 @@ public class BDBClientIncrementManager implements IncrementManager {
 		sb.append(RequestParam.PARAM_RANGEIDS);
 		if (!StringUtils.isBlank(range)) {
 			sb.append("=");
-			sb.append(urlEncode(range));
+			//sb.append(urlEncode(range));
+			sb.append(range);
 		}
 		return sb.toString();
 	}
@@ -350,9 +351,11 @@ public class BDBClientIncrementManager implements IncrementManager {
 	 * @param str 文字列
 	 * @return URLエンコードした文字列
 	 */
+	/*
 	private String urlEncode(String str) {
 		return BDBClientUtil.urlEncode(str);
 	}
+	*/
 
 	/**
 	 * キーの担当サーバURLを取得.

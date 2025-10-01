@@ -14,6 +14,8 @@ import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.atom.mapper.FeedTemplateMapper;
 import jp.reflexworks.servlet.HttpStatus;
+import jp.reflexworks.servlet.ReflexServletConst;
+import jp.reflexworks.servlet.util.UrlUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.bdbclient.BDBClientUtil;
@@ -346,8 +348,9 @@ public class BDBRequester<T> {
 
 					} else {
 						// エラー
+						String respContextType = http.getContentType();
 						FeedBase errFeed = (FeedBase)BDBRequesterUtil.getObject(urlStr,
-								http.getErrorStream(), http.getContentType(), serviceName,
+								http.getErrorStream(), respContextType, serviceName,
 								connectionInfo.getDeflateUtil(), true, false);
 
 						if (BDBClientUtil.isEnableAccessLog()) {
@@ -355,6 +358,28 @@ public class BDBRequester<T> {
 									BDBRequesterUtil.getEndLog(serviceName, method, urlStr,
 											reqHeader, status, startTime));
 							startTime = new Date().getTime();
+						}
+						// ContextTypeが"text/"で始まる場合は致命的エラー
+						if (!StringUtils.isBlank(respContextType) &&
+								respContextType.startsWith(ReflexServletConst.CONTENT_TYPE_TEXT)) {
+							StringBuilder sb = new StringBuilder();
+							sb.append(LogUtil.getRequestInfoStr(requestInfo));
+							sb.append("[requestByUrlProc] Unexpected Error occured.");
+							sb.append(" method=");
+							sb.append(method);
+							sb.append(" urlStr=");
+							sb.append(urlStr);
+							sb.append(" status=");
+							sb.append(status);
+							sb.append(" message=");
+							if (errFeed != null) {
+								sb.append(errFeed.title);
+							} else {
+								sb.append("null");
+							}
+							logger.warn(sb.toString());
+							// statusを500にする
+							status = HttpStatus.SC_INTERNAL_SERVER_ERROR;
 						}
 						BDBRequesterUtil.doException(urlStr, method, status, errFeed, serviceName,
 								requestInfo);
@@ -446,9 +471,11 @@ public class BDBRequester<T> {
 	 * @return リクエストURL
 	 */
 	private String editRequestUrl(String url, String requestUri) {
+		String encodeUri = UrlUtil.urlEncodePathInfoQuery(requestUri);
 		StringBuilder sb = new StringBuilder();
 		sb.append(url);
-		sb.append(StringUtils.null2blank(requestUri));
+		//sb.append(StringUtils.null2blank(requestUri));
+		sb.append(StringUtils.null2blank(encodeUri));
 		return sb.toString();
 	}
 

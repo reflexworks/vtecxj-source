@@ -163,6 +163,7 @@ public class MemorySortManagerDefault implements MemorySortManager {
 		try {
 			StringBuilder url = new StringBuilder();
 			url.append(getMemorySortUrl());
+			// URLエンコードはここで行う
 			url.append(UrlUtil.urlEncodePathInfoQuery(conditionName));
 			String urlStr = url.toString();
 

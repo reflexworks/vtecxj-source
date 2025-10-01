@@ -56,8 +56,10 @@ public class BDBClientRetrieveManager {
 	/** GETメソッド */
 	private static final String METHOD_GET = Constants.GET;
 	/** Feed検索条件の符号区切り文字をエンコードしたもの */
-	private static final String ENCODED_EQUATIONS_DELIMITER =
-			BDBClientUtil.urlEncode(Condition.DELIMITER);
+	//private static final String ENCODED_EQUATIONS_DELIMITER =
+	//		BDBClientUtil.urlEncode(Condition.DELIMITER);
+	/** Feed検索条件の符号区切り文字 */
+	private static final String EQUATIONS_DELIMITER = Condition.DELIMITER;
 
 	/** Feed検索結果をインメモリキャッシュから読む場合の条件 */
 	private static final Set<String> READMAP_REQUESTURIS = new ConcurrentSkipListSet<>();
@@ -1511,21 +1513,29 @@ public class BDBClientRetrieveManager {
 			for (Condition condition : conditions) {
 				if (Condition.ASC.equals(condition.getEquations())) {
 					sb.append("&");
-					sb.append(BDBClientUtil.urlEncode(condition.getProp()));
-					sb.append(ENCODED_EQUATIONS_DELIMITER);
-					sb.append(BDBClientUtil.urlEncode(condition.getEquations()));
+					//sb.append(BDBClientUtil.urlEncode(condition.getProp()));
+					//sb.append(ENCODED_EQUATIONS_DELIMITER);
+					//sb.append(BDBClientUtil.urlEncode(condition.getEquations()));
+					sb.append(condition.getProp());
+					sb.append(EQUATIONS_DELIMITER);
+					sb.append(condition.getEquations());
 				}
 			}
 			// 次に昇順ソート条件以外を指定。
 			for (Condition condition : conditions) {
 				if (!Condition.ASC.equals(condition.getEquations())) {
 					sb.append("&");
-					sb.append(BDBClientUtil.urlEncode(condition.getProp()));
-					sb.append(ENCODED_EQUATIONS_DELIMITER);
-					sb.append(BDBClientUtil.urlEncode(condition.getEquations()));
+					//sb.append(BDBClientUtil.urlEncode(condition.getProp()));
+					//sb.append(ENCODED_EQUATIONS_DELIMITER);
+					//sb.append(BDBClientUtil.urlEncode(condition.getEquations()));
+					sb.append(condition.getProp());
+					sb.append(EQUATIONS_DELIMITER);
+					sb.append(condition.getEquations());
 					if (!StringUtils.isBlank(condition.getValue())) {
-						sb.append(ENCODED_EQUATIONS_DELIMITER);
-						sb.append(BDBClientUtil.urlEncode(condition.getValue()));
+						//sb.append(ENCODED_EQUATIONS_DELIMITER);
+						//sb.append(BDBClientUtil.urlEncode(condition.getValue()));
+						sb.append(EQUATIONS_DELIMITER);
+						sb.append(condition.getValue());
 					}
 				}
 			}
