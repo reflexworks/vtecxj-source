@@ -355,9 +355,11 @@ public class BDBClientUtil {
 	 * @param str 文字列
 	 * @return URLエンコードした文字列
 	 */
+	/*
 	public static String urlEncode(String str) {
 		return UrlUtil.urlEncode(str);
 	}
+	*/
 
 	/**
 	 * 登録予定Entryメモリキャッシュを取得.
@@ -588,18 +590,21 @@ public class BDBClientUtil {
 		sb.append("?");
 		sb.append(RequestParam.PARAM_LIST);
 		sb.append("=");
-		sb.append(urlEncode(dbName));
+		//sb.append(urlEncode(dbName));
+		sb.append(dbName);
 		if (!StringUtils.isBlank(keyprefix)) {
 			sb.append("&");
 			sb.append(RequestParam.PARAM_KEYPREFIX);
 			sb.append("=");
-			sb.append(urlEncode(keyprefix));
+			//sb.append(urlEncode(keyprefix));
+			sb.append(keyprefix);
 		}
 		if (!StringUtils.isBlank(cursorStr)) {
 			sb.append("&");
 			sb.append(RequestParam.PARAM_NEXT);
 			sb.append("=");
-			sb.append(urlEncode(cursorStr));
+			//sb.append(urlEncode(cursorStr));
+			sb.append(cursorStr);
 		}
 		return sb.toString();
 	}

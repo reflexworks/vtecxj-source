@@ -129,18 +129,6 @@ public class BatchJobHttpResponse implements HttpServletResponse {
 	}
 
 	@Override
-	public String encodeUrl(String url) {
-		// 自動生成されたメソッド・スタブ
-		return null;
-	}
-
-	@Override
-	public String encodeRedirectUrl(String url) {
-		// 自動生成されたメソッド・スタブ
-		return null;
-	}
-
-	@Override
 	public void sendError(int sc, String msg) throws IOException {
 		// 自動生成されたメソッド・スタブ
 
@@ -196,12 +184,6 @@ public class BatchJobHttpResponse implements HttpServletResponse {
 
 	@Override
 	public void setStatus(int sc) {
-		// 自動生成されたメソッド・スタブ
-
-	}
-
-	@Override
-	public void setStatus(int sc, String sm) {
 		// 自動生成されたメソッド・スタブ
 
 	}

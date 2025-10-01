@@ -16,7 +16,6 @@ import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.atom.entry.Link;
 import jp.reflexworks.servlet.util.AuthTokenUtil;
-import jp.reflexworks.servlet.util.UrlUtil;
 import jp.reflexworks.servlet.util.WsseAuth;
 import jp.reflexworks.servlet.util.WsseUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
@@ -2260,7 +2259,8 @@ public class UserManagerDefault implements UserManager {
 			}
 			sb.append(RequestParam.PARAM_NEXT);
 			sb.append("=");
-			sb.append(UrlUtil.urlEncode(cursorStr));
+			//sb.append(UrlUtil.urlEncode(cursorStr));
+			sb.append(cursorStr);
 		}
 		return sb.toString();
 	}

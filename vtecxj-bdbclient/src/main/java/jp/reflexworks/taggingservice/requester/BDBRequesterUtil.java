@@ -23,6 +23,7 @@ import jp.reflexworks.atom.mapper.CipherUtil;
 import jp.reflexworks.atom.mapper.FeedTemplateMapper;
 import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.servlet.ReflexServletConst;
+import jp.reflexworks.servlet.ReflexServletUtil;
 import jp.reflexworks.servlet.util.UrlUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.RequestInfo;
@@ -43,6 +44,7 @@ import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.EntrySerializer;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.NamespaceUtil;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.ConsistentHash;
 import jp.sourceforge.reflex.util.DeflateUtil;
 import jp.sourceforge.reflex.util.FileUtil;
@@ -239,12 +241,45 @@ public class BDBRequesterUtil {
 		if (in == null) {
 			return null;
 		}
-		if (isFeed) {
+		if (contentType.startsWith(ReflexServletConst.CONTENT_TYPE_TEXT)) {
+			return getTextFeed(urlStr, in, serviceName);
+		} else if (isFeed) {
 			return getFeed(urlStr, in, contentType, serviceName);
 		} else if (entryLengthList != null && !entryLengthList.isEmpty()) {
 			return getEntryList(in, entryLengthList, serviceName, deflateUtil, isDecrypt);
 		} else {
 			return getEntry(in, serviceName, deflateUtil, isDecrypt);
+		}
+	}
+	
+	/**
+	 * レスポンスデータのテキスト情報をFeedのtitleにセットして変換
+	 * @param urlStr リクエストURL
+	 * @param in レスポンスデータのストリーム
+	 * @param serviceName サービス名
+	 * @return レスポンステキストをセットしたFeed
+	 */
+	public static FeedBase getTextFeed(String urlStr, InputStream in, String serviceName)
+	throws IOException {
+		if (logger.isInfoEnabled()) {
+			logger.info("[getTextFeed] start.");
+		}
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new InputStreamReader(in, Constants.ENCODING));
+			String text = ReflexServletUtil.getBody(reader);
+			FeedBase textFeed = TaggingEntryUtil.createFeed(serviceName);
+			textFeed.title = text;
+			return textFeed;
+
+		} finally {
+			if (reader != null) {
+				try {
+					reader.close();
+				} catch (IOException e) {
+					logger.warn("[getTextFeed] close error. [URL]" + urlStr, e);
+				}
+			}
 		}
 	}
 
@@ -616,20 +651,7 @@ public class BDBRequesterUtil {
 		if (errorFeed != null) {
 			errMsg = errorFeed.title;
 		}
-		if (logger.isDebugEnabled()) {
-			StringBuilder sb = new StringBuilder();
-			sb.append(LogUtil.getRequestInfoStr(requestInfo));
-			sb.append("serviceName=");
-			sb.append(serviceName);
-			sb.append(" [doException] ");
-			sb.append(method);
-			sb.append(" ");
-			sb.append(url);
-			sb.append(" , status=");
-			sb.append(status);
-			sb.append(", errMsg: ");
-			sb.append(errMsg);
-			logger.debug(sb.toString());
+		if (status != HttpStatus.SC_NO_CONTENT) {
 		}
 		errMsg = StringUtils.null2blank(errMsg);
 
@@ -647,12 +669,41 @@ public class BDBRequesterUtil {
 			throw new NoExistingEntryException(errMsg);
 		} else if (status == HttpStatus.SC_METHOD_NOT_ALLOWED) {
 			// このエラーが発生するのは内部エラーが原因
+			warnLog(url, method, status, errMsg, serviceName, requestInfo);
 			throw new IllegalStateException(errMsg);
 		} else if (status == HttpStatus.SC_INTERNAL_SERVER_ERROR) {
+			warnLog(url, method, status, errMsg, serviceName, requestInfo);
 			throw new IOException(errMsg);
 		} else {
+			warnLog(url, method, status, errMsg, serviceName, requestInfo);
 			throw new IOException(errMsg);	// 
 		}
+	}
+	
+	/**
+	 * 内部エラーの場合のログ出力
+	 * @param url URL (ログ用)
+	 * @param method メソッド (ログ用)
+	 * @param status ステータス
+	 * @param errMsg エラーメッセージ
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 */
+	private static void warnLog(String url, String method, int status,
+			String errMsg, String serviceName, RequestInfo requestInfo) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(LogUtil.getRequestInfoStr(requestInfo));
+		sb.append("serviceName=");
+		sb.append(serviceName);
+		sb.append(" [doException] ");
+		sb.append(method);
+		sb.append(" ");
+		sb.append(url);
+		sb.append(" , status=");
+		sb.append(status);
+		sb.append(", errMsg: ");
+		sb.append(errMsg);
+		logger.warn(sb.toString());
 	}
 
 	/**

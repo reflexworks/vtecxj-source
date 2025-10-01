@@ -17,6 +17,7 @@ import java.util.Map;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
@@ -518,6 +519,24 @@ public class BatchJobHttpRequest implements HttpServletRequest {
 	@Override
 	public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
 		// 自動生成されたメソッド・スタブ
+		return null;
+	}
+
+	@Override
+	public String getRequestId() {
+		// TODO 自動生成されたメソッド・スタブ
+		return null;
+	}
+
+	@Override
+	public String getProtocolRequestId() {
+		// TODO 自動生成されたメソッド・スタブ
+		return null;
+	}
+
+	@Override
+	public ServletConnection getServletConnection() {
+		// TODO 自動生成されたメソッド・スタブ
 		return null;
 	}
 

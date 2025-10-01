@@ -117,7 +117,8 @@ public class BDBClientMonitorManager {
 		ignoreParams.add(RequestParam.PARAM_SERVICE);
 		ignoreParams.add(RequestParam.PARAM_XML);
 		ignoreParams.add(RequestParam.PARAM_JSON);
-		String queryString = UrlUtil.editQueryString(req, ignoreParams, null, true);
+		//String queryString = UrlUtil.editQueryString(req, ignoreParams, null, true);
+		String queryString = UrlUtil.editQueryString(req, ignoreParams, null, false);
 		StringBuilder sb = new StringBuilder();
 		sb.append(req.getPathInfo());
 		if (!StringUtils.isBlank(queryString)) {
