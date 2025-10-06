@@ -39,7 +39,7 @@ public interface BDBClientConst {
 	/** Cacheによる排他の有効期間(秒) **/
 	public static final String BDBCLIENT_EXCLUSION_EXPIRE_SEC = "_bdbclient.exclusion.expire.sec";
 	/** メインスレッド初期取得Entryキャッシュを有効にするかどうか **/
-	public static final String BDBCLIENT_ENABLE_INITMAINTHREADCACHE = "_bdbclient.enable.initmainthreadcache";
+	public static final String BDBCLIENT_DISABLE_INITMAINTHREADCACHE = "_bdbclient.disable.initmainthreadcache";
 	/** メインスレッド初期取得Entryキャッシュの有効期間(秒) **/
 	public static final String BDBCLIENT_INITMAINTHREADCACHE_EXPIRE_SEC = "_bdbclient.initmainthreadcache.expire.sec";
 	/** Entryサーバ最大取得数 (リクエストヘッダ制限に対応) **/
