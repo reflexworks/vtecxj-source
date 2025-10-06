@@ -2071,8 +2071,8 @@ public class BDBClientInitMainThreadManager {
 	 * @return メインスレッド初期処理に必要なデータキャッシュを有効にする場合true
 	 */
 	boolean isEnabledInitMainThreadCache() {
-		return TaggingEnvUtil.getSystemPropBoolean(
-				BDBClientConst.BDBCLIENT_ENABLE_INITMAINTHREADCACHE, false);
+		return !TaggingEnvUtil.getSystemPropBoolean(
+				BDBClientConst.BDBCLIENT_DISABLE_INITMAINTHREADCACHE, false);
 	}
 
 	/**
