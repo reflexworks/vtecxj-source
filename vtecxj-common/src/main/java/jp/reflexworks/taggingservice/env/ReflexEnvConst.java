@@ -39,8 +39,6 @@ public interface ReflexEnvConst {
 	public static final String NAMESPACE_SYSTEM = "_namespace.system";
 	/** キーの階層数上限 **/
 	public static final String MAXNUM_KEY_HIERARCHIES = "_maxnum.key.hierarchies";
-	/** インデックス・暗号化・項目ACLのデフォルト設定接頭辞 **/
-	public static final String INDEXENCRYPTFIELDACL_PRESET_PREFIX = "_indexencryptfieldacl.preset.";
 	/** サーバタイプ **/
 	public static final String REFLEX_SERVERTYPE = "_reflex.servertype";
 	/** 非同期処理プール数 (バッチジョブ用) */
@@ -78,21 +76,19 @@ public interface ReflexEnvConst {
 	/** フェッチ件数制限デフォルト値 */
 	public static final int FETCH_LIMIT_DEFAULT = 50000;
 	/** 更新Entry件数上限デフォルト値 */
-	public static final int UPDATE_ENTRY_NUMBER_LIMIT_DEFAULT = 100;
+	public static final int UPDATE_ENTRY_NUMBER_LIMIT_DEFAULT = 1000;
 	/** 採番数上限デフォルト値 */
 	public static final int ALLOCIDS_LIMIT_DEFAULT = 500;
-	/** デフォルトで設定するIndexの数 */
-	public static final int INDEX_NUM_DEFAULT = 1;
 	/** Index上限数のデフォルト値 */
-	public static final int INDEX_LIMIT_DEFAULT = INDEX_NUM_DEFAULT + 30;
+	public static final int INDEX_LIMIT_DEFAULT = 200;
 	/** システム管理サービス デフォルト */
-	public static final String SYSTEM_SERVICE_DEFAULT = "reflexworks";
+	public static final String SYSTEM_SERVICE_DEFAULT = "admin";
 	/** スーパーユーザ デフォルト */
 	public static final String SUPER_USER_DEFAULT = "reflexworks";
 	/** 非同期処理プール数 (バッチジョブ用) デフォルト */
-	public static final int TASKQUEUE_POOLSIZE_BATCHJOB_DEFAULT = 10;
+	public static final int TASKQUEUE_POOLSIZE_BATCHJOB_DEFAULT = 500;
 	/** 非同期処理プール数 (内部処理用) デフォルト */
-	public static final int TASKQUEUE_POOLSIZE_SYSTEM_DEFAULT = 100;
+	public static final int TASKQUEUE_POOLSIZE_SYSTEM_DEFAULT = 1000;
 	/** キーの階層数上限 デフォルト */
 	public static final int MAXNUM_KEY_HIERARCHIES_DEFAULT = 10;
 	/** JSON出力においてfeed.entryを省略するかどうか デフォルト */

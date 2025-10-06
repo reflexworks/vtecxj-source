@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Matcher;
@@ -73,9 +72,6 @@ public class ServiceManagerDefault implements ServiceManager {
 	/** サービス名に使用できる文字パターンオブジェクト */
 	public static final Pattern PATTERN_SERVICENAME =
 			Pattern.compile(ServiceManagerDefaultConst.PATTERN_STR_SERVICENAME);
-	/** 設定 : サービス初期フォルダ の文字列長 */
-	private static final int PROP_CREATESERVICE_POSTFOLDER_PREFIX_LEN = 
-			ServiceManagerDefaultConst.PROP_CREATESERVICE_POSTFOLDER_PREFIX.length();
 	/** APIKeyの文字列長 */
 	private static final int APIKEY_STRING_LEN = 36;
 	/** サービスキーの文字列長 */
@@ -957,31 +953,26 @@ public class ServiceManagerDefault implements ServiceManager {
 	}
 
 	/**
-	 * プロパティファイルに指定されたフォルダをエントリーにして返却
+	 * 定数に指定された初期登録フォルダ情報をエントリーにして返却
 	 * @param serviceName サービス
-	 * @return プロパティファイルに指定されたフォルダのエントリーリスト
+	 * @return 初期登録フォルダのエントリーリスト
 	 */
 	private List<EntryBase> getCreateservicePostFolders(String serviceName) {
 		List<EntryBase> entries = new ArrayList<EntryBase>();
-		// プロパティファイルに指定されたフォルダ
-		// _createservice.postfolder.{フォルダの登録順}={URI}
-		Map<String, String> folderMap = TaggingEnvUtil.getSystemPropSortedMap(
-				ServiceManagerDefaultConst.PROP_CREATESERVICE_POSTFOLDER_PREFIX);
-		if (folderMap != null) {
-			for (Map.Entry<String, String> mapEntry : folderMap.entrySet()) {
-				String uri = mapEntry.getValue();
+		String[][] initFoldersArray = ServiceManagerDefaultConst.CREATESERVICE_POSTFOLDER;
+		String[][] initFoldersAclArray = ServiceManagerDefaultConst.CREATESERVICE_POSTFOLDER_ACL;
+		if (initFoldersArray != null) {
+			for (String[] initFolderInfo : initFoldersArray) {
+				String uri = initFolderInfo[1];
 				EntryBase entry = TaggingEntryUtil.createEntry(serviceName);
 				entry.setMyUri(uri);
 
 				// ACL設定があれば設定
-				String name = mapEntry.getKey();
-				String order = name.substring(PROP_CREATESERVICE_POSTFOLDER_PREFIX_LEN);
+				String number = initFolderInfo[0];
 
-				Map<String, String> folderAcls = TaggingEnvUtil.getSystemPropSortedMap(
-						ServiceManagerDefaultConst.PROP_CREATESERVICE_POSTFOLDERACL_PREFIX + order + ".");
+				String[] folderAcls = getFolderAcls(initFoldersAclArray, number);
 				if (folderAcls != null) {
-					for (Map.Entry<String, String> mapEntryAcl : folderAcls.entrySet()) {
-						String folderAcl = mapEntryAcl.getValue();
+					for (String folderAcl : folderAcls) {
 						Contributor contributor = createACLContributor(folderAcl);
 						entry.addContributor(contributor);
 					}
@@ -991,6 +982,27 @@ public class ServiceManagerDefault implements ServiceManager {
 			}
 		}
 		return entries;
+	}
+	
+	/**
+	 * 指定された番号のフォルダACL情報を抽出して配列にして返却
+	 * @param initFoldersAclArray フォルダACL情報配列
+	 * @param number フォルダ番号
+	 * @return 指定された番号のフォルダACL配列
+	 */
+	private String[] getFolderAcls(String[][] initFoldersAclArray, String number) {
+		List<String> folderAcls = new ArrayList<>();
+		if (initFoldersAclArray != null) {
+			for (String[] initFolderAclInfo : initFoldersAclArray) {
+				if (number.equals(initFolderAclInfo[0])) {
+					folderAcls.add(initFolderAclInfo[2]);
+				}
+			}
+		}
+		if (!folderAcls.isEmpty()) {
+			return folderAcls.toArray(new String[folderAcls.size()]);
+		}
+		return null;
 	}
 
 	/**
