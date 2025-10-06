@@ -5,7 +5,6 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
@@ -39,7 +38,7 @@ import jp.sourceforge.reflex.util.StringUtils;
 /**
  * ResourceMapper管理実装クラス.
  */
-public class ReflexResourceMapperManager implements ResourceMapperManager,
+public abstract class ReflexResourceMapperManager implements ResourceMapperManager,
 		ReflexEnvConst {
 
 	/** メモリ上のstaticオブジェクト格納キー : 暗号化のsecret key */
@@ -391,12 +390,7 @@ public class ReflexResourceMapperManager implements ResourceMapperManager,
 	 * @param serviceName サービス名
 	 * @return Index、暗号化、項目ACL情報
 	 */
-	private String[] getDefaultRights(ServletContextUtil contextUtil) {
-		// 初期処理時はPropertyManagerが起動していないので、TaggingEnvUtil.getSystemPropSetが使用できない。
-		Set<String> defaultRights = contextUtil.getSet(
-				ReflexEnvConst.INDEXENCRYPTFIELDACL_PRESET_PREFIX);
-		return defaultRights.toArray(new String[0]);
-	}
+	protected abstract String[] getDefaultRights(ServletContextUtil contextUtil);
 
 	/**
 	 * デフォルトのIndex、暗号化、項目ACL情報を配列にして返却.
@@ -410,11 +404,7 @@ public class ReflexResourceMapperManager implements ResourceMapperManager,
 	 * @param serviceName サービス名
 	 * @return Index、暗号化、項目ACL情報
 	 */
-	private String[] getDefaultRights() {
-		Set<String> defaultRights = ReflexEnvUtil.getSystemPropSet(
-				ReflexEnvConst.INDEXENCRYPTFIELDACL_PRESET_PREFIX);
-		return defaultRights.toArray(new String[0]);
-	}
+	protected abstract String[] getDefaultRights();
 
 	/**
 	 * テンプレートエントリーのキーであればtrueを返却します.
