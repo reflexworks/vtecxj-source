@@ -36,36 +36,36 @@ public class BDBClientServerConst {
 	/** 設定 : プロジェクトID */
 	public static final String PROP_GCP_PROJECTID = "_gcp.projectid";
 	/** 設定 : PodのIPアドレス取得結果出力ファイルパス */
-	public static final String PROP_GETPODIP_OUT_FILEPATH = "_bdbserver.getpodip.out.filepath";
+	//public static final String PROP_GETPODIP_OUT_FILEPATH = "_bdbserver.getpodip.out.filepath";
 	/** 設定 : ManifestサーバのDeployment名 */
-	public static final String PROP_DEPLOYMENT_NAME_MNFSERVER = "_deployment.name.mnfserver";
+	//public static final String PROP_DEPLOYMENT_NAME_MNFSERVER = "_deployment.name.mnfserver";
 	/** 設定 : EntryサーバのDeployment名 */
-	public static final String PROP_DEPLOYMENT_NAME_ENTRYSERVER = "_deployment.name.entryserver";
+	//public static final String PROP_DEPLOYMENT_NAME_ENTRYSERVER = "_deployment.name.entryserver";
 	/** 設定 : IndexサーバのDeployment名 */
-	public static final String PROP_DEPLOYMENT_NAME_IDXSERVER = "_deployment.name.idxserver";
+	//public static final String PROP_DEPLOYMENT_NAME_IDXSERVER = "_deployment.name.idxserver";
 	/** 設定 : 全文検索インデックスサーバのDeployment名 */
-	public static final String PROP_DEPLOYMENT_NAME_FTSERVER = "_deployment.name.ftserver";
+	//public static final String PROP_DEPLOYMENT_NAME_FTSERVER = "_deployment.name.ftserver";
 	/** 設定 : 採番・カウンタサーバのDeployment名 */
-	public static final String PROP_DEPLOYMENT_NAME_ALSERVER = "_deployment.name.alserver";
+	//public static final String PROP_DEPLOYMENT_NAME_ALSERVER = "_deployment.name.alserver";
 	/** 設定 : BDBサーバのサーブレットパス */
-	public static final String PROP_BDBSERVER_SERVLETPATH = "_bdbserver.servletpath";
+	//public static final String PROP_BDBSERVER_SERVLETPATH = "_bdbserver.servletpath";
 
 	/** 設定デフォルト値 : Entryサーバの割り当て数(サービスステータスがproduction時) */
-	public static final int BDBSERVER_NUM_ENTRY_DEFAULT = 3;
+	public static final int BDBSERVER_NUM_ENTRY_DEFAULT = 1;
 	/** 設定デフォルト値 : インデックスサーバの割り当て数(サービスステータスがproduction時) */
-	public static final int BDBSERVER_NUM_INDEX_DEFAULT = 3;
+	public static final int BDBSERVER_NUM_INDEX_DEFAULT = 1;
 	/** 設定デフォルト値 : 全文検索インデックスサーバの割り当て数(サービスステータスがproduction時) */
-	public static final int BDBSERVER_NUM_FULLTEXT_DEFAULT = 3;
+	public static final int BDBSERVER_NUM_FULLTEXT_DEFAULT = 1;
 	/** 設定デフォルト値 : 採番・カウンタサーバの割り当て数(サービスステータスがproduction時) */
-	public static final int BDBSERVER_NUM_ALLOCIDS_DEFAULT = 3;
+	public static final int BDBSERVER_NUM_ALLOCIDS_DEFAULT = 1;
 	/** 設定デフォルト : PodのIPアドレス取得からの有効期限(秒)  */
 	public static final int GETPODIP_EXPIRE_SEC_DEFAULT = 300;
 	/** 設定デフォルト : PodのIPアドレス取得シェル コマンドの配置パス */
-	public static final String CMD_PATH_GETPODIP_DEFAULT = "/var/vtecx/sh/kubectl_get_podip.sh";
+	//public static final String CMD_PATH_GETPODIP_DEFAULT = "/var/vtecx/sh/kubectl_get_podip.sh";
 	/** 設定デフォルト : PodのIPアドレス取得シェル コマンド実行結果出力ファイルパス */
-	public static final String GETPODIP_OUT_FILEPATH_DEFAULT = "/var/vtecx/log/podips_bdbserver.txt";
+	//public static final String GETPODIP_OUT_FILEPATH_DEFAULT = "/var/vtecx/log/podips_bdbserver.txt";
 	/** 設定デフォルト : BDBサーバのサーブレットパス */
-	public static final String BDBSERVER_SERVLETPATH_DEFAULT = "/b";
+	//public static final String BDBSERVER_SERVLETPATH_DEFAULT = "/b";
 
 	/** 設定の文字数 : システム管理サービスが使用するManifestサーバのURL 接頭辞 */
 	public static final int BDBREQUEST_URL_SYSTEM_MANIFEST_PREFIX_LEN = BDBREQUEST_URL_SYSTEM_MANIFEST_PREFIX.length();

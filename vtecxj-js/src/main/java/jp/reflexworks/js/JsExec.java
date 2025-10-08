@@ -65,7 +65,7 @@ public class JsExec {
 	/** サーバサイドJS実行タイムアウト時間(秒) デフォルト値 */
 	private static final int JAVASCRIPT_EXECTIMEOUT_DEFAULT = 300;
 	/** バッチジョブのサーバサイドJS実行タイムアウト時間(秒) デフォルト値 */
-	private static final int JAVASCRIPT_BATCHJOBTIMEOUT_DEFAULT = 300;
+	private static final int JAVASCRIPT_BATCHJOBTIMEOUT_DEFAULT = 600;
 	/** ExecutorServiceのデフォルトのプールサイズ デフォルト値 */
 	private static final int JSEXEC_POOLSIZE_DEFAULT = 10;
 	/** シャットダウン時の強制終了待ち時間(秒) デフォルト値 */

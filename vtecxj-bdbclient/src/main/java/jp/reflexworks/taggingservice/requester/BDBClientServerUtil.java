@@ -2,7 +2,6 @@ package jp.reflexworks.taggingservice.requester;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,15 +16,12 @@ import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.bdbclient.BDBClientManager;
-import jp.reflexworks.taggingservice.bdbclient.BDBClientUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.model.RequestParamInfo;
 import jp.reflexworks.taggingservice.requester.BDBClientServerConst.BDBServerType;
 import jp.reflexworks.taggingservice.sys.SystemAuthentication;
-import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
-import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -52,11 +48,13 @@ public class BDBClientServerUtil {
 		// BDBサーバURLはシステム共通
 		String systemService = TaggingEnvUtil.getSystemService();
 		SystemAuthentication systemAuth = new SystemAuthentication(null, null, systemService);
+		/*
 		if (!StringUtils.isBlank(TaggingEnvUtil.getSystemProp(
 				BDBClientServerConst.PROP_DEPLOYMENT_NAME_MNFSERVER, null))) {
 			SystemContext systemContext = new SystemContext(systemAuth, requestInfo, connectionInfo);
 			return getBDBServerUrlFromCmd(bdbServerName, serverType, systemContext);
 		}
+		*/
 		
 		String bdbServerUri = getServerUri(bdbServerName, serverType);
 		RequestParam param = new RequestParamInfo(bdbServerUri, systemService);
@@ -537,6 +535,7 @@ public class BDBClientServerUtil {
 	 * @param systemContext SystemContext
 	 * @return BDBサーバPodのIPアドレスURL
 	 */
+	/*
 	private static String getBDBServerUrlFromCmd(String bdbServerName, BDBServerType serverType,
 			SystemContext systemContext)
 	throws IOException, TaggingException {
@@ -551,6 +550,7 @@ public class BDBClientServerUtil {
 		sb.append(servletPath);
 		return sb.toString();
 	}
+	*/
 
 	/**
 	 * サーバ名から各BDBサーバPodのIPアドレスを取得.
@@ -562,6 +562,7 @@ public class BDBClientServerUtil {
 	 * @param systemContext SystemContext
 	 * @return 指定されたサーバ名のPodのIPアドレス
 	 */
+	/*
 	private static String getPodIp(String bdbServerName, BDBServerType serverType,
 			SystemContext systemContext)
 	throws IOException, TaggingException {
@@ -617,9 +618,10 @@ public class BDBClientServerUtil {
 			sb.append(LogUtil.getElapsedTimeLog(startTime));
 			logger.debug(sb.toString());
 		}
-		// PodのIPアドレスリストを返却
+		// PodのIPアドレスを返却
 		return podIp;
 	}
+	*/
 
 	/**
 	 * PodのIP取得からのデフォルト(秒)を取得
@@ -636,9 +638,11 @@ public class BDBClientServerUtil {
 	 * @param serverName サーバ名
 	 * @return RedisキャッシュへのIPアドレス格納キー
 	 */
+	/*
 	private static String getCacheStringPodipUri(String serverName) {
 		return BDBClientServerConst.CACHESTRING_KEY_PODIP_PREFIX + serverName;
 	}
+	*/
 	
 	/**
 	 * サーバ名からデプロイメント名を取得.
@@ -646,6 +650,7 @@ public class BDBClientServerUtil {
 	 * @param serverType BDBサーバタイプ
 	 * @return デプロイメント名
 	 */
+	/*
 	private static String getDeploymentName(String bdbServerName, BDBServerType serverType) {
 		String serverNo = null;
 		int idx = bdbServerName.indexOf("sv");
@@ -672,5 +677,6 @@ public class BDBClientServerUtil {
 		sb.append(serverNo);
 		return sb.toString();
 	}
+	*/
 
 }
