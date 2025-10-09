@@ -25,6 +25,7 @@ import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.plugin.UserManager;
+import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
 import jp.reflexworks.taggingservice.sys.SystemAuthentication;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.CheckUtil;
@@ -371,6 +372,10 @@ public class ServiceBlogic {
 		if (!TaggingEnvUtil.getSystemService().equals(serviceName)) {
 			throw new IllegalParameterException("Forbidden request to this service.");
 		}
+		// BaaSでない場合処理を抜ける
+		if (!TaggingServiceUtil.isBaaS()) {
+			throw new IllegalParameterException("Invalid request.");
+		}
 		// 認証なしはエラー
 		ReflexAuthentication auth = reflexContext.getAuth();
 		if (auth == null || StringUtils.isBlank(auth.getUid())) {
@@ -406,6 +411,10 @@ public class ServiceBlogic {
 		String serviceName = reflexContext.getServiceName();
 		if (!TaggingEnvUtil.getSystemService().equals(serviceName)) {
 			throw new IllegalParameterException("Forbidden request to this service.");
+		}
+		// BaaSでない場合処理を抜ける
+		if (!TaggingServiceUtil.isBaaS()) {
+			throw new IllegalParameterException("Invalid request.");
 		}
 		// 認証なしはエラー
 		ReflexAuthentication auth = reflexContext.getAuth();

@@ -1544,12 +1544,13 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	/**
 	 * サービス登録時の処理
 	 * @param newServiceName サービス名
+	 * @param serviceStatus サービスステータス (staging/production)
 	 * @param auth 実行ユーザ認証情報
 	 * @param reflexContext システム管理サービスのSystemContext
 	 */
 	@Override
-	public void doCreateService(String newServiceName, ReflexAuthentication auth, 
-			SystemContext systemContext)
+	public void doCreateService(String newServiceName, String serviceStatus,
+			ReflexAuthentication auth, SystemContext systemContext)
 	throws IOException, TaggingException {
 		// システム管理サービスにバケット情報が残っている場合、初期化する。
 		if (logger.isDebugEnabled()) {

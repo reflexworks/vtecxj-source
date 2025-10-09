@@ -37,18 +37,19 @@ public class BDBClientServiceManager {
 	 * データストアのサービス初期設定.
 	 * BDBの接続先エントリーを作成する。
 	 * @param newServiceName 新規サービス名
+	 * @param serviceStatus サービスステータス (staging/production)
 	 * @param auth 認証情報
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	public void createservice(String newServiceName,
+	public void createservice(String newServiceName, String serviceStatus,
 			ReflexAuthentication auth, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		String systemService = auth.getServiceName();
 
 		// システム管理サービスのSystemContextを作成
 		SystemContext systemContext = new SystemContext(systemService, requestInfo, connectionInfo);
-		String serviceStatus = Constants.SERVICE_STATUS_STAGING;
+		//String serviceStatus = Constants.SERVICE_STATUS_STAGING;
 
 		List<EntryBase> postEntries = new ArrayList<>();
 

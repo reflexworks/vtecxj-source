@@ -119,5 +119,17 @@ public class TaggingServiceUtil {
 		}
 		return null;
 	}
+	
+	/**
+	 * BaaSかどうかを返却.
+	 * BaaSの場合、以下が有効になる。
+	 *   1. アクセスカウンタを加算
+	 *   2. サービス登録時、公開区分をstagingとする。
+	 *   3. staging から production またはその逆への切り替え処理を有効にする。
+	 * @return BaaSの場合true
+	 */
+	public static boolean isBaaS() {
+		return TaggingEnvUtil.getSystemPropBoolean(ServiceConst.PROP_ENABLE_BAAS, false);
+	}
 
 }
