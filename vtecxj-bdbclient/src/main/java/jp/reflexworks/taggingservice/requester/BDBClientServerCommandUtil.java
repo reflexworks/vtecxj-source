@@ -1,23 +1,7 @@
 package jp.reflexworks.taggingservice.requester;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import jp.reflexworks.taggingservice.api.RequestInfo;
-import jp.reflexworks.taggingservice.bdbclient.BDBClientUtil;
-import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
-import jp.reflexworks.taggingservice.util.Constants;
-import jp.reflexworks.taggingservice.util.LogUtil;
-import jp.sourceforge.reflex.util.FileUtil;
-import jp.sourceforge.reflex.util.StringUtils;
 
 /**
  * コマンド実行ユーティリティ
@@ -38,6 +22,7 @@ public class BDBClientServerCommandUtil {
 	 * @param requestInfo リクエスト情報
 	 * @return デプロイメント名に対応したPodのIPアドレスリスト
 	 */
+	/*
 	public static List<String> getPodIps(String deploymentName, RequestInfo requestInfo)
 	throws IOException {
 		long startTime = 0;
@@ -275,5 +260,6 @@ public class BDBClientServerCommandUtil {
 			}
 		}
 	}
+	*/
 
 }

@@ -26,11 +26,6 @@
   </properties>
 
   <dependencies>
-    <dependency>
-      <groupId>jp.reflexworks</groupId>
-      <artifactId>vtecxj-redis</artifactId>
-      <version>${vtecxj-redis-version}</version>
-    </dependency>
 
     <dependency>
       <groupId>jp.reflexworks</groupId>

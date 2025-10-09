@@ -96,8 +96,8 @@ public interface ReflexEnvConst {
 	/** 設定デフォルト : システム管理サービスの情報static保存期間(秒) */
 	public static final int STATICINFO_TIMELIMIT_SEC_DEFAULT = 60;
 	/** 設定デフォルト : static情報lock取得リトライ総数 */
-	public static final int STATICINFO_RETRY_COUNT_DEFAULT = 100;
+	public static final int STATICINFO_RETRY_COUNT_DEFAULT = 150;
 	/** 設定デフォルト : static情報lock取得リトライ時のスリープ時間(ミリ秒) */
-	public static final int STATICINFO_RETRY_WAITMILLIS_DEFAULT = 80;
+	public static final int STATICINFO_RETRY_WAITMILLIS_DEFAULT = 20;
 
 }

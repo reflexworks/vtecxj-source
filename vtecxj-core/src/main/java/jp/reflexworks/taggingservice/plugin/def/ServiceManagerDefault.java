@@ -594,21 +594,27 @@ public class ServiceManagerDefault implements ServiceManager {
 					requestInfo, connectionInfo);
 		}
 
+		String serviceStatus = null;
+		if (TaggingServiceUtil.isBaaS()) {
+			serviceStatus = Constants.SERVICE_STATUS_STAGING;
+		} else {
+			serviceStatus = Constants.SERVICE_STATUS_PRODUCTION;
+		}
 		try {
 			// 新しいサービスのデータストア設定
-			createserviceDatastore(newServiceName, auth, systemContext);
+			createserviceDatastore(newServiceName, serviceStatus, auth, systemContext);
 
 			// 新しいサービスの環境にデータ登録
-			createserviceInService(newServiceName, auth, systemContext);
+			createserviceInService(newServiceName, serviceStatus, auth, systemContext);
 
 			// システム管理サービスにデータ登録
-			createserviceInSystem(newServiceName, auth, systemContext);
+			createserviceInSystem(newServiceName, serviceStatus, auth, systemContext);
 			
 			// プラグイン実行
-			createservicePlugin(newServiceName, auth, systemContext);
+			createservicePlugin(newServiceName, serviceStatus, auth, systemContext);
 
 			// システム管理サービスに保持する、サービスステータスを「稼働中」にする。
-			setServiceStatus(entry, Constants.SERVICE_STATUS_STAGING);
+			setServiceStatus(entry, serviceStatus);
 			systemContext.put(entry);
 
 		} catch (IOException | TaggingException | RuntimeException | Error e) {
@@ -625,24 +631,26 @@ public class ServiceManagerDefault implements ServiceManager {
 	/**
 	 * 新しいサービスのデータストア環境設定.
 	 * @param newServiceName サービス名
+	 * @param serviceStatus サービスステータス (staging/production)
 	 * @param auth 実行ユーザ認証情報
 	 * @param reflexContext システム管理サービスのSystemContext
 	 */
-	private void createserviceDatastore(String newServiceName,
+	private void createserviceDatastore(String newServiceName, String serviceStatus,
 			ReflexAuthentication auth, SystemContext reflexContext)
 	throws IOException, TaggingException {
 		DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
-		datastoreManager.createservice(newServiceName, auth, reflexContext.getRequestInfo(),
-				reflexContext.getConnectionInfo());
+		datastoreManager.createservice(newServiceName, serviceStatus, auth, 
+				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
 	}
 
 	/**
 	 * 新しいサービスの環境にデータ登録.
 	 * @param newServiceName サービス名
+	 * @param serviceStatus サービスステータス (staging/production)
 	 * @param auth 実行ユーザ認証情報
 	 * @param reflexContext システム管理サービスのSystemContext
 	 */
-	private void createserviceInService(String newServiceName,
+	private void createserviceInService(String newServiceName, String serviceStatus,
 			ReflexAuthentication auth, SystemContext reflexContext)
 	throws IOException, TaggingException {
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
@@ -684,10 +692,11 @@ public class ServiceManagerDefault implements ServiceManager {
 	/**
 	 * サービス作成時、システム管理サービスへの初期データ登録
 	 * @param newServiceName サービス名
+	 * @param serviceStatus サービスステータス (staging/production)
 	 * @param auth 実行ユーザ認証情報
 	 * @param reflexContext システム管理サービスのSystemContext
 	 */
-	private void createserviceInSystem(String newServiceName,
+	private void createserviceInSystem(String newServiceName, String serviceStatus,
 			ReflexAuthentication auth, SystemContext reflexContext)
 	throws IOException, TaggingException {
 		String systemService = reflexContext.getServiceName();
@@ -719,10 +728,11 @@ public class ServiceManagerDefault implements ServiceManager {
 	/**
 	 * サービス作成時、プラグインの実行
 	 * @param newServiceName サービス名
+	 * @param serviceStatus サービスステータス (staging/production)
 	 * @param auth 実行ユーザ認証情報
 	 * @param reflexContext システム管理サービスのSystemContext
 	 */
-	private void createservicePlugin(String newServiceName,
+	private void createservicePlugin(String newServiceName, String serviceStatus,
 			ReflexAuthentication auth, SystemContext reflexContext)
 	throws IOException, TaggingException {
 		if (logger.isDebugEnabled()) {
@@ -736,7 +746,7 @@ public class ServiceManagerDefault implements ServiceManager {
 				if (logger.isDebugEnabled()) {
 					logger.debug("[createservicePlugin] doCreateService. " + executeAtCreateService.getClass().getName());
 				}
-				executeAtCreateService.doCreateService(newServiceName, auth, reflexContext);
+				executeAtCreateService.doCreateService(newServiceName, serviceStatus, auth, reflexContext);
 			}
 		}
 	}
@@ -1513,6 +1523,10 @@ public class ServiceManagerDefault implements ServiceManager {
 	public void incrementAccessCounter(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		// BaaSでない場合処理を抜ける
+		if (!TaggingServiceUtil.isBaaS()) {
+			return;
+		}
 		// システム管理サービスにてアクセスカウンタをインクリメント
 		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
 				requestInfo, connectionInfo);

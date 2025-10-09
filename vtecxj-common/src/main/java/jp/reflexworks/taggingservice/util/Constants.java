@@ -239,9 +239,6 @@ public interface Constants extends AtomConst {
 	/** リクエストヘッダの値区切り文字 */
 	public static final String HEADER_VALUE_SEPARATOR = ";";
 
-	/** X-Requested-With : バッチ */
-	public static final String BATCH = "batch";
-
 	/** 加算枠の正規表現 */
 	public static final String PATTERN_RANGE_STR =
 			"^(\\-?[0-9]+)(\\-(\\-?[0-9]+)(\\!?))*$";

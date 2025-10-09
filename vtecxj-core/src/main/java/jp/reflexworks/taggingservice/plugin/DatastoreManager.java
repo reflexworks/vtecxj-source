@@ -234,12 +234,13 @@ public interface DatastoreManager extends SettingService {
 	 * サービス作成.
 	 * データストアのサービス初期設定
 	 * @param newServiceName 新規サービス名
+	 * @param serviceStatus サービスステータス (staging/production)
 	 * @param auth 認証情報
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	public void createservice(String newServiceName, ReflexAuthentication auth,
-			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	public void createservice(String newServiceName, String serviceStatu, 
+			ReflexAuthentication auth, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
 
 	/**

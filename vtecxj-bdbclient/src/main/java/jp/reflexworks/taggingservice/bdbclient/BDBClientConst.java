@@ -52,7 +52,7 @@ public interface BDBClientConst {
 	/** 設定デフォルト : BDBリクエストのタイムアウト(ミリ秒) */
 	static final int BDBREQUEST_TIMEOUT_MILLIS_DEFAULT = 60000;
 	/** 設定デフォルト : リトライ総数 */
-	static final int BDBREQUEST_RETRY_COUNT_DEFAULT = 2;
+	static final int BDBREQUEST_RETRY_COUNT_DEFAULT = 3;
 	/** 設定デフォルト : リトライ時のスリープ時間(ミリ秒) */
 	static final int BDBREQUEST_RETRY_WAITMILLIS_DEFAULT = 80;
 	/** 設定デフォルト : 初期起動時のリトライ総数 */
@@ -60,9 +60,9 @@ public interface BDBClientConst {
 	/** 設定デフォルト : 初期起動時のリトライ時のスリープ時間(ミリ秒) */
 	static final int BDBREQUEST_INIT_RETRY_WAITMILLIS_DEFAULT = 30000;
 	/** 設定デフォルト : 一括更新リトライ総数 */
-	static final int BULKPUT_RETRY_COUNT_DEFAULT = 10;
+	static final int BULKPUT_RETRY_COUNT_DEFAULT = 30;
 	/** 設定デフォルト : 一括更新リトライ時のスリープ時間(ミリ秒) */
-	static final int BULKPUT_RETRY_WAITMILLIS_DEFAULT = 350;
+	static final int BULKPUT_RETRY_WAITMILLIS_DEFAULT = 250;
 	/** 設定デフォルト : 一括更新非同期処理終了待ち(ミリ秒) */
 	static final int BULKPUT_SYNC_WAITMILLIS_DEFAULT = 20;
 	/** 設定デフォルト : BDBサーバEntry取得数 */

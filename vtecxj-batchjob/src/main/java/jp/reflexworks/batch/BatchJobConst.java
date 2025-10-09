@@ -43,11 +43,11 @@ public interface BatchJobConst {
 	public static final String PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS = "_batchjobexec.request.timeout.millis";
 
 	/** バッチジョブの実行間隔(分) デフォルト値 */
-	public static final int BATCHJOB_EXEC_INTERVAL_MINUTE_DEFAULT = 1;
+	public static final int BATCHJOB_EXEC_INTERVAL_MINUTE_DEFAULT = 5;
 	/** 起動時のバッチジョブの実行間隔(秒) デフォルト値 */
 	public static final int BATCHJOB_EXEC_INIT_INTERVAL_SEC_DEFAULT = 0;
 	/** バッチジョブの実行間隔追加時間(秒) デフォルト値 */
-	public static final int BATCHJOB_EXEC_ADDITIONAL_SEC_DEFAULT = 90;
+	public static final int BATCHJOB_EXEC_ADDITIONAL_SEC_DEFAULT = 150;
 	/** シャットダウン時の強制終了待ち時間(秒) デフォルト値 */
 	public static final int TASKQUEUE_AWAITTERMINATION_SEC_DEFAULT = 60;
 	/** バッチジョブサーバへのリクエストタイムアウト時間(ミリ秒) デフォルト値 */
