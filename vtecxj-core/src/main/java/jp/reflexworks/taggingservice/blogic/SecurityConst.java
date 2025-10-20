@@ -34,4 +34,7 @@ public interface SecurityConst {
 	/** キャプチャチェックアクション: ユーザ登録 */
 	public static final String CAPTCHA_ACTION_ADDUSER = "adduser";
 
+	/** localhost */
+	public static final String LOCALHOST_PREFIX = "localhost:";
+
 }

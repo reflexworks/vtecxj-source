@@ -110,6 +110,12 @@ public class ServiceManagerDefaultSetting {
 	 * プロパティに設定された「サーバ名からコンテキストパスまで」の値をstatic領域に格納.
 	 */
 	private void setServerContextpath() {
+		String serverType = TaggingEnvUtil.getSystemProp(TaggingEnvConst.REFLEX_SERVERTYPE, null);
+		if (!Constants.SERVERTYPE_AP.equals(serverType) &&
+				!Constants.SERVERTYPE_BATCHJOB.equals(serverType) &&
+				!Constants.SERVERTYPE_MEMORYSORT.equals(serverType)) {
+			return;
+		}
 		// URLのサーバ名・コンテキストパス設定を取得。
 		String reflexServerContextpath = TaggingEnvUtil.getSystemProp(
 				TaggingEnvConst.REFLEX_SERVERCONTEXTPATH, null);

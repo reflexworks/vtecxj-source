@@ -19,6 +19,7 @@ import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.api.SettingConst;
+import jp.reflexworks.taggingservice.blogic.SecurityConst;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
@@ -45,8 +46,6 @@ public class ReflexSecurityManagerDefault implements ReflexSecurityManager {
 	private static final int MIN_SEC = 60;
 	/** 追加時間(秒) : 5分. */
 	private static final int MARGIN_SEC = 300;
-	/** localhost */
-	private static final String LOCALHOST_PREFIX = "localhost:";
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -146,7 +145,7 @@ public class ReflexSecurityManagerDefault implements ReflexSecurityManager {
 				return;
 			}
 			// テスト環境(localhost)は処理を抜ける。
-			if (host.startsWith(LOCALHOST_PREFIX)) {
+			if (host.startsWith(SecurityConst.LOCALHOST_PREFIX)) {
 				return;
 			}
 		}

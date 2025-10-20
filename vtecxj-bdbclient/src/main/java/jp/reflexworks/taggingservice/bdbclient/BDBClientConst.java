@@ -52,7 +52,7 @@ public interface BDBClientConst {
 	/** 設定デフォルト : BDBリクエストのタイムアウト(ミリ秒) */
 	static final int BDBREQUEST_TIMEOUT_MILLIS_DEFAULT = 60000;
 	/** 設定デフォルト : リトライ総数 */
-	static final int BDBREQUEST_RETRY_COUNT_DEFAULT = 3;
+	static final int BDBREQUEST_RETRY_COUNT_DEFAULT = 5;
 	/** 設定デフォルト : リトライ時のスリープ時間(ミリ秒) */
 	static final int BDBREQUEST_RETRY_WAITMILLIS_DEFAULT = 80;
 	/** 設定デフォルト : 初期起動時のリトライ総数 */

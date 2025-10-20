@@ -252,12 +252,6 @@ public interface Constants extends AtomConst {
 
 	/** サーバタイプ : AP */
 	public static final String SERVERTYPE_AP = "ap";
-	/** サーバタイプ : BDB */
-	public static final String SERVERTYPE_BDB = "bdb";
-	/** サーバタイプ : インデックス */
-	public static final String SERVERTYPE_INDEX = "index";
-	/** サーバタイプ : 全文検索インデックス */
-	public static final String SERVERTYPE_FULLTEXTSEARCH = "fulltextsearch";
 	/** サーバタイプ : メモリソート */
 	public static final String SERVERTYPE_MEMORYSORT = "memorysort";
 	/** サーバタイプ : バッチジョブ */

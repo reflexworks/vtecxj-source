@@ -1,0 +1,67 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>jp.reflexworks</groupId>
+  <artifactId>vtecxj-init</artifactId>
+  <version>9.0.0</version>
+  <packaging>jar</packaging>
+
+  <description>vte.cx initial processing</description>
+  <name>vte.cx batch</name>
+
+  <organization>
+    <name>Virtual Technology</name>
+    <url>http://www.virtual-tech.net/</url>
+  </organization>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <basedir>.</basedir>
+    <vtecxj-bdbclient-version>9.0.0</vtecxj-bdbclient-version>
+    <vtecxj-redis-version>9.0.0</vtecxj-redis-version>
+    <vtecxj-authenticator-version>9.0.0</vtecxj-authenticator-version>
+    <vtecxj-secret-version>9.0.0</vtecxj-secret-version>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>jp.reflexworks</groupId>
+      <artifactId>vtecxj-redis</artifactId>
+      <version>${vtecxj-redis-version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jp.reflexworks</groupId>
+      <artifactId>vtecxj-bdbclient</artifactId>
+      <version>${vtecxj-bdbclient-version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jp.reflexworks</groupId>
+      <artifactId>vtecxj-authenticator</artifactId>
+      <version>${vtecxj-authenticator-version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jp.reflexworks</groupId>
+      <artifactId>vtecxj-secret</artifactId>
+      <version>${vtecxj-secret-version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-core</artifactId>
+      <version>1.5.18</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.5.18</version>
+    </dependency>
+
+  </dependencies>
+</project>
