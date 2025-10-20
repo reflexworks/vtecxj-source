@@ -79,7 +79,7 @@ public abstract class ReflexResourceMapperManager implements ResourceMapperManag
 
 		// secretKeyをstatic領域に格納
 		try {
-			ReflexStatic.setStatic(STATIC_NAME_MAPPER_SECRETKEY, secretKey);
+			ReflexStatic.setStatic(STATIC_NAME_MAPPER_SECRETKEY, StringUtils.null2blank(secretKey));
 		} catch (StaticDuplicatedException e) {
 			logger.warn("[init] StaticDuplicatedException: " + STATIC_NAME_MAPPER_SECRETKEY, e);
 		}

@@ -32,6 +32,7 @@ import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.auth.AuthenticationConst;
+import jp.reflexworks.taggingservice.blogic.SecurityConst;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.env.StaticInfoUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvConst;
@@ -466,15 +467,23 @@ public class ServiceManagerDefault implements ServiceManager {
 	public String getRedirectUrlContextPath(String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
-		// サービスステータスからプロトコルを取得
-		String protocol = getProtocolByService(serviceName, requestInfo,
-				connectionInfo);
+		// ホスト名+コンテキストパスを取得
+		String serviceServerContextpath = getServiceServerContextpath(serviceName);
+		
+		String protocol = null;
+		if (serviceServerContextpath != null && 
+				serviceServerContextpath.startsWith(SecurityConst.LOCALHOST_PREFIX)) {
+			// localhostの場合、プロトコルをhttpにする。
+			protocol = ReflexServletConst.SCHEMA_HTTP;
+		} else {
+			// サービスステータスからプロトコルを取得
+			protocol = getProtocolByService(serviceName, requestInfo,
+					connectionInfo);
+		}
 
 		StringBuilder sb = new StringBuilder();
 		sb.append(protocol);
 		sb.append("://");
-
-		String serviceServerContextpath = getServiceServerContextpath(serviceName);
 		sb.append(serviceServerContextpath);
 
 		return sb.toString();
@@ -1366,16 +1375,24 @@ public class ServiceManagerDefault implements ServiceManager {
 		String scheme = req.getScheme();
 		if (Constants.SERVICE_STATUS_PRODUCTION.equals(serviceStatus)) {
 			// productionにおいて、https以外でアクセスしてきた場合
-			if (!ReflexServletConst.SCHEMA_HTTPS.equals(scheme)) {
-				if (ReflexServletConst.GET.equalsIgnoreCase(req.getMethod())) {
-					// GETメソッドであればhttpsに強制的にリダイレクトする。
-					String location = getHttpsUrl(req);
-					resp.sendRedirect(location);
-					return false;
-
-				} else {
-					// その他のメソッドであればステータス405(Method Not Allowed)を返す。
-					throw new MethodNotAllowedException("Not Accepted. " + serviceName);
+			
+			// テスト環境(localhost)は処理を抜ける。
+			String host = req.getHeader(ReflexServletConst.HEADER_HOST);
+			if (host != null && host.startsWith(SecurityConst.LOCALHOST_PREFIX)) {
+				// Do nothing.
+			} else {
+				if (!ReflexServletConst.SCHEMA_HTTPS.equals(scheme)) {
+					// httpsリクエストでない場合
+					if (ReflexServletConst.GET.equalsIgnoreCase(req.getMethod())) {
+						// GETメソッドであればhttpsに強制的にリダイレクトする。
+						String location = getHttpsUrl(req);
+						resp.sendRedirect(location);
+						return false;
+	
+					} else {
+						// その他のメソッドであればステータス405(Method Not Allowed)を返す。
+						throw new MethodNotAllowedException("Not Accepted. " + serviceName);
+					}
 				}
 			}
 

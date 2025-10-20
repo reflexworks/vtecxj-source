@@ -241,7 +241,7 @@ public class BDBRequesterUtil {
 		if (in == null) {
 			return null;
 		}
-		if (contentType.startsWith(ReflexServletConst.CONTENT_TYPE_TEXT)) {
+		if (contentType != null && contentType.startsWith(ReflexServletConst.CONTENT_TYPE_TEXT)) {
 			return getTextFeed(urlStr, in, serviceName);
 		} else if (isFeed) {
 			return getFeed(urlStr, in, contentType, serviceName);
