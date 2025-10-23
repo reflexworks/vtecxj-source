@@ -25,12 +25,6 @@ function restart() {
 
 cnt=0
 
-#echo '** gcloud認証'
-gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file $CLASSES_DIR/$SERVICE_ACCOUNT_JSON --project $GCP_PROJECT_ID --quiet
-
-#echo '** kubectlが使用できるようにする。'
-./setup-config-auth.sh
-
 #echo '** Dockerイメージ一覧を取得'
 gcloud container images list-tags asia-northeast1-docker.pkg.dev/$GCP_PROJECT_ID/$ARTIFACTS_REPOSITORY/$GIT_PROJECT-$GIT_BRANCH | while read digest tags timestamp
 do

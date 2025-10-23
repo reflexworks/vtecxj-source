@@ -13,20 +13,12 @@ function getProperty() {
 }
 
 STAGE=`getProperty '_env.stage'`
-PROJECT_ID=`getProperty '_gcp.projectid'`
 
 # $1 システム日時
 DATETIME=$1
 
 # バケットへのURL
 URL_BUCKET='gs://'$BUCKET_NAME
-
-# gcloud認証
-gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file $CLASSES_DIR/$SERVICE_ACCOUNT_JSON --project $PROJECT_ID --quiet
-
-# kubectlが使用できるようにする。
-source ./settings.txt
-./setup-config-auth.sh
 
 #echo '[exec_bdb_backup] start. datetime='$DATETIME
 

@@ -59,10 +59,6 @@ public class ReflexSecretManager implements SecretManager {
 
 		String retValue = null;
 		
-		if (StringUtils.isBlank(secretFilename)) {
-			logger.warn("[getSecretKey] No secret filename setting.");
-			return retValue;
-		}
 		if (StringUtils.isBlank(projectId)) {
 			logger.warn("[getSecretKey] No project id setting.");
 			return retValue;
@@ -81,14 +77,18 @@ public class ReflexSecretManager implements SecretManager {
 		if (logger.isTraceEnabled()) {
 			logger.info("[getSecretKey] jsonPath = " + jsonPath);
 		}
-		Credentials credentials = null;
-		if (!StringUtils.isBlank(jsonPath)) {
-			 credentials = getCredentials(jsonPath);
-		}
+		
+		SecretManagerServiceSettings.Builder clientSettingsBuilder = null;
+		if (StringUtils.isBlank(jsonPath)) {
+			// デフォルト設定
+			clientSettingsBuilder = SecretManagerServiceSettings.newBuilder();
 
-		SecretManagerServiceSettings.Builder clientSettingsBuilder = 
-				SecretManagerServiceSettings.newBuilder()
-				.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
+		} else {
+			// サービスアカウントJSON鍵
+			Credentials credentials = getCredentials(jsonPath);
+			clientSettingsBuilder = SecretManagerServiceSettings.newBuilder()
+					.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
+		}
 
 		SecretManagerServiceSettings settings = clientSettingsBuilder.build();
 

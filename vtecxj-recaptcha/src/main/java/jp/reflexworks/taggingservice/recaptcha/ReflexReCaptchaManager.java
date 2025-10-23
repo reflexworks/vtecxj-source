@@ -338,23 +338,31 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 	private RecaptchaEnterpriseServiceSettings getRecaptchaEnterpriseServiceSettings(
 			ReCaptchaInfo reCaptchaInfo)
 	throws IOException, TaggingException {
-		// json秘密鍵を読み込む
-		InputStream jsonFile = null;
-		try {
-			jsonFile = new ByteArrayInputStream(reCaptchaInfo.getSecret());
+		RecaptchaEnterpriseServiceSettings recaptchaEnterpriseServiceSettings = null;
+		if (reCaptchaInfo.getSecret() == null) {
+			// デフォルト設定
+			recaptchaEnterpriseServiceSettings =
+					RecaptchaEnterpriseServiceSettings.newBuilder().build();
+			
+		} else {
+			// json秘密鍵を読み込む
+			InputStream jsonFile = null;
+			try {
+				jsonFile = new ByteArrayInputStream(reCaptchaInfo.getSecret());
 
-			GoogleCredentials credentials = GoogleCredentials.fromStream(jsonFile);
-			RecaptchaEnterpriseServiceSettings recaptchaEnterpriseServiceSettings =
-				RecaptchaEnterpriseServiceSettings.newBuilder()
-				    .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
-				    .build();
-			return recaptchaEnterpriseServiceSettings;
+				GoogleCredentials credentials = GoogleCredentials.fromStream(jsonFile);
+				recaptchaEnterpriseServiceSettings =
+					RecaptchaEnterpriseServiceSettings.newBuilder()
+					    .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+					    .build();
 
-		} finally {
-			if (jsonFile != null) {
-				jsonFile.close();
+			} finally {
+				if (jsonFile != null) {
+					jsonFile.close();
+				}
 			}
 		}
+		return recaptchaEnterpriseServiceSettings;
 	}
 
 	/**
@@ -384,7 +392,8 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 		// プロジェクトIDを取得
 		String projectId = getReCaptchaProjectId(serviceName);
 		
-		if (secret != null && secret.length > 0 && !StringUtils.isBlank(projectId)) {
+		//if (secret != null && secret.length > 0 && !StringUtils.isBlank(projectId)) {
+		if (!StringUtils.isBlank(projectId)) {
 			return new ReCaptchaInfo(projectId, secret);
 		}
 

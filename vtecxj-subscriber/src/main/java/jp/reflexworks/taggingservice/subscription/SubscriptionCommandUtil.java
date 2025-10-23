@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.util.Constants;
-import jp.sourceforge.reflex.util.FileUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -21,11 +20,11 @@ public class SubscriptionCommandUtil {
 	/** 設定 : Podの削除シェル コマンドの配置パス */
 	private static final String PROP_CMD_PATH_PODDEL = "_cmd.path.poddel";
 	/** 設定 : サービスアカウントJSONファイル名 */
-	private static final String PROP_KUBECTL_FILE_SECRET = "_kubectl.file.secret";
+	//private static final String PROP_KUBECTL_FILE_SECRET = "_kubectl.file.secret";
 	/** 設定 : サービスアカウント名 */
-	private static final String PROP_KUBECTL_SERVICEACCOUNT = "_kubectl.serviceaccount";
+	//private static final String PROP_KUBECTL_SERVICEACCOUNT = "_kubectl.serviceaccount";
 	/** 設定 : プロジェクトID */
-	private static final String PROP_GCP_PROJECTID = "_gcp.projectid";
+	//private static final String PROP_GCP_PROJECTID = "_gcp.projectid";
 
 	/** Podの削除シェル コマンドの配置パス デフォルト値 */
 	private static final String CMD_PATH_PODDEL_DEFAULT = "/var/vtecx/sh/kubectl_delete_pod.sh";
@@ -44,24 +43,26 @@ public class SubscriptionCommandUtil {
 		String cmdPath = TaggingEnvUtil.getSystemProp(PROP_CMD_PATH_PODDEL,
 				CMD_PATH_PODDEL_DEFAULT);
 		// サービスアカウント
-		String kubectlServiceAccount = TaggingEnvUtil.getSystemProp(PROP_KUBECTL_SERVICEACCOUNT,
-				null);
-		String kubectlJsonFilename = TaggingEnvUtil.getSystemProp(PROP_KUBECTL_FILE_SECRET,
-				null);
-		String kubectlJsonPath = null;
-		if (!StringUtils.isBlank(kubectlServiceAccount) &&
-				!StringUtils.isBlank(kubectlJsonFilename)) {
-			kubectlJsonPath = FileUtil.getResourceFilename(kubectlJsonFilename);
-		}
-		String projectId = TaggingEnvUtil.getSystemProp(PROP_GCP_PROJECTID, null);
+		//String kubectlServiceAccount = TaggingEnvUtil.getSystemProp(PROP_KUBECTL_SERVICEACCOUNT,
+		//		null);
+		//String kubectlJsonFilename = TaggingEnvUtil.getSystemProp(PROP_KUBECTL_FILE_SECRET,
+		//		null);
+		//String kubectlJsonPath = null;
+		//if (!StringUtils.isBlank(kubectlServiceAccount) &&
+		//		!StringUtils.isBlank(kubectlJsonFilename)) {
+		//	kubectlJsonPath = FileUtil.getResourceFilename(kubectlJsonFilename);
+		//}
+		//String projectId = TaggingEnvUtil.getSystemProp(PROP_GCP_PROJECTID, null);
 
 		// $1 : Pod名
 		// $2 : サービスアカウント名
 		// $3 : サービスアカウント秘密鍵 (フルパス)
 		// $4 : プロジェクトID
+		//String[] command = {cmdPath, podName,
+		//		kubectlServiceAccount, kubectlJsonPath, projectId}; // 起動コマンドを指定する
 
-		String[] command = {cmdPath, podName,
-				kubectlServiceAccount, kubectlJsonPath, projectId}; // 起動コマンドを指定する
+		// $1 : Pod名
+		String[] command = {cmdPath, podName}; // 起動コマンドを指定する
 
 		Runtime runtime = Runtime.getRuntime(); // ランタイムオブジェクトを取得する
 		BufferedReader br = null;

@@ -93,7 +93,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 			sb.append(CloudStorageConst.ENV_STAGE);
 			sb.append("=");
 			sb.append(stage);
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 		storageEnv.setBucketPrefix(prefix);
 
@@ -202,7 +202,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		ConnectionInfo connectionInfo = reflexContext.getConnectionInfo();
 		ReflexAuthentication auth = reflexContext.getAuth();
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[upload] start. uri = " + uri);
 		}
 
@@ -246,7 +246,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		ReflexAuthentication auth = systemContext.getAuth();
 		String namespace = systemContext.getNamespace();
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[uploadProc] start. uri = " + uri);
 		}
 
@@ -266,7 +266,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 				sb.append(uri);
 				sb.append(" entry.id = ");
 				sb.append(entry.id);
-				logger.debug(sb.toString());
+				logger.info(sb.toString());
 			}
 			entry = systemContext.put(entry);
 		}
@@ -384,7 +384,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		String namespace = reflexContext.getNamespace();
 		String uri = entry.getMyUri();
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[download] start. uri = " + uri);
 		}
 
@@ -435,7 +435,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		String serviceName = auth.getServiceName();
 		String uri = entry.getMyUri();
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[downloadFromStorage] start. uri = " + entry.getMyUri());
 		}
 
@@ -444,7 +444,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 				requestInfo, connectionInfo);
 		// バケット名が取得できない場合は、このサービスのバケットが存在しない。
 		if (bucket == null) {
-			if (isEnableAccessLogInfo()) {
+			if (isEnableAccessLog()) {
 				logger.info("[download] bucket is null.");
 			}
 			return null;
@@ -470,13 +470,13 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 				CloudStorageBlob blob = storage.get(blobid);
 				if (blob != null) {
 					if (isEnableAccessLog()) {
-						logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 								"[download] blob was successfully obtained. uri = " + uri);
 					}
 					cloudStorageInfo = new CloudStorageInfo(uri, blob, entry);
 				} else {
 					if (isEnableAccessLog()) {
-						logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 								"[download] blob is null. uri = " + uri);
 					}
 				}
@@ -508,7 +508,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		ConnectionInfo connectionInfo = reflexContext.getConnectionInfo();
 		String namespace = reflexContext.getNamespace();
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[delete] start. uri = " + uri);
 		}
 		// ACLはD(削除)があれば処理可のため(前処理でチェック済み)、検索等はSystemContextで行う。
@@ -550,7 +550,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 				connectionInfo);
 		// バケット名が取得できない場合は、このサービスのバケットが存在しない。
 		if (bucket == null) {
-			if (isEnableAccessLogInfo()) {
+			if (isEnableAccessLog()) {
 				logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 						"[delete] bucket is null.");
 			}
@@ -729,7 +729,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
 			sb.append("[checkBucketConnection] bucketName=");
 			sb.append(bucketName);
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 		if (!StringUtils.isBlank(bucketName)) {
 			// 接続確認
@@ -840,7 +840,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 			sb.append(serviceName);
 			sb.append(", isCreate=");
 			sb.append(isCreate);
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 		// データストアからバケット名を取得
 		String systemService = TaggingEnvUtil.getSystemService();
@@ -1369,15 +1369,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	 * @return ストレージへのアクセスログを出力する場合true
 	 */
 	private boolean isEnableAccessLog() {
-		return CloudStorageUtil.isEnableAccessLog() && logger.isDebugEnabled();
-	}
-	
-	/**
-	 * ストレージへのアクセスログを出力するかどうかを取得.
-	 * @return ストレージへのアクセスログを出力する場合true
-	 */
-	private boolean isEnableAccessLogInfo() {
-		return CloudStorageUtil.isEnableAccessLog() && logger.isInfoEnabled();
+		return CloudStorageUtil.isEnableAccessLog();
 	}
 	
 	/**

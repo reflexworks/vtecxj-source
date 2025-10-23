@@ -87,7 +87,7 @@ public class CloudStorageBySize {
 		String serviceName = systemContext.getServiceName();
 		RequestInfo requestInfo = systemContext.getRequestInfo();
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[uploadBySize] start. uri = " + uri);
 		}
 		
@@ -97,8 +97,8 @@ public class CloudStorageBySize {
 		Map<String, String> props = TaggingEnvUtil.getPropMap(serviceName, 
 				CloudStorageSettingConst.CONTENT_BYSIZE_PREFIX);
 		if (props == null || props.isEmpty()) {
-			if (logger.isDebugEnabled()) {
-				logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+			if (isEnableAccessLog()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 						"[uploadBySize] property setting is not exist.");
 			}
 			return;
@@ -181,7 +181,7 @@ public class CloudStorageBySize {
 	 * @return ストレージへのアクセスログを出力する場合true
 	 */
 	private boolean isEnableAccessLog() {
-		return CloudStorageUtil.isEnableAccessLog() && logger.isDebugEnabled();
+		return CloudStorageUtil.isEnableAccessLog();
 	}
 	
 	/**

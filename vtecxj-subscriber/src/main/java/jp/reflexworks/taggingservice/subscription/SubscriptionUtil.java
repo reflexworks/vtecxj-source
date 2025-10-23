@@ -344,11 +344,12 @@ public class SubscriptionUtil {
 						logger.debug(sb.toString());
 					}
 
-					if (StringUtils.isBlank(serviceAccount)) {
-						return false;
-					}
-
-					if (!serviceAccount.equals(email)) {
+					// プロパティに指定がない場合は一致チェックを行わない
+					//if (StringUtils.isBlank(serviceAccount)) {
+					//	return false;
+					//}
+					
+					if (!StringUtils.isBlank(serviceAccount) && !serviceAccount.equals(email)) {
 						return false;
 					}
 

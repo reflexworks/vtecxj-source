@@ -51,12 +51,12 @@ public class CloudStorage {
 		try {
 			if (secret == null) {
 				if (CloudStorageUtil.isEnableAccessLog()) {
-					logger.debug("[getStorage] secret is not used.");
+					logger.info("[getStorage] secret is not used.");
 				}
 				storageOptions = StorageOptions.getDefaultInstance();
 			} else {
 				if (CloudStorageUtil.isEnableAccessLog()) {
-					logger.debug("[getStorage] secret is used.");
+					logger.info("[getStorage] secret is used.");
 				}
 				ByteArrayInputStream bin = new ByteArrayInputStream(secret);
 				GoogleCredentials credentials = GoogleCredentials.fromStream(bin);
@@ -65,19 +65,19 @@ public class CloudStorage {
 			String command = "getStorage";
 			long startTime = 0;
 			if (CloudStorageUtil.isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getStartLog(command));
+				logger.info(CloudStorageUtil.getStartLog(command));
 				startTime = new Date().getTime();
 			}
 			Storage storage = storageOptions.getService();
 			if (CloudStorageUtil.isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getEndLog(command, startTime));
+				logger.info(CloudStorageUtil.getEndLog(command, startTime));
 				startTime = new Date().getTime();
 			}
 			return new CloudStorage(storage);
 
 		} catch (StorageException e) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("[getStorage] StorageException", e);
+			if (logger.isInfoEnabled()) {
+				logger.info("[getStorage] StorageException", e);
 			}
 			throw CloudStorageUtil.convertException(e);
 		}
@@ -94,12 +94,12 @@ public class CloudStorage {
 			String command = "create";
 			long startTime = 0;
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getStartLog(command, bucketInfo));
+				logger.info(CloudStorageUtil.getStartLog(command, bucketInfo));
 				startTime = new Date().getTime();
 			}
 			Bucket ret = storage.create(bucketInfo);
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getEndLog(command, bucketInfo, startTime));
+				logger.info(CloudStorageUtil.getEndLog(command, bucketInfo, startTime));
 				startTime = new Date().getTime();
 			}
 			return new CloudStorageBucket(ret);
@@ -120,12 +120,12 @@ public class CloudStorage {
 			String command = "create";
 			long startTime = 0;
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getStartLog(command, blobInfo));
+				logger.info(CloudStorageUtil.getStartLog(command, blobInfo));
 				startTime = new Date().getTime();
 			}
 			Blob ret = storage.create(blobInfo, data);
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getEndLog(command, blobInfo, startTime));
+				logger.info(CloudStorageUtil.getEndLog(command, blobInfo, startTime));
 				startTime = new Date().getTime();
 			}
 			return new CloudStorageBlob(ret);
@@ -144,12 +144,12 @@ public class CloudStorage {
 			String command = "get";
 			long startTime = 0;
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getStartLog(command, blobId));
+				logger.info(CloudStorageUtil.getStartLog(command, blobId));
 				startTime = new Date().getTime();
 			}
 			Blob ret = storage.get(blobId);
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getEndLog(command, blobId, startTime));
+				logger.info(CloudStorageUtil.getEndLog(command, blobId, startTime));
 				startTime = new Date().getTime();
 			}
 			return new CloudStorageBlob(ret);
@@ -168,12 +168,12 @@ public class CloudStorage {
 			String command = "delete";
 			long startTime = 0;
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getStartLog(command, blobId));
+				logger.info(CloudStorageUtil.getStartLog(command, blobId));
 				startTime = new Date().getTime();
 			}
 			boolean ret = storage.delete(blobId);
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getEndLog(command, blobId, startTime));
+				logger.info(CloudStorageUtil.getEndLog(command, blobId, startTime));
 				startTime = new Date().getTime();
 			}
 			return ret;
@@ -197,12 +197,12 @@ public class CloudStorage {
 			BlobId blobId = blobInfo.getBlobId();
 			long startTime = 0;
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getStartLog(command, blobId));
+				logger.info(CloudStorageUtil.getStartLog(command, blobId));
 				startTime = new Date().getTime();
 			}
 			URL ret = storage.signUrl(blobInfo, duration, unit, options);
 			if (isEnableAccessLog()) {
-				logger.debug(CloudStorageUtil.getEndLog(command, blobId, startTime));
+				logger.info(CloudStorageUtil.getEndLog(command, blobId, startTime));
 				startTime = new Date().getTime();
 			}
 			return ret;
@@ -246,7 +246,7 @@ public class CloudStorage {
 	 * @return ストレージのアクセスログを出力する場合true;
 	 */
 	private boolean isEnableAccessLog() {
-		return CloudStorageUtil.isEnableAccessLog() && logger.isDebugEnabled();
+		return CloudStorageUtil.isEnableAccessLog();
 	}
 
 }

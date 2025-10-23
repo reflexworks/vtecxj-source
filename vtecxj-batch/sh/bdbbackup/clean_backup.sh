@@ -13,7 +13,7 @@ function getProperty() {
 }
 
 STAGE=`getProperty '_env.stage'`
-PROJECT_ID=`getProperty '_gcp.projectid'`
+#PROJECT_ID=`getProperty '_gcp.projectid'`
 
 # $1: BDBサーバ名
 # $2: システム日時（これ以前の日時が削除対象）
@@ -28,9 +28,6 @@ BACKUP_DIR=$3
 # のBDBサーバ名まで
 GS_BACKUP_URL='gs://'$BUCKET_NAME$BACKUP_DIR'/'$STAGE'/'$BDBSERVER'/'
 DATE_URL=$GS_BACKUP_URL$DATETIME'/'
-
-# gcloud認証
-gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file $CLASSES_DIR/$SERVICE_ACCOUNT_JSON --project $PROJECT_ID --quiet
 
 # クリーンアップ
 # Storageからバックアップ一覧フォルダを取得

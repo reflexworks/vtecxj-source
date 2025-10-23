@@ -54,18 +54,20 @@
         </exclusion>
       </exclusions>
     </dependency>
-    
-    <!--
-		以下のjarはtargetがtestだが、実行環境に必要。
-		* grpc-protobuf-lite-<version>.jar
-        * perfmark-api-<version>.jar
-	-->
+ 
+    <!-- 以下はコンパイル時には不要だが、実行環境に必要 -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf-lite</artifactId>
+      <scope>runtime</scope>
+      <!-- version は libraries-bom に任せるので指定しない -->
+    </dependency>
 
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.13.2</version>
-      <scope>test</scope>
+      <groupId>io.perfmark</groupId>
+      <artifactId>perfmark-api</artifactId>
+      <version>0.27.0</version> <!-- BOM外なので明示 -->
+      <scope>runtime</scope>
     </dependency>
 
   </dependencies>
