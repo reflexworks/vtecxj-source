@@ -27,10 +27,10 @@ function getProperty() {
 }
 
 STAGE=`getProperty '_env.stage'`
-PROJECT_ID=`getProperty '_gcp.projectid'`
+#PROJECT_ID=`getProperty '_gcp.projectid'`
 GCLOUD_DIR=`getProperty '_gcloud.dir'`
-SERVICE_ACCOUNT=`getProperty '_storage.service.account'`
-JSON_KEY=$CLASSES_DIR/`getProperty '_storage.file.secret'`
+#SERVICE_ACCOUNT=`getProperty '_storage.service.account'`
+#JSON_KEY=$CLASSES_DIR/`getProperty '_storage.file.secret'`
 BDB_HOME=`getProperty '_bdb.dir'`
 
 # BDBログファイルディレクトリ : {_bdb.dir}/{stage}/{namespace}
@@ -41,7 +41,7 @@ echo '[bdb_backup] BDB_DIR='$BDB_DIR' -> STORAGE_URL='$STORAGE_URL
 # gcloud認証
 # --quiet オプションを付けているが、各BDBサーバではなぜか標準エラー出力にメッセージが出力されるためログに結果が出力されてしまう。
 #   → エラーの場合にログ出力されないと調査できないのでこのままとする。
-$GCLOUD_DIR/gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file $JSON_KEY --project $PROJECT_ID --quiet
+#$GCLOUD_DIR/gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file $JSON_KEY --project $PROJECT_ID --quiet
 
 # バックアップ
 $GCLOUD_DIR/gsutil -m -q cp -r $BDB_DIR $STORAGE_URL

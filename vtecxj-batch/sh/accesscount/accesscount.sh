@@ -9,11 +9,6 @@ source ./accesscount_settings.txt
 # アクセスカウンタ集計クラス(java)
 ACCESSCOUNT_CLASS="jp.reflexworks.batch.AccessCountApp"
 
-#echo 'CLASSPATH='$CLASSPATH
-
-# サービスアカウントを有効にする
-gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file $CLASSES_DIR/$SERVICE_ACCOUNT_JSON --project $GCP_PROJECT_ID --quiet
-
 # アクセスカウンタ集計、ストレージ容量取得
 echo '[accesscount] 開始'
 java -cp $CLASSPATH $JAVA_OPTIONS $ACCESSCOUNT_CLASS $GSUTIL_DIR

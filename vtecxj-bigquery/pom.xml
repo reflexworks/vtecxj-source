@@ -66,5 +66,20 @@
       </exclusions>
     </dependency>
 
+    <!-- 以下はコンパイル時には不要だが、実行環境に必要 -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf-lite</artifactId>
+      <scope>runtime</scope>
+      <!-- version は libraries-bom に任せるので指定しない -->
+    </dependency>
+
+    <dependency>
+      <groupId>io.perfmark</groupId>
+      <artifactId>perfmark-api</artifactId>
+      <version>0.27.0</version> <!-- BOM外なので明示 -->
+      <scope>runtime</scope>
+    </dependency>
+
   </dependencies>
 </project>

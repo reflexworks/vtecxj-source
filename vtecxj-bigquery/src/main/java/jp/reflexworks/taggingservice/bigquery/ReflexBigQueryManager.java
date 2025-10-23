@@ -54,6 +54,7 @@ import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
 import jp.reflexworks.taggingservice.exception.NoExistingEntryException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.BigQueryManager;
+import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.taskqueue.TaskQueueUtil;
 import jp.reflexworks.taggingservice.util.CheckUtil;
@@ -729,8 +730,14 @@ public class ReflexBigQueryManager implements BigQueryManager {
 		if (contentInfo != null) {
 			secret = contentInfo.getData();
 		}
-		if (secret != null && secret.length > 0 && !StringUtils.isBlank(datasetId)) {
-			return new BigQueryInfo(projectId, datasetId, location, secret);
+		if (TaggingServiceUtil.isBaaS()) {
+			if (secret != null && secret.length > 0 && !StringUtils.isBlank(datasetId)) {
+				return new BigQueryInfo(projectId, datasetId, location, secret);
+			}
+		} else {
+			if (!StringUtils.isBlank(datasetId)) {
+				return new BigQueryInfo(projectId, datasetId, location, secret);
+			}
 		}
 
 		throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS);
@@ -1028,23 +1035,29 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	private BigQuery getBigQuery(BigQueryInfo bigQueryInfo,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, ReflexBigQueryException {
-		// json秘密鍵を読み込む
-		InputStream jsonFile = null;
-		try {
-			jsonFile = new ByteArrayInputStream(bigQueryInfo.getSecret());
+		BigQueryOptions bigqueryOptions = null;
+		if (bigQueryInfo.getSecret() == null) {
+			// デフォルト設定
+			bigqueryOptions = BigQueryOptions.newBuilder().build();
+			
+		} else {
+			// json秘密鍵を読み込む
+			InputStream jsonFile = null;
+			try {
+				jsonFile = new ByteArrayInputStream(bigQueryInfo.getSecret());
 
-			GoogleCredentials credentials = GoogleCredentials.fromStream(jsonFile);
-			BigQueryOptions bigqueryOptions = BigQueryOptions.newBuilder().setCredentials(credentials).build();
-
-			return bigqueryOptions.getService();
-
-		} catch (BigQueryException e) {
-			throw new ReflexBigQueryException(e);
-		} finally {
-			if (jsonFile != null) {
-				jsonFile.close();
+				GoogleCredentials credentials = GoogleCredentials.fromStream(jsonFile);
+				bigqueryOptions = BigQueryOptions.newBuilder().setCredentials(credentials).build();
+				
+			} catch (BigQueryException e) {
+				throw new ReflexBigQueryException(e);
+			} finally {
+				if (jsonFile != null) {
+					jsonFile.close();
+				}
 			}
 		}
+		return bigqueryOptions.getService();
 	}
 
 	/**

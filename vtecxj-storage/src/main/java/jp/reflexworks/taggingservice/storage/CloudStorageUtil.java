@@ -674,8 +674,7 @@ public class CloudStorageUtil {
 	 */
 	public static boolean isEnableAccessLog() {
 		return TaggingEnvUtil.getSystemPropBoolean(
-				CloudStorageConst.STORAGE_ENABLE_ACCESSLOG, false) &&
-				logger.isDebugEnabled();
+				CloudStorageConst.STORAGE_ENABLE_ACCESSLOG, false);
 	}
 
 	/**
@@ -710,7 +709,7 @@ public class CloudStorageUtil {
 			sb.append(systemContext.getServiceName());
 			sb.append(", contentEntry=");
 			sb.append(systemContext.getResourceMapper().toJSON(contentEntry));
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 		String bucketName = getBucketNameByEntry(contentEntry);
 		if (bucketName != null) {
