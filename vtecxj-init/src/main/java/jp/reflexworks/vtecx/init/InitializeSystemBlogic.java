@@ -17,6 +17,7 @@ import jp.reflexworks.taggingservice.api.ReflexBlogic;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.plugin.SecretManager;
 import jp.reflexworks.taggingservice.plugin.def.UserManagerDefaultConst;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -186,15 +187,23 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 * Root Entryを生成
 	 * @return Entry
 	 */
-	private EntryBase createRootEntry() {
+	private EntryBase createRootEntry() 
+	throws IOException, TaggingException {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
 		entry.setMyUri("/");
 		// システム管理サービスのAPIKey
-		String apiKey = TaggingEnvUtil.getSystemProp(InitializeConst.INIT_SYSTEMSERVICE_APIKEY, null);
+		SecretManager secretManager = TaggingEnvUtil.getSecretManager();
+		String secretNameApiKey = TaggingEnvUtil.getSystemProp(
+				InitializeConst.SECRET_INIT_SYSTEMSERVICE_APIKEY_NAME, null);
+		if (StringUtils.isBlank(secretNameApiKey)) {
+			throw new IllegalArgumentException("apikey name setting is required.");
+		}
+		String apiKey = secretManager.getSecretKey(secretNameApiKey, null);
 		if (StringUtils.isBlank(apiKey)) {
 			throw new IllegalArgumentException("apikey setting is required.");
 		}
+
 		Contributor contributor = new Contributor();
 		contributor.uri = Constants.URN_PREFIX_APIKEY + apiKey;
 		entry.addContributor(contributor);
@@ -1015,9 +1024,16 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 * @param serviceName サービス名
 	 * @return Entry
 	 */
-	private EntryBase createMaintenanceNotice() {
+	private EntryBase createMaintenanceNotice() 
+	throws IOException, TaggingException {
+		SecretManager secretManager = TaggingEnvUtil.getSecretManager();
 		// システム管理サービスの管理ユーザメールアドレス
-		String email = TaggingEnvUtil.getSystemProp(InitializeConst.INIT_SYSTEMSERVICE_EMAIL, null);
+		String secretNameEmail = TaggingEnvUtil.getSystemProp(
+				InitializeConst.SECRET_INIT_SYSTEMSERVICE_EMAIL_NAME, null);
+		if (StringUtils.isBlank(secretNameEmail)) {
+			throw new IllegalArgumentException("system service email name is required.");
+		}
+		String email = secretManager.getSecretKey(secretNameEmail, null);
 		if (StringUtils.isBlank(email)) {
 			throw new IllegalArgumentException("system service email is required.");
 		}
@@ -1101,12 +1117,26 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 * サービス管理ユーザ登録のFeedを生成
 	 * @return サービス管理ユーザ登録のFeed
 	 */
-	private FeedBase createAdduserAdminFeed() {
-		String username = TaggingEnvUtil.getSystemProp(InitializeConst.INIT_SYSTEMSERVICE_EMAIL, null);
+	private FeedBase createAdduserAdminFeed() 
+	throws IOException, TaggingException {
+		SecretManager secretManager = TaggingEnvUtil.getSecretManager();
+		// システム管理サービスの管理ユーザメールアドレス
+		String secretNameEmail = TaggingEnvUtil.getSystemProp(
+				InitializeConst.SECRET_INIT_SYSTEMSERVICE_EMAIL_NAME, null);
+		if (StringUtils.isBlank(secretNameEmail)) {
+			throw new IllegalArgumentException("system service email name is required.");
+		}
+		String username = secretManager.getSecretKey(secretNameEmail, null);
 		if (StringUtils.isBlank(username)) {
 			throw new IllegalArgumentException("system service email is required.");
 		}
-		String tmpPswd = TaggingEnvUtil.getSystemProp(InitializeConst.INIT_SYSTEMSERVICE_PASSWORD, null);
+		
+		String secretNamePswd = TaggingEnvUtil.getSystemProp(
+				InitializeConst.SECRET_INIT_SYSTEMSERVICE_PASSWORD_NAME, null);
+		if (StringUtils.isBlank(secretNamePswd)) {
+			throw new IllegalArgumentException("system service password name is required.");
+		}
+		String tmpPswd = secretManager.getSecretKey(secretNamePswd, null);
 		if (StringUtils.isBlank(tmpPswd)) {
 			throw new IllegalArgumentException("system service password is required.");
 		}

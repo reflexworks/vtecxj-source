@@ -44,6 +44,7 @@ import jp.reflexworks.taggingservice.plugin.RXIDManager;
 import jp.reflexworks.taggingservice.plugin.ReflexSecurityManager;
 import jp.reflexworks.taggingservice.plugin.RequestResponseManager;
 import jp.reflexworks.taggingservice.plugin.ResourceMapperManager;
+import jp.reflexworks.taggingservice.plugin.SecretManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.plugin.SessionManager;
 import jp.reflexworks.taggingservice.plugin.SettingService;
@@ -713,6 +714,15 @@ public final class TaggingEnvUtil {
 	public static OAuthManager getOAuthManager() {
 		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
 		return env.getOAuthManager();
+	}
+
+	/**
+	 * Secret管理プラグインを取得.
+	 * @return secret manager
+	 */
+	public static SecretManager getSecretManager() {
+		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
+		return env.getSecretManager();
 	}
 
 	/**

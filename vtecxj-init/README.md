@@ -13,6 +13,14 @@ vte.cxの初期データを登録するバッチです。
   * allocidsサーバ
   * 全文検索indexサーバ
 
+## Secret Manager
+
+以下のシステム管理サービスの管理情報はプロパティファイルに記入せず、Secret Managerに登録する。
+
+* システム管理サービスのAPIKEY
+* システム管理サービスの管理ユーザメールアドレス
+* システム管理サービスの管理ユーザパスワード
+
 ## 設定
 
 クラスパス上にプロパティファイルを用意し、そのファイルに各設定を定義しておく。
@@ -26,12 +34,12 @@ vtecxinit.properties
 #### 初期設定
 
 ```
-# システム管理サービスのAPIKEY
-_init.systemservice.apikey={システム管理サービスのAPIKEY}
-# システム管理サービスの管理ユーザメールアドレス
-_init.systemservice.email={システム管理サービスの管理ユーザメールアドレス}
-# システム管理サービスの管理ユーザパスワード
-_init.systemservice.password={システム管理サービスの管理ユーザパスワード}
+# システム管理サービスのAPIKEYを格納したSecret名
+_secret.init.systemservice.apikey.name={システム管理サービスのAPIKEYを格納したSecret名}
+# システム管理サービスの管理ユーザメールアドレスを格納したSecret名
+_secret.init.systemservice.email.name={システム管理サービスの管理ユーザメールアドレスを格納したSecret名}
+# システム管理サービスの管理ユーザパスワードを格納したSecret名
+_secret.init.systemservice.password.name={システム管理サービスの管理ユーザパスワードを格納したSecret名}
 # 各BDBサーバ登録情報
 # Entryサーバのサーバ名とホスト名を指定。複数指定可能。
 _init.bdbserver.entry.{サーバ名}={ホスト名}
@@ -61,8 +69,6 @@ _plugin.cachemanager=jp.reflexworks.taggingservice.redis.JedisCacheManager
 _plugin.sessionmanager=jp.reflexworks.taggingservice.redis.JedisSessionManager
 # RXID管理プラグインクラス名
 _plugin.rxidmanager=jp.reflexworks.taggingservice.redis.JedisRXIDManager
-# 認証管理プラグインクラス名
-_plugin.authenticationmanager=jp.reflexworks.taggingservice.auth.TaggingAuthenticationManager
 # ユーザ管理プラグインクラス名
 _plugin.usermanager=jp.reflexworks.taggingservice.auth.TaggingUserManager
 # シークレット管理プラグインクラス名

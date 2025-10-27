@@ -1595,4 +1595,19 @@ public class TaggingEnv implements ReflexEnv {
 		}
 	}
 
+	/**
+	 * Secret管理プラグインを取得.
+	 * @return Secret manager
+	 */
+	public SecretManager getSecretManager() {
+		if (secretManagerClass == null) {
+			return null;
+		}
+		try {
+			return (SecretManager)PluginUtil.newInstance(secretManagerClass);
+		} catch (PluginException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
 }
