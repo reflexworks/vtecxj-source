@@ -15,6 +15,7 @@ import com.google.cloud.secretmanager.v1.SecretManagerServiceSettings;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
 
 import jp.reflexworks.servlet.util.ServletContextUtil;
+import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.SecretManager;
 import jp.sourceforge.reflex.util.FileUtil;
@@ -46,7 +47,7 @@ public class ReflexSecretManager implements SecretManager {
 
 	/**
 	 * 暗号化キーを取得.
-	 * サーバ起動時に呼び出されるため、プロパティ値は ServletContextUtil から取得する。
+	 * サーバ起動時に呼び出される用のメソッド。プロパティ値は ServletContextUtil から取得する。
 	 * 取得した暗号化キーはResourceMapper(エントリーのシリアライズ・デシリアライズツール)にセットする。
 	 * @return 暗号化キー
 	 */
@@ -56,7 +57,37 @@ public class ReflexSecretManager implements SecretManager {
 		String secretFilename = contextUtil.get(ReflexSecretConst.PROP_SECRET_FILE_SECRET);
 		String projectId = contextUtil.get(ReflexSecretConst.PROP_GCP_PROJECTID);
 		String secretId = contextUtil.get(ReflexSecretConst.PROP_SECRETKEY_NAME);
+		String versionId = contextUtil.get(ReflexSecretConst.PROP_SECRETKEY_VERSION);
+		return getSecretKey(projectId, secretId, versionId, secretFilename);
+	}
 
+	/**
+	 * Secret Managerから指定された名称の値を取得.
+	 * 取り扱いには注意すること。
+	 * @param secretId Secret Managerから取得したい値の名前
+	 * @param versionId Secret Managerから取得したい値のバージョン。指定無しの場合はlatest
+	 * @return Secret Managerから取得した値
+	 */
+	@Override
+	public String getSecretKey(String secretId, String versionId)
+	throws IOException, TaggingException {
+		String secretFilename = 
+				TaggingEnvUtil.getSystemProp(ReflexSecretConst.PROP_SECRET_FILE_SECRET, null);
+		String projectId = 
+				TaggingEnvUtil.getSystemProp(ReflexSecretConst.PROP_GCP_PROJECTID, null);
+		return getSecretKey(projectId, secretId, versionId, secretFilename);
+	}
+
+	/**
+	 * Secret Managerから指定された名称の値を取得.
+	 * @param projectId Google Cloud の Project ID
+	 * @param secretId Secret Managerから取得したい値の名前
+	 * @param versionId Secret Managerから取得したい値のバージョン。指定無しの場合はlatest
+	 * @param secretFilename サービスアカウントJSON鍵。Workload Identityの設定があれば不要。
+	 * @return Secret Managerから取得した値
+	 */
+	private String getSecretKey(String projectId, String secretId, String versionId, String secretFilename)
+	throws IOException, TaggingException {
 		String retValue = null;
 		
 		if (StringUtils.isBlank(projectId)) {
@@ -68,7 +99,6 @@ public class ReflexSecretManager implements SecretManager {
 			return retValue;
 		}
 		
-		String versionId = contextUtil.get(ReflexSecretConst.PROP_SECRETKEY_VERSION);
 		if (StringUtils.isBlank(versionId)) {
 			versionId = ReflexSecretConst.VERSION_LATEST;
 		}

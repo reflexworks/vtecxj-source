@@ -1210,7 +1210,7 @@ public class UserManagerDefault implements UserManager {
 	private void setUserAuthAclActivate(EntryBase userAuthEntry) {
 		String uid = getUidByUri(userAuthEntry.getMyUri());
 		// ユーザのCRUD権限を設定する。
-		userAuthEntry.contributor.add(TaggingEntryUtil.getAclContributor(uid,
+		userAuthEntry.addContributor(TaggingEntryUtil.getAclContributor(uid,
 				Constants.ACL_TYPE_CRUD));
 	}
 
@@ -1228,7 +1228,7 @@ public class UserManagerDefault implements UserManager {
 				Constants.URI_GROUP_USERADMIN,
 				Constants.ACL_TYPE_UPDATE);
 		if (!hasContributorUri(contributorAclUseradmin.uri, userAuthEntry.contributor)) {
-			userAuthEntry.contributor.add(contributorAclUseradmin);
+			userAuthEntry.addContributor(contributorAclUseradmin);
 			isChange = true;
 		}
 		if (!StringUtils.isBlank(groupName)) {
@@ -1236,7 +1236,7 @@ public class UserManagerDefault implements UserManager {
 					GroupUtil.getGroupadminGroup(groupName),
 					Constants.ACL_TYPE_UPDATE);
 			if (!hasContributorUri(contributorAclGroupadmin.uri, userAuthEntry.contributor)) {
-				userAuthEntry.contributor.add(contributorAclGroupadmin);
+				userAuthEntry.addContributor(contributorAclGroupadmin);
 				isChange = true;
 			}
 		}
@@ -1257,7 +1257,7 @@ public class UserManagerDefault implements UserManager {
 					GroupUtil.getGroupadminGroup(groupName),
 					Constants.ACL_TYPE_CRUD);
 			if (!hasContributorUri(contributorAclGroupadmin.uri, userGroupEntry.contributor)) {
-				userGroupEntry.contributor.add(contributorAclGroupadmin);
+				userGroupEntry.addContributor(contributorAclGroupadmin);
 				isChange = true;
 			}
 		}

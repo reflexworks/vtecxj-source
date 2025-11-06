@@ -19,4 +19,14 @@ public interface SecretManager extends ReflexPlugin {
 	public String getSecretKey(ServletContextUtil contextUtil)
 	throws IOException, TaggingException;
 
+	/**
+	 * Secret Managerから指定された名称の値を取得.
+	 * 取り扱いには注意すること。
+	 * @param secretId Secret Managerから取得したい値の名前
+	 * @param versionId Secret Managerから取得したい値のバージョン。指定無しの場合はlatest
+	 * @return Secret Managerから取得した値
+	 */
+	public String getSecretKey(String secretId, String versionId)
+	throws IOException, TaggingException;
+
 }

@@ -21,12 +21,12 @@ public class InitializeConst {
 	public static final String UID_START_INIT = "21";
 	
 	// プロパティ設定
-	/** システム管理サービスのAPIKey */
-	public static final String INIT_SYSTEMSERVICE_APIKEY = "_init.systemservice.apikey";
-	/** システム管理サービスの管理ユーザメールアドレス */
-	public static final String INIT_SYSTEMSERVICE_EMAIL = "_init.systemservice.email";
-	/** システム管理サービスの管理ユーザパスワード */
-	public static final String INIT_SYSTEMSERVICE_PASSWORD = "_init.systemservice.password";
+	/** システム管理サービスのAPIKeyを格納したSecret名 */
+	public static final String SECRET_INIT_SYSTEMSERVICE_APIKEY_NAME = "_secret.init.systemservice.apikey.name";
+	/** システム管理サービスの管理ユーザメールアドレスを格納したSecret名 */
+	public static final String SECRET_INIT_SYSTEMSERVICE_EMAIL_NAME = "_secret.init.systemservice.email.name";
+	/** システム管理サービスの管理ユーザパスワードを格納したSecret名 */
+	public static final String SECRET_INIT_SYSTEMSERVICE_PASSWORD_NAME = "_secret.init.systemservice.password.name";
 	/**
 	 * 各BDBサーバのサーバ名とホスト名(kubernetesのサービス名)を、以下の形式で指定。
 	 * _init.bdbserver.{entry|manifest|index|allocids|fulltextsearch}.{サーバ名}={ホスト名}

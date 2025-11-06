@@ -35,6 +35,7 @@ import jp.reflexworks.taggingservice.plugin.RXIDManager;
 import jp.reflexworks.taggingservice.plugin.ReflexSecurityManager;
 import jp.reflexworks.taggingservice.plugin.RequestResponseManager;
 import jp.reflexworks.taggingservice.plugin.ResourceMapperManager;
+import jp.reflexworks.taggingservice.plugin.SecretManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.plugin.SessionManager;
 import jp.reflexworks.taggingservice.plugin.SettingService;
@@ -402,6 +403,12 @@ public interface ReflexEnv extends BaseReflexEnv {
 	 * @return OAuth管理プラグイン
 	 */
 	public OAuthManager getOAuthManager();
+
+	/**
+	 * Secret管理プラグインを取得.
+	 * @return Secret管理プラグイン
+	 */
+	public SecretManager getSecretManager();
 
 	/**
 	 * サーバ稼働中かどうか.
