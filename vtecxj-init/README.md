@@ -91,9 +91,6 @@ _bdbrequest.url.system.allocids.{サーバ名}=http://{ホスト名}/b
 # Google Cloud ProjectID
 _gcp.projectid={Google CloudのプロジェクトID}
 
-# Secret Manager シークレットアクセサー権限を持つサービスアカウントのJSON鍵
-_secret.file.secret={サービスアカウントのJSON鍵}
-
 # 暗号化キーのシークレット名
 _secret.secretkey.name={シークレット名}
 
