@@ -10,12 +10,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import javax.script.Compilable;
-import javax.script.CompiledScript;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-
+import org.graalvm.polyglot.Engine;
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,8 +73,13 @@ public class JsExec {
 	/** サーバサイドJS非同期実行クラス */
 	private static ScheduledExecutorService exec = Executors.newScheduledThreadPool(
 			TaggingEnvUtil.getSystemPropInt(JSEXEC_POOLSIZE, JSEXEC_POOLSIZE_DEFAULT));
+
 	/** サーバサイドJSキャッシュ */
-	private static Cache<String, CompiledScript> CACHE = null;
+	private static Cache<String, Source> CACHE = null;
+	/** Engine 生成時に engine.WarnInterpreterOnly を指定 **/
+	private static final Engine ENGINE = Engine.newBuilder()
+			.option("engine.WarnInterpreterOnly", "false")
+			.build();
 
 	/** ロガー. */
 	private static final Logger logger = LoggerFactory.getLogger(JsExec.class);
@@ -92,6 +94,14 @@ public class JsExec {
 		System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
 	}
 
+	/**
+	 * GraalvmのEngineを取得
+	 * @return Engine
+	 */
+	public static Engine getEngine() {
+		return ENGINE;
+	}
+	
 	/**
 	 * サーバサイドJS実行
 	 * @param req リクエスト
@@ -127,24 +137,6 @@ public class JsExec {
 		ReflexAuthentication auth, String uid, String method) throws IOException {
 
 		ReflexContext reflexContext = ReflexContextUtil.getReflexContext(req, true);	// external
-
-		// Hex dump
-		/*
-		String message1 = "";
-		byte[] bytes = req.getPayload();
-		for (int i = 0; i < bytes.length; i++) {
-	        message1 += " "+Integer.toHexString(bytes[i] & 0xff);
-	    }
-		reflexContext.log("payload","", message1);
-
-		try {
-			Object feed = reflexContext.getResourceMapper().fromMessagePack(bytes);
-			reflexContext.log("json","", reflexContext.getResourceMapper().toJSON(feed));
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		}
-		 */
-		// Hex dump
 
 		try {
 			JsContext jscontext = new JsContext(reflexContext, req, resp, method);
@@ -202,7 +194,7 @@ public class JsExec {
 			}
 			if (cause instanceof IOException) {
 				throw (IOException)cause;
-			} else if (cause instanceof ScriptException) {
+			} else if (cause instanceof PolyglotException) {
 				// JS実行エラーはScriptExceptionでラップされているので取り出す。
 				Throwable seCause = cause.getCause();
 				if (seCause != null) {
@@ -238,14 +230,14 @@ public class JsExec {
 		}
 	}
 
-	private static CompiledScript getCompiledScript(String func, String entrykey,
+	private static Source getCompiledScript(String func, String entrykey,
 			ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		try {
 			return CACHE.get(entrykey, key -> {
 				try {
-					return createCompiledScript(func,reflexContext);
-				} catch (IOException | TaggingException | ScriptException e) {
+					return createCompiledScript(func, reflexContext);
+				} catch (IOException | TaggingException | PolyglotException e) {
 					throw new CompiledScriptException(e);
 				}
 			});
@@ -255,14 +247,14 @@ public class JsExec {
 				throw (IOException)cause;
 			} else if (cause instanceof TaggingException) {
 				throw (TaggingException)cause;
-			} else {	// ScriptException
+			} else {	// PolyglotException
 				throw new InvalidServiceSettingException(cause);
 			}
 		}
 	}
 
-	private static CompiledScript createCompiledScript(String func, ReflexContext reflexContext)
-	throws IOException, TaggingException, ScriptException {
+	private static Source createCompiledScript(String func, ReflexContext reflexContext)
+	throws IOException, TaggingException, PolyglotException {
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
 		StringBuilder logsb = new StringBuilder();
 		logsb.append(LogUtil.getRequestInfoStr(requestInfo));
@@ -272,20 +264,17 @@ public class JsExec {
 		String logPrefix = logsb.toString();
 		long startTime = new Date().getTime();
 		if (isEnableAccessLog()) {
-			logger.debug(logPrefix + "start.");
+			logger.info(logPrefix + "start.");
 		}
 
-		ScriptEngine scriptEngine = JsUtil.getScriptEngine(new ScriptEngineManager(),
-				reflexContext.getRequestInfo());
-
 		if (isEnableAccessLog()) {
-			logger.debug(logPrefix + "getScriptEngine" + LogUtil.getElapsedTimeLog(startTime));
+			logger.info(logPrefix + "getScriptEngine" + LogUtil.getElapsedTimeLog(startTime));
 			startTime = new Date().getTime();
 		}
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("var console = {};console.log = function(s) { var f = ReflexContext.settingValue('console.log'); if (f&&f==='true') ReflexContext.log(s)};console.error=function(s) { var f=ReflexContext.settingValue('console.error'); if (f&&f==='true') ReflexContext.log(s)};console.warn=function(s) { var f = ReflexContext.settingValue('console.warn');if (f&&f==='true') ReflexContext.log(s)};");
-		String main = contentjs(func,reflexContext);
+		String main = contentjs(func, reflexContext);
 		if (isEnableAccessLog()) {
 			StringBuilder dbg = new StringBuilder();
 			dbg.append(logPrefix);
@@ -296,15 +285,19 @@ public class JsExec {
 				dbg.append(main.length());
 			}
 			dbg.append(LogUtil.getElapsedTimeLog(startTime));
-			logger.debug(dbg.toString());
+			logger.info(dbg.toString());
 			startTime = new Date().getTime();
 		}
-		if (main==null) throw new ScriptException(func+".js is not found.");
+		if (main==null) throw new InvalidServiceSettingException(func+".js is not found.");
 		sb.append(main);
 
-		CompiledScript ret = ((Compilable)scriptEngine).compile(sb.toString());
+		Source ret = Source.newBuilder("js",
+				sb.toString(),
+				func)
+				.build();
+
 		if (isEnableAccessLog()) {
-			logger.debug(logPrefix + "compile" + LogUtil.getElapsedTimeLog(startTime));
+			logger.info(logPrefix + "compile" + LogUtil.getElapsedTimeLog(startTime));
 		}
 		return ret;
 	}
@@ -312,14 +305,14 @@ public class JsExec {
 	private static String contentjs(String uri,ReflexContext reflexContext) throws IOException, TaggingException {
 		byte[] content;
 		if (uri.startsWith("@")) {
-			content = reflexContext.getHtmlContent("/@/server/"+uri.substring(1)+".js");
+			content = reflexContext.getHtmlContent("/@/server/" + uri.substring(1) + ".js");
 		}else {
 			if (!uri.startsWith("/")) {
-				uri = "/"+uri;
+				uri = "/" + uri;
 			}
-			content = reflexContext.getHtmlContent("/server"+uri+".js");
+			content = reflexContext.getHtmlContent("/server" + uri + ".js");
 		}
-		if (content!=null) {
+		if (content != null) {
 			return JsUtil.replace(new String(content)).replaceAll("\n", "").replaceAll("\r", "");
 		}
 		else return null;
@@ -374,7 +367,7 @@ public class JsExec {
 			}
 			
 			if (isEnableAccessLog()) {
-				logger.debug(LogUtil.getRequestInfoStr(requestInfo) + 
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + 
 						"[submit] create js CACHE. " + LogUtil.getElapsedTimeLog(startTime));
 			}
 		}
@@ -540,8 +533,7 @@ public class JsExec {
 	 */
 	public static boolean isEnableAccessLog() {
 		return TaggingEnvUtil.getSystemPropBoolean(
-				JAVASCRIPT_ENABLE_ACCESSLOG, false) &&
-				logger.isDebugEnabled();
+				JAVASCRIPT_ENABLE_ACCESSLOG, false);
 	}
 
 }

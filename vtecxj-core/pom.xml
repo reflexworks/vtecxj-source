@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-core</artifactId>
-  <version>9.0.0</version>
+  <version>10.0.0</version>
   <packaging>jar</packaging>
 
   <description>vte.cx core</description>
@@ -18,9 +18,9 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-common-version>9.0.0</vtecxj-common-version>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <vtecxj-common-version>10.0.0</vtecxj-common-version>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
   </properties>
 
   <dependencies>
@@ -32,7 +32,7 @@
     <dependency>
       <groupId>org.json</groupId>
       <artifactId>json</artifactId>
-      <version>20250107</version>
+      <version>20250517</version>
     </dependency>
 
   </dependencies>

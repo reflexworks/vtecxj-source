@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-pushnotification</artifactId>
-  <version>9.0.0</version>
+  <version>10.0.0</version>
   <packaging>jar</packaging>
 
   <name>vte.cx push notification</name>
@@ -18,12 +18,9 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-core-version>9.0.0</vtecxj-core-version>
-    <vtecxj-bdbclient-version>9.0.0</vtecxj-bdbclient-version>
-    <vtecxj-redis-version>9.0.0</vtecxj-redis-version>
-    <vtecxj-storage-version>9.0.0</vtecxj-storage-version>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <vtecxj-core-version>10.0.0</vtecxj-core-version>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
   </properties>
 
   <!-- The Google Cloud Platform Libraries BOM -->
@@ -33,7 +30,7 @@
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>libraries-bom</artifactId>
-        <version>26.65.0</version>
+        <version>26.70.0</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -50,7 +47,7 @@
     <dependency>
       <groupId>com.google.firebase</groupId>
       <artifactId>firebase-admin</artifactId>
-      <version>9.5.0</version>
+      <version>9.7.0</version>
       <exclusions>
         <exclusion>
           <groupId>commons-codec</groupId>
