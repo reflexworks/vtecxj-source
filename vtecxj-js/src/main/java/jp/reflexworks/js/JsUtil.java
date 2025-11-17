@@ -7,18 +7,12 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineFactory;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-
 import jakarta.servlet.http.Cookie;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.taggingservice.api.ReflexRequest;
-import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.exception.PermissionException;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -34,33 +28,9 @@ public class JsUtil {
 	private static final Logger logger = LoggerFactory.getLogger(JsUtil.class);
 
 	/**
-	 * GraalJSスクリプトエンジンを取得する.
-	 * @param manager ScriptEngineManager
-	 * @param requestInfo リクエスト情報 (エラー時のログ出力用)
-	 * @return GraalJSのスクリプトエンジン
-	 */
-	public static ScriptEngine getScriptEngine(ScriptEngineManager manager,
-			RequestInfo requestInfo) 
-		throws IOException, ScriptException {
-		ScriptEngine engine = null;
-		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
-			if (factory.getNames().contains(SCRIPT_ENGINE_NAME)) {
-				engine = manager.getEngineByName(SCRIPT_ENGINE_NAME);
-				
-				engine.eval("load('nashorn:mozilla_compat.js')");
-				break;
-			}
-		}
-		if (engine == null) {
-			throw new IOException("ScriptEngine is not available. " + SCRIPT_ENGINE_NAME);
-		}
-		return engine;
-	}
-
-	/**
 	 * ReflexContextのメソッドを実行した後の戻り値をJSON.parse()する.
 	 */
-	public static String replaceReflexContext(String text,String method) {
+	public static String replaceReflexContext(String text, String method) {
 		String result = "";
 
 		int p=0;

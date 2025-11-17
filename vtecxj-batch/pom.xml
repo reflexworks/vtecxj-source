@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-batch</artifactId>
-  <version>9.0.0</version>
+  <version>10.0.0</version>
   <packaging>jar</packaging>
 
   <description>vte.cx batch</description>
@@ -18,14 +18,14 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-bdbclient-version>9.0.0</vtecxj-bdbclient-version>
-    <vtecxj-bigquery-version>9.0.0</vtecxj-bigquery-version>
-    <vtecxj-redis-version>9.0.0</vtecxj-redis-version>
-    <vtecxj-storage-version>9.0.0</vtecxj-storage-version>
-    <vtecxj-authenticator-version>9.0.0</vtecxj-authenticator-version>
-    <vtecxj-secret-version>9.0.0</vtecxj-secret-version>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <vtecxj-storage-version>10.0.0</vtecxj-storage-version>
+    <vtecxj-bdbclient-version>10.0.0</vtecxj-bdbclient-version>
+    <vtecxj-bigquery-version>10.0.0</vtecxj-bigquery-version>
+    <vtecxj-authenticator-version>10.0.0</vtecxj-authenticator-version>
+    <vtecxj-redis-version>10.0.0</vtecxj-redis-version>
+    <vtecxj-secret-version>10.0.0</vtecxj-secret-version>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
   </properties>
 
   <dependencies>
@@ -52,6 +52,13 @@
       <groupId>jp.reflexworks</groupId>
       <artifactId>vtecxj-authenticator</artifactId>
       <version>${vtecxj-authenticator-version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>jp.reflexworks</groupId>
+      <artifactId>vtecxj-redis</artifactId>
+      <version>${vtecxj-redis-version}</version>
       <scope>runtime</scope>
     </dependency>
 

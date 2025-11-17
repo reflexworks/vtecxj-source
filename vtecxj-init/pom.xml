@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-init</artifactId>
-  <version>9.0.0</version>
+  <version>10.0.0</version>
   <packaging>jar</packaging>
 
   <description>vte.cx initial processing</description>
@@ -18,13 +18,13 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-core-version>9.0.0</vtecxj-core-version>
-    <vtecxj-bdbclient-version>9.0.0</vtecxj-bdbclient-version>
-    <vtecxj-redis-version>9.0.0</vtecxj-redis-version>
-    <vtecxj-authenticator-version>9.0.0</vtecxj-authenticator-version>
-    <vtecxj-secret-version>9.0.0</vtecxj-secret-version>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <vtecxj-core-version>10.0.0</vtecxj-core-version>
+    <vtecxj-bdbclient-version>10.0.0</vtecxj-bdbclient-version>
+    <vtecxj-redis-version>10.0.0</vtecxj-redis-version>
+    <vtecxj-authenticator-version>10.0.0</vtecxj-authenticator-version>
+    <vtecxj-secret-version>10.0.0</vtecxj-secret-version>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
   </properties>
 
   <dependencies>
@@ -65,14 +65,14 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-core</artifactId>
-      <version>1.5.20</version>
+      <version>1.5.21</version>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.5.20</version>
+      <version>1.5.21</version>
       <scope>runtime</scope>
     </dependency>
 

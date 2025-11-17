@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-redis</artifactId>
-  <version>9.0.0</version>
+  <version>10.0.0</version>
   <packaging>jar</packaging>
 
   <name>vte.cx Redis</name>
@@ -18,10 +18,9 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-common-version>9.0.0</vtecxj-common-version>
-    <vtecxj-bdbclient-version>9.0.0</vtecxj-bdbclient-version>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <vtecxj-common-version>10.0.0</vtecxj-common-version>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
   </properties>
 
   <dependencies>
@@ -34,7 +33,7 @@
     <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
-      <version>6.1.0</version>
+      <version>7.0.0</version>
       <exclusions>
         <exclusion>
           <groupId>org.json</groupId>
@@ -44,12 +43,16 @@
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-api</artifactId>
         </exclusion>
-        <!-- gsonはstorage,bigquery等でも使用。それぞれのバージョンを要確認。
+        <!-- 以下 google cloud で使用 -->
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>com.google.code.gson</groupId>
           <artifactId>gson</artifactId>
         </exclusion>
-        -->
+
       </exclusions>
     </dependency>
     
