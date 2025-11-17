@@ -28,9 +28,10 @@
       <groupId>com.github.librepdf</groupId>
       <artifactId>openpdf</artifactId>
       <!--
-      <version>2.4.0</version>
-      -->
       <version>1.4.2</version>
+      -->
+      <!-- 2.4.0 はJava17環境だとNG -->
+      <version>2.4.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.pdfbox</groupId>
