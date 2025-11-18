@@ -424,6 +424,8 @@ public class DatastoreBlogic {
 		String serviceName = auth.getServiceName();
 		// not nullチェック
 		checkPut(feed, parentUri, true, serviceName);
+		// Bulk PUTで更新できないEntryがないかチェック
+		checkBulk(feed);
 
 		// 対象サービス指定の場合、対象サービス認証を行う。
 		ServiceBlogic serviceBlogic = new ServiceBlogic();
@@ -459,6 +461,8 @@ public class DatastoreBlogic {
 		String serviceName = auth.getServiceName();
 		// not nullチェック
 		checkPut(feed, parentUri, true, serviceName);
+		// Bulk PUTで更新できないEntryがないかチェック
+		checkBulk(feed);
 
 		// 対象サービス指定の場合、対象サービス認証を行う。
 		ServiceBlogic serviceBlogic = new ServiceBlogic();
@@ -824,6 +828,26 @@ public class DatastoreBlogic {
 			if (aliases != null) {
 				for (String alias : aliases) {
 					CheckUtil.checkCommonUri(alias, serviceName);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Bulk PUT時のチェック
+	 *   /_settings/template の更新は不可とする。
+	 * @param feed Feed
+	 */
+	private void checkBulk(FeedBase feed) 
+	throws TaggingException {
+		for (EntryBase entry : feed.entry) {
+			if (entry.link != null) {
+				for (Link link : entry.link) {
+					if (Link.REL_SELF.equals(link._$rel) || Link.REL_ALTERNATE.equals(link._$rel)) {
+						if (Constants.URI_SETTINGS_TEMPLATE.equals(link._$href)) {
+							throw new IllegalParameterException("Templates cannot be bulk updated.");
+						}
+					}
 				}
 			}
 		}
