@@ -62,6 +62,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		} else {
 			serviceStatus = Constants.SERVICE_STATUS_PRODUCTION;
 		}
+		
+		// システム管理サービスの管理ユーザメールアドレスを取得
+		String email = getAdminEmail();
 
 		// サービスEntryの登録
 		FeedBase feed = TaggingEntryUtil.createFeed(systemService);
@@ -83,7 +86,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		// passreset設定
 		feed.addEntry(createPassresetEntry());
 		// メンテナンス通知のメール送信設定
-		feed.addEntry(createMaintenanceNotice());
+		feed.addEntry(createMaintenanceNotice(email));
+		// BDBディスク使用量超過通知のメール送信設定
+		feed.addEntry(createDiskusageAlert(email));
 		// HTMLフォルダ
 		feed.addEntry(createHtmlEntry());
 		// ログフォルダ
@@ -979,7 +984,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 
 	/**
 	 * Settings Entryを生成
-	 * @param serviceName サービス名
 	 * @return Entry
 	 */
 	private EntryBase createSettingsEntry() {
@@ -991,7 +995,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 
 	/**
 	 * adduser Entryを生成
-	 * @param serviceName サービス名
 	 * @return Entry
 	 */
 	private EntryBase createAdduserEntry() {
@@ -1006,7 +1009,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 
 	/**
 	 * passreset Entryを生成
-	 * @param serviceName サービス名
 	 * @return Entry
 	 */
 	private EntryBase createPassresetEntry() {
@@ -1021,23 +1023,11 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 
 	/**
 	 * GKEクラスタメンテナンス通知設定を生成
-	 * @param serviceName サービス名
+	 * @param email システム管理サービスの管理ユーザメールアドレス
 	 * @return Entry
 	 */
-	private EntryBase createMaintenanceNotice() 
+	private EntryBase createMaintenanceNotice(String email) 
 	throws IOException, TaggingException {
-		SecretManager secretManager = TaggingEnvUtil.getSecretManager();
-		// システム管理サービスの管理ユーザメールアドレス
-		String secretNameEmail = TaggingEnvUtil.getSystemProp(
-				InitializeConst.SECRET_INIT_SYSTEMSERVICE_EMAIL_NAME, null);
-		if (StringUtils.isBlank(secretNameEmail)) {
-			throw new IllegalArgumentException("system service email name is required.");
-		}
-		String email = secretManager.getSecretKey(secretNameEmail, null);
-		if (StringUtils.isBlank(email)) {
-			throw new IllegalArgumentException("system service email is required.");
-		}
-
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
 		entry.setMyUri(InitializeConst.URI_SETTINGS_MAINTENANCE_NOTICE);
@@ -1067,8 +1057,42 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	}
 
 	/**
+	 * BDBディスク使用量超過通知設定を生成
+	 * @param email システム管理サービスの管理ユーザメールアドレス
+	 * @return Entry
+	 */
+	private EntryBase createDiskusageAlert(String email) 
+	throws IOException, TaggingException {
+		EntryBase entry = TaggingEntryUtil.createAtomEntry();
+		// URI
+		entry.setMyUri(InitializeConst.URI_SETTINGS_DISKUSAGE_ALERT);
+		// 送信先メールアドレス
+		Contributor cont = new Contributor();
+		cont.email = email;
+		entry.addContributor(cont);
+		// タイトル
+		entry.title = "[vte.cx]BDBディスク使用率のお知らせ";
+		// テキスト本文
+		StringBuilder sb = new StringBuilder();
+		sb.append("BDBのディスク使用率が規定の割合を超えたためお知らせします。");
+		sb.append(Constants.NEWLINE);
+		sb.append(Constants.NEWLINE);
+		sb.append("サーバ名: ${SERVERNAME}");
+		sb.append(Constants.NEWLINE);
+		sb.append("ディスク使用率: ${DISKUSAGE} %");
+		sb.append(Constants.NEWLINE);
+		sb.append(Constants.NEWLINE);
+		sb.append("Persistent Volumeのサイズ拡大を検討してください。");
+		sb.append(Constants.NEWLINE);
+		entry.summary = sb.toString();
+
+		// TODO HTMLメッセージがあれば content._$$text に設定する。
+
+		return entry;
+	}
+
+	/**
 	 * HTML Entryを生成
-	 * @param serviceName サービス名
 	 * @return Entry
 	 */
 	private EntryBase createHtmlEntry() {
@@ -1080,7 +1104,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 
 	/**
 	 * Log Entryを生成
-	 * @param serviceName サービス名
 	 * @return Entry
 	 */
 	private EntryBase createLogEntry() {
@@ -1092,7 +1115,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 
 	/**
 	 * ログイン履歴 Entryを生成
-	 * @param serviceName サービス名
 	 * @return Entry
 	 */
 	private EntryBase createLoginHistoryEntry() {
@@ -1193,6 +1215,26 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		sb.append("/");
 		sb.append(uid);
 		return sb.toString();
+	}
+
+	/**
+	 * システム管理サービスの管理ユーザメールアドレスを取得.
+	 * シークレットマネージャーから取得する。
+	 * @return システム管理サービスの管理ユーザメールアドレス
+	 */
+	private String getAdminEmail() throws TaggingException, IOException {
+		SecretManager secretManager = TaggingEnvUtil.getSecretManager();
+		// システム管理サービスの管理ユーザメールアドレス
+		String secretNameEmail = TaggingEnvUtil.getSystemProp(
+				InitializeConst.SECRET_INIT_SYSTEMSERVICE_EMAIL_NAME, null);
+		if (StringUtils.isBlank(secretNameEmail)) {
+			throw new IllegalArgumentException("system service email name is required.");
+		}
+		String email = secretManager.getSecretKey(secretNameEmail, null);
+		if (StringUtils.isBlank(email)) {
+			throw new IllegalArgumentException("system service email is required.");
+		}
+		return email;
 	}
 
 }

@@ -85,6 +85,8 @@ public class InitializeConst {
 	public static final String URI_BDB_PRODUCTION = URI_BDB + "/" + Constants.SERVICE_STATUS_PRODUCTION;
 	/** URI : maintenance notice */
 	public static final String URI_SETTINGS_MAINTENANCE_NOTICE = "/_settings/maintenance_notice";
+	/** URI : diskusage alert */
+	public static final String URI_SETTINGS_DISKUSAGE_ALERT = "/_settings/diskusage_alert";
 	/** URI : bdb reservation */
 	public static final String URI_BDB_RESERVATION = URI_BDB + "/reservation";
 	/** URI : bucket */
