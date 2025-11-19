@@ -586,6 +586,9 @@ public class ServiceManagerDefault implements ServiceManager {
 				throw new EntryDuplicatedException(sb.toString());
 			}
 		} else {
+			// 新規登録の場合、サービス名にアンダースコアも不可
+			checkUnderscore(newServiceName);
+			
 			// システム管理サービスに登録中ステータスを登録
 			entry = TaggingEntryUtil.createEntry(systemService);
 			entry.setMyUri(uri);
@@ -871,7 +874,7 @@ public class ServiceManagerDefault implements ServiceManager {
 		// 文字種チェック
 		Matcher matcher = PATTERN_SERVICENAME.matcher(str);
 		if (!matcher.matches()) {
-			throw new IllegalParameterException("Please enter the alphanumeric, '-' or '_'. : " + str);
+			throw new IllegalParameterException("Please enter the alphanumeric or '-'. : " + str);
 		}
 		// 予約語はエラー
 		Set<String> reservedNames = TaggingEnvUtil.getSystemPropSet(
@@ -881,6 +884,17 @@ public class ServiceManagerDefault implements ServiceManager {
 		}
 	}
 
+	/**
+	 * サービス名チェック.
+	 * 文字種をチェックする。
+	 * @param str サービス名
+	 */
+	private void checkUnderscore(String str) {
+		if (str.indexOf("_") > -1) {
+			throw new IllegalParameterException("Please enter the alphanumeric or '-'. : " + str);
+		}
+	}
+	
 	/**
 	 * エントリーに指定されたサービスステータスを設定する.
 	 * @param entry エントリー
