@@ -173,6 +173,15 @@ public class FullTextSearchBDBManager {
 			boolean isPartial, boolean isDelete,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		// test
+		if (logger.isTraceEnabled()) {
+			StringBuilder sb = new StringBuilder();
+			sb.append(LogUtil.getRequestInfoStr(requestInfo));
+			sb.append("[updateIndexes] start. id=");
+			sb.append(id);
+			logger.info(sb.toString());
+		}
+		
 		int numRetries = BDBEnvUtil.getBDBRetryCount();
 		int waitMillis = BDBEnvUtil.getBDBRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
@@ -216,8 +225,13 @@ public class FullTextSearchBDBManager {
 					BDBUtil.convertIOError(e, id);
 				}
 				if (logger.isInfoEnabled()) {
-					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
-							"[updateIndexes] " + ReflexBDBLogUtil.getRetryLog(e, r));
+					StringBuilder sb = new StringBuilder();
+					sb.append(LogUtil.getRequestInfoStr(requestInfo));
+					sb.append("[updateIndexes] id=");
+					sb.append(id);
+					sb.append(" ");
+					sb.append(ReflexBDBLogUtil.getRetryLog(e, r));
+					logger.info(sb.toString());
 				}
 				BDBUtil.sleep(waitMillis + r * 10);
 			}
