@@ -1382,27 +1382,32 @@ public class ServiceManagerDefault implements ServiceManager {
 	public boolean checkServiceStatus(ReflexRequest req, ReflexResponse resp)
 	throws IOException, TaggingException {
 		String serviceName = req.getServiceName();
+		String serviceStatus = getServiceStatus(serviceName,
+				req.getRequestInfo(), req.getConnectionInfo());
 		String scheme = req.getScheme();
+		if (Constants.SERVICE_STATUS_PRODUCTION.equals(serviceStatus)) {
+			// productionにおいて、https以外でアクセスしてきた場合
 			
-		// テスト環境(localhost)は処理を抜ける。
-		String host = req.getHeader(ReflexServletConst.HEADER_HOST);
-		if (host != null && host.startsWith(SecurityConst.LOCALHOST_PREFIX)) {
-			// Do nothing.
-		} else {
-			if (!ReflexServletConst.SCHEMA_HTTPS.equals(scheme)) {
-				// httpsリクエストでない場合
-				if (ReflexServletConst.GET.equalsIgnoreCase(req.getMethod())) {
-					// GETメソッドであればhttpsに強制的にリダイレクトする。
-					String location = getHttpsUrl(req);
-					resp.sendRedirect(location);
-					return false;
-
-				} else {
-					// その他のメソッドであればステータス405(Method Not Allowed)を返す。
-					throw new MethodNotAllowedException("Not Accepted. " + serviceName);
+			// テスト環境(localhost)は処理を抜ける。
+			String host = req.getHeader(ReflexServletConst.HEADER_HOST);
+			if (host != null && host.startsWith(SecurityConst.LOCALHOST_PREFIX)) {
+				// Do nothing.
+			} else {
+				if (!ReflexServletConst.SCHEMA_HTTPS.equals(scheme)) {
+					// httpsリクエストでない場合
+					if (ReflexServletConst.GET.equalsIgnoreCase(req.getMethod())) {
+						// GETメソッドであればhttpsに強制的にリダイレクトする。
+						String location = getHttpsUrl(req);
+						resp.sendRedirect(location);
+						return false;
+	
+					} else {
+						// その他のメソッドであればステータス405(Method Not Allowed)を返す。
+						throw new MethodNotAllowedException("Not Accepted. " + serviceName);
+					}
 				}
 			}
-		}
+		}	// stagingの場合はチェックしない
 
 		return true;
 	}
