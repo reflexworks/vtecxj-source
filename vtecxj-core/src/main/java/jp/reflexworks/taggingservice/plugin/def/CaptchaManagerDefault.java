@@ -29,9 +29,9 @@ public class CaptchaManagerDefault implements CaptchaManager {
 	private static final String VERIFY_PARAM_RESPONSE = "&response=";
 
 	/** 設定 : reCAPTCHAのsecretkey (v3) */
-	private static final String PROP_RECAPTCHA_SECRETKEY = SettingConst.RECAPTCHA_SECRETKEY;
+	private static final String PROP_RECAPTCHA_SECRETKEY = "_recaptcha.secretkey";
 	/** 設定 : reCAPTCHAのsecretkey (v2) */
-	private static final String PROP_RECAPTCHA_SECRETKEY_V2 = SettingConst.RECAPTCHA_SECRETKEY_V2;
+	private static final String PROP_RECAPTCHA_SECRETKEY_V2 = "_recaptcha.secretkey.v2";
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());

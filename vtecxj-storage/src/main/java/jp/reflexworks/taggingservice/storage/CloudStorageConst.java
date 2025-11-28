@@ -46,10 +46,6 @@ public class CloudStorageConst {
 	public static final String STORAGE_BUCKET_LOCATION = "_storage.bucket.location";
 	/** ストレージアクセス秘密鍵ファイル名(コンテンツ登録・取得用及びバケット作成用) */
 	public static final String STORAGE_FILE_SECRET = "_storage.file.secret";
-	/** ストレージアクセス秘密鍵ファイル名(コンテンツ登録・取得用) */
-	public static final String STORAGE_FILE_SECRET_CONTENT = "_storage.file.secret.content";
-	/** ストレージアクセス秘密鍵ファイル名(バケット作成用) */
-	public static final String STORAGE_FILE_SECRET_BUCKET = "_storage.file.secret.bucket";
 	/** 他のスレッドによるバケット登録待ちのリトライ回数 **/
 	public static final String STORAGE_WAITCREATEBUCKET_RETRY_COUNT = "_storage.waitcreatebucket.retry.count";
 	/** 他のスレッドによるバケット登録待ちリトライ時のスリープ時間(ミリ秒) **/
@@ -128,10 +124,8 @@ public class CloudStorageConst {
 	/** URI bucket slash */
 	public static final String URI_BUCKET_SLASH = URI_BUCKET + "/";
 
-	/** コネクション情報格納キー (コンテンツ登録・取得用) */
-	public static final String CONNECTION_INFO_CONTENT ="_storage_content";
-	/** コネクション情報格納キー (バケット作成用) */
-	public static final String CONNECTION_INFO_BUCKET ="_storage_bucket";
+	/** コネクション情報格納キー */
+	public static final String CONNECTION_INFO = "_storage";
 
 	/** バイト読み込みバッファサイズ */
 	public static final int BUFFER_SIZE = 2048;

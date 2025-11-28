@@ -17,19 +17,24 @@ public class BigQueryInfo {
 	/** 秘密鍵 */
 	private byte[] secret;
 	
+	/** サービスアカウントEmail */
+	private String serviceAccount;
+	
 	/**
 	 * コンストラクタ.
 	 * @param projectId プロジェクトID
 	 * @param datasetId データセット名
 	 * @param location ロケーション
 	 * @param secret 秘密鍵
+	 * @param serviceAccount サービスアカウントEmail
 	 */
 	public BigQueryInfo(String projectId, String datasetId, String location, 
-			byte[] secret) {
+			byte[] secret, String serviceAccount) {
 		this.projectId = projectId;
 		this.datasetId = datasetId;
 		this.location = location;
 		this.secret = secret;
+		this.serviceAccount = serviceAccount;
 	}
 
 	/**
@@ -62,6 +67,14 @@ public class BigQueryInfo {
 	 */
 	public byte[] getSecret() {
 		return secret;
+	}
+
+	/**
+	 * サービスアカウントEmailを取得
+	 * @return サービスアカウントEmail
+	 */
+	public String getServiceAccount() {
+		return serviceAccount;
 	}
 
 	/**

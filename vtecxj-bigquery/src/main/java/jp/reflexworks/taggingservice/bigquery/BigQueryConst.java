@@ -1,7 +1,9 @@
 package jp.reflexworks.taggingservice.bigquery;
 
+import java.util.Arrays;
+import java.util.List;
+
 import jp.reflexworks.atom.entry.EntryBase;
-import jp.reflexworks.taggingservice.api.SettingConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.util.Constants;
 
@@ -9,6 +11,9 @@ import jp.reflexworks.taggingservice.util.Constants;
  * BigQuery定数インターフェース.
  */
 public interface BigQueryConst {
+	
+	/** BigQueryのscope */
+	public static final List<String> SCOPES = Arrays.asList("https://www.googleapis.com/auth/bigquery");
 
 	/** コネクション情報格納キー */
 	public static final String CONNECTION_INFO_BIGQUERY ="_bigquery";
@@ -31,12 +36,6 @@ public interface BigQueryConst {
 	public static final String BIGQUERY_CALLABLE_RETRY_WAITMILLIS = "_bigquery.callable.retry.waitmillis";
 	/** 設定 : ロケーションのデフォルト値 */
 	public static final String BIGQUERY_DEFAULT_LOCATION = "_bigquery.default.location";
-	/** 設定(サービスごと) : プロジェクトID */
-	public static final String BIGQUERY_PROJECTID = SettingConst.BIGQUERY_PROJECTID;
-	/** 設定(サービスごと) : データセット名 */
-	public static final String BIGQUERY_DATASET = SettingConst.BIGQUERY_DATASET;
-	/** 設定(サービスごと) : ロケーション*/
-	public static final String BIGQUERY_LOCATION = SettingConst.BIGQUERY_LOCATION;
 
 	/** プロパティデフォルト値 : エラー時の総リトライ回数 */
 	public static final int BIGQUERY_RETRY_COUNT_DEFAULT = 2;
@@ -72,9 +71,17 @@ public interface BigQueryConst {
 	/** BigQuery接続設定がされていない場合のエラーメッセージ */
 	public static final String MSG_NO_SETTINGS =
 			"BigQuery information is required. Please set " +
-			Constants.URI_SETTINGS_PROPERTIES + " and " + URI_SECRET_JSON + ".";
+			Constants.URI_SETTINGS_PROPERTIES + ".";
 
 	/** BigQuery例外メッセージ : Already Exists */
 	public static final String BIGQUERYEXCEPTION_ALREADY_EXISTS = "Already Exists";
+
+	/** メモリ上のstaticオブジェクト格納キー : BigQuery環境情報 */
+	public static final String STATIC_NAME_BIGQUERY_ENV = "_bigquery_env";
+	
+	/** BigQueryオブジェクトキャッシュの最大格納数 */
+	public static final int CACHE_MAXSIZE = 500;
+	/** BigQueryオブジェクトキャッシュの有効期間(分) */
+	public static final int CACHE_EXPIRE_MIN = 30;
 
 }

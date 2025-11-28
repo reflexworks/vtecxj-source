@@ -50,12 +50,12 @@ public class BigQueryDataset {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, datasetId, tableId));
+				logger.info(BigQueryUtil.getStartLog(command, datasetId, tableId));
 				startTime = new Date().getTime();
 			}
 			Table table = dataset.get(tableId, options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
 				startTime = new Date().getTime();
 			}
 			if (table == null) {
@@ -83,12 +83,12 @@ public class BigQueryDataset {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, datasetId, tableId));
+				logger.info(BigQueryUtil.getStartLog(command, datasetId, tableId));
 				startTime = new Date().getTime();
 			}
 			Table table = dataset.create(tableId, tableDefinition, options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
 				startTime = new Date().getTime();
 			}
 			if (table == null) {
@@ -122,12 +122,12 @@ public class BigQueryDataset {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, datasetId));
+				logger.info(BigQueryUtil.getStartLog(command, datasetId));
 				startTime = new Date().getTime();
 			}
 			Page<Table> tablePage = dataset.list(options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, datasetId, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, datasetId, startTime));
 			}
 			if (tablePage == null) {
 				return null;

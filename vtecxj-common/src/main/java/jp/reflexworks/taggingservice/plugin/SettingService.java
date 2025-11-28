@@ -25,32 +25,6 @@ public interface SettingService extends ReflexPlugin {
 	throws IOException, TaggingException;
 
 	/**
-	 * サービスの初期設定が必要かどうかチェック
-	 * @param serviceName サービス名
-	 * @param requestInfo リクエスト情報
-	 * @param connectionInfo コネクション情報
-	 * @return サービスの初期設定が必要な場合true
-	 */
-	/*
-	public boolean isNeedSettingService(String serviceName, RequestInfo requestInfo,
-			ConnectionInfo connectionInfo)
-	throws IOException, TaggingException;
-	*/
-
-	/**
-	 * サービスごとの情報更新チェック.
-	 * この処理は他のスレッドを排他して呼ばれます。
-	 * @param serviceName サービス名
-	 * @param requestInfo リクエスト情報
-	 * @param connectionInfo コネクション情報
-	 */
-	/*
-	public void checkSettingUpdate(String serviceName, RequestInfo requestInfo,
-			ConnectionInfo connectionInfo)
-	throws IOException, TaggingException;
-	*/
-
-	/**
 	 * サービス情報クローズ.
 	 * static領域にある指定されたサービスの情報を削除する。
 	 * @param serviceName サービス名

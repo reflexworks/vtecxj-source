@@ -6,11 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.cloud.RetryOption;
+import com.google.cloud.bigquery.BigQuery.QueryResultsOption;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobStatus;
 import com.google.cloud.bigquery.TableResult;
-import com.google.cloud.bigquery.BigQuery.QueryResultsOption;
 
 /**
  * BigQuery ジョブオブジェクト.
@@ -49,12 +49,12 @@ public class BigQueryJob {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, null, null));
+				logger.info(BigQueryUtil.getStartLog(command, null, null));
 				startTime = new Date().getTime();
 			}
 			Job ret = job.waitFor(waitOptions);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, null, null, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, null, null, startTime));
 				startTime = new Date().getTime();
 			}
 			return new BigQueryJob(ret);
@@ -78,12 +78,12 @@ public class BigQueryJob {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, null, null));
+				logger.info(BigQueryUtil.getStartLog(command, null, null));
 				startTime = new Date().getTime();
 			}
 			JobStatus ret = job.getStatus();
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, null, null, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, null, null, startTime));
 				startTime = new Date().getTime();
 			}
 			return ret;
@@ -108,12 +108,12 @@ public class BigQueryJob {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, null, null));
+				logger.info(BigQueryUtil.getStartLog(command, null, null));
 				startTime = new Date().getTime();
 			}
 			TableResult ret = job.getQueryResults(options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, null, null, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, null, null, startTime));
 				startTime = new Date().getTime();
 			}
 			return ret;

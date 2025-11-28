@@ -27,7 +27,7 @@ import jp.sourceforge.reflex.util.StringUtils;
 public class ReflexSecretManager implements SecretManager {
 
 	/** ロガー. */
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private static final Logger logger = LoggerFactory.getLogger(ReflexSecretManager.class);
 
 	/**
 	 * 初期処理.

@@ -15,11 +15,15 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryError;
 import com.google.cloud.bigquery.BigQueryException;
@@ -46,12 +50,15 @@ import jp.reflexworks.atom.mapper.FeedTemplateMapper.Meta;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexContentInfo;
+import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
+import jp.reflexworks.taggingservice.exception.MappingFunctionException;
 import jp.reflexworks.taggingservice.exception.NoExistingEntryException;
+import jp.reflexworks.taggingservice.exception.StaticDuplicatedException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.BigQueryManager;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
@@ -71,6 +78,15 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	/** フィールド名の先頭が_の場合、getterのメソッド名から_を外すかどうか */
 	private static final boolean isReflexField = true;
 
+	/** 
+	 * BigQuery接続オブジェクト(com.google.cloud.bigquery.BigQuery)はスレッドセーフのため使い回す。
+	 * キー:サービス名、値:BigQueryオブジェクト
+	 */
+	private static final Cache<String, BigQuery> clientCache = Caffeine.newBuilder()
+			.expireAfterAccess(BigQueryConst.CACHE_EXPIRE_MIN, TimeUnit.MINUTES)
+			.maximumSize(BigQueryConst.CACHE_MAXSIZE)
+			.build();
+
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -79,7 +95,31 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	@Override
 	public void init() {
-		// Do nothing.
+		// BigQuery用static情報をメモリに格納
+		BigQueryEnv bigQueryEnv = new BigQueryEnv();
+		try {
+			ReflexStatic.setStatic(BigQueryConst.STATIC_NAME_BIGQUERY_ENV, bigQueryEnv);
+		} catch (StaticDuplicatedException e) {
+			bigQueryEnv = (BigQueryEnv)ReflexStatic.getStatic(BigQueryConst.STATIC_NAME_BIGQUERY_ENV);
+		}
+
+		// Googleデフォルト認証情報を生成
+		try {
+			GoogleCredentials googleCredentials = GoogleCredentials.getApplicationDefault();
+			bigQueryEnv.setGoogleCredentials(googleCredentials);
+		} catch (IOException e) {
+			logger.warn("[init] IOException", e);
+			//throw new IllegalStateException(e);
+		}
+
+		// Googleデフォルト接続オブジェクトを生成
+		try {
+			BigQuery bigQueryDefault = BigQueryOptions.newBuilder().build().getService();
+			bigQueryEnv.setBigQueryDefault(bigQueryDefault);
+		} catch (IllegalArgumentException | BigQueryException e) {
+			logger.warn("[init] Default connection failed.", e);
+			//throw new IllegalStateException(e);
+		}
 	}
 
 	/**
@@ -106,7 +146,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	public Future postBq(FeedBase feed, Map<String, String> tableNames, boolean async,
 			boolean addPrefixToFieldname, ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		String serviceName = auth.getServiceName();
 		String accessLogUri = null;
 		if (isEnableAccessLog()) {
@@ -126,7 +166,18 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			}
 			accessLogUri = asb.toString();
 			sb.append(accessLogUri);
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
+		}
+
+		// サービスの設定チェック
+		// データセットIDが指定されていなければエラー
+		String datasetId = BigQueryUtil.getDatasetId(serviceName);
+		String location = BigQueryUtil.getLocation(serviceName);
+		if (StringUtils.isBlank(datasetId)) {
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[postBq] No datasetId settings.");
+			}
+			throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (dataset)");
 		}
 
 		FieldMapper fieldMapper = new FieldMapper(isReflexField);
@@ -156,7 +207,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
 					sb.append("[postBq] IllegalParameterException: ");
 					sb.append(e.getMessage());
-					logger.debug(sb.toString());
+					logger.info(sb.toString());
 				}
 				if (tmpE == null) {
 					tmpE = e;
@@ -168,15 +219,11 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			throw tmpE;
 		}
 
-		// BigQuery接続情報を取得
-		BigQueryInfo bigQueryInfo = getBigQueryInfo(serviceName,
-				requestInfo, connectionInfo);
-
 		// コネクションを取得
-		BigQueryConnection bigQuery = getConnection(bigQueryInfo, serviceName,
+		BigQueryConnection bigQuery = getConnection(serviceName,
 				requestInfo, connectionInfo);
 		// データセットを取得
-		BigQueryDataset dataset = getDataset(bigQueryInfo, bigQuery, serviceName,
+		BigQueryDataset dataset = getDataset(bigQuery, datasetId, location, serviceName,
 				requestInfo, connectionInfo);
 		Map<String, BigQueryTable> tableMap = new HashMap<String, BigQueryTable>();
 
@@ -199,7 +246,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 				BigQueryTable table = tableMap.get(tableFieldName);
 				if (table == null) {
 					String tableName = getTableName(tableFieldName, tableNames);
-					table = getTable(bigQueryInfo, dataset, tableFieldName, tableName,
+					table = getTable(dataset, tableFieldName, tableName,
 							metalist, addPrefixToFieldname, serviceName, 
 							requestInfo, connectionInfo);
 					tableMap.put(tableFieldName, table);
@@ -226,7 +273,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			return null;
 		} else {
 			// 非同期処理
-			BigQueryPostCallable callable = new BigQueryPostCallable(bigQueryInfo,
+			BigQueryPostCallable callable = new BigQueryPostCallable(datasetId, location,
 					rowToInsertsMap, metalist, tableNames, addPrefixToFieldname);
 			return TaskQueueUtil.addTask(callable, 0, auth, requestInfo, connectionInfo);
 		}
@@ -248,27 +295,34 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	public Future postBq(String tableName, List<Map<String, Object>> list,
 			boolean async, ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		String serviceName = auth.getServiceName();
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[postBq(map)] start");
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[postBq(map)] start");
 		}
 
-		// BigQuery接続情報を取得
-		BigQueryInfo bigQueryInfo = getBigQueryInfo(serviceName,
-				requestInfo, connectionInfo);
+		// サービスの設定チェック
+		// データセットIDが指定されていなければエラー
+		String datasetId = BigQueryUtil.getDatasetId(serviceName);
+		String location = BigQueryUtil.getLocation(serviceName);
+		if (StringUtils.isBlank(datasetId)) {
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[postBq] No datasetId settings.");
+			}
+			throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (dataset)");
+		}
 
 		// コネクションを取得
-		BigQueryConnection bigQuery = getConnection(bigQueryInfo, serviceName,
+		BigQueryConnection bigQuery = getConnection(serviceName,
 				requestInfo, connectionInfo);
 
 		// データセットを取得
-		BigQueryDataset dataset = getDataset(bigQueryInfo, bigQuery, serviceName,
+		BigQueryDataset dataset = getDataset(bigQuery, datasetId, location, serviceName,
 				requestInfo, connectionInfo);
 
 		// テーブル
 		Map<String, Object> firstRowMap = list.get(0);
-		BigQueryTable table = getTable(bigQueryInfo, dataset, tableName, firstRowMap,
+		BigQueryTable table = getTable(dataset, tableName, firstRowMap,
 				serviceName, requestInfo, connectionInfo);
 		TableDefinition tableDefinition = table.getTableDefinition();
 		List<RowToInsert> rowToInserts = new ArrayList<RowToInsert>();
@@ -296,7 +350,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			return null;
 		} else {
 			// 非同期処理
-			BigQueryPostCallable callable = new BigQueryPostCallable(bigQueryInfo,
+			BigQueryPostCallable callable = new BigQueryPostCallable(datasetId, location,
 					rowToInsertsMap, firstRowMap);
 			return TaskQueueUtil.addTask(callable, 0, auth, requestInfo, connectionInfo);
 		}
@@ -317,8 +371,20 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	public Future deleteBq(String[] uris, Map<String, String> tableNames, boolean async,
 			ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		String serviceName = auth.getServiceName();
+
+		// サービスの設定チェック
+		// データセットIDが指定されていなければエラー
+		String datasetId = BigQueryUtil.getDatasetId(serviceName);
+		String location = BigQueryUtil.getLocation(serviceName);
+		if (StringUtils.isBlank(datasetId)) {
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[deleteBq] No datasetId settings.");
+			}
+			throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (dataset)");
+		}
+
 		// Metalistを取得
 		List<Meta> metalist = BigQueryUtil.getMetalist(serviceName);
 		// テンプレートからBigQueryテーブル対象を抽出する。
@@ -327,16 +393,12 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			throw new InvalidServiceSettingException("There is no target table.");
 		}
 
-		// BigQuery接続情報を取得
-		BigQueryInfo bigQueryInfo = getBigQueryInfo(serviceName,
-				requestInfo, connectionInfo);
-
 		// コネクションを取得
-		BigQueryConnection bigQuery = getConnection(bigQueryInfo, serviceName,
+		BigQueryConnection bigQuery = getConnection(serviceName,
 				requestInfo, connectionInfo);
 		// データセットを取得
-		BigQueryDataset dataset = getDataset(bigQueryInfo, bigQuery, serviceName,
-				requestInfo, connectionInfo);
+		BigQueryDataset dataset = getDataset(bigQuery, datasetId, location,
+				serviceName, requestInfo, connectionInfo);
 
 		// データセットから対象テーブルを抽出し、テンプレートから抽出したテーブルと突き合わせる。
 		Map<String, BigQueryTable> tableMap = getBigQueryTables(dataset, tablesByMetalist,
@@ -356,10 +418,10 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			BigQueryTable table = mapEntry.getValue();
 			String sql = createSQLSelectByKey(table, uris);
 			if (isEnableAccessLog()) {
-				logger.debug("[deleteBq] check SQL: " + sql);
+				logger.info("[deleteBq] check SQL: " + sql);
 			}
-			List<Map<String, Object>> result = queryBqProc(bigQueryInfo, bigQuery, sql,
-					requestInfo);
+			List<Map<String, Object>> result = queryBqProc(bigQuery, datasetId, location, 
+					sql, requestInfo);
 			if (result != null && !result.isEmpty()) {
 				List<String> keys = new ArrayList<String>();
 				for (Map<String, Object> row : result) {
@@ -414,7 +476,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			return null;
 		} else {
 			// 非同期処理
-			BigQueryPostCallable callable = new BigQueryPostCallable(bigQueryInfo,
+			BigQueryPostCallable callable = new BigQueryPostCallable(datasetId, location,
 					rowToInsertsMap, metalist, tableNames, false);
 			return TaskQueueUtil.addTask(callable, 0, auth, requestInfo, connectionInfo);
 		}
@@ -432,21 +494,29 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	@Override
 	public List<Map<String, Object>> queryBq(String sql, ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
+		String serviceName = auth.getServiceName();
+
+		// サービスの設定チェック
+		// データセットIDが指定されていなければエラー
+		String datasetId = BigQueryUtil.getDatasetId(serviceName);
+		String location = BigQueryUtil.getLocation(serviceName);
+		if (StringUtils.isBlank(datasetId)) {
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[queryBq] No datasetId settings.");
+			}
+			throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (dataset)");
+		}
+
 		// SELECT文以外はエラーとする。
 		checkSelect(sql);
 
-		String serviceName = auth.getServiceName();
-		// BigQuery接続情報を取得
-		BigQueryInfo bigQueryInfo = getBigQueryInfo(serviceName,
-				requestInfo, connectionInfo);
-
 		// コネクションを取得
-		BigQueryConnection bigQuery = getConnection(bigQueryInfo, serviceName,
+		BigQueryConnection bigQuery = getConnection(serviceName,
 				requestInfo, connectionInfo);
 
 		// 検索処理
-		return queryBqProc(bigQueryInfo, bigQuery, sql, requestInfo);
+		return queryBqProc(bigQuery, datasetId, location, sql, requestInfo);
 	}
 
 	/**
@@ -460,8 +530,20 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	@Override
 	public void checkBq(FeedBase feed, ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		String serviceName = auth.getServiceName();
+
+		// サービスの設定チェック
+		// データセットIDが指定されていなければエラー
+		String datasetId = BigQueryUtil.getDatasetId(serviceName);
+		String location = BigQueryUtil.getLocation(serviceName);
+		if (StringUtils.isBlank(datasetId)) {
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[checkBq] No datasetId settings.");
+			}
+			throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (dataset)");
+		}
+
 		String accessLogUri = null;
 		if (isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
@@ -482,7 +564,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 				accessLogUri = asb.toString();
 			}
 			sb.append(accessLogUri);
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 
 		if (feed != null && feed.entry != null) {
@@ -502,7 +584,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 						sb.append(LogUtil.getRequestInfoStr(requestInfo));
 						sb.append("[checkBq] IllegalParameterException: ");
 						sb.append(e.getMessage());
-						logger.debug(sb.toString());
+						logger.info(sb.toString());
 					}
 					if (tmpE == null) {
 						tmpE = e;
@@ -515,23 +597,19 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			}
 		}
 
-		// BigQuery接続情報を取得
-		BigQueryInfo bigQueryInfo = getBigQueryInfo(serviceName,
-				requestInfo, connectionInfo);
-
 		// コネクションを取得
-		BigQueryConnection bigQuery = getConnection(bigQueryInfo, serviceName,
+		BigQueryConnection bigQuery = getConnection(serviceName,
 				requestInfo, connectionInfo);
 		// データセットを取得
-		BigQueryDataset dataset = getDataset(bigQueryInfo, bigQuery, serviceName,
-				requestInfo, connectionInfo);
+		BigQueryDataset dataset = getDataset(bigQuery, datasetId, location, 
+				serviceName, requestInfo, connectionInfo);
 
 		if (isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
 			sb.append("[checkBq] end uri = ");
 			sb.append(accessLogUri);
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 	}
 
@@ -544,7 +622,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	void postBqProc(Map<String, BigQueryTable> tableMap,
 			Map<String, List<RowToInsert>> rowToInsertsMap,
 			RequestInfo requestInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		// リトライ回数
 		int numRetries = BigQueryUtil.getBigQueryRetryCount();
 		int waitMillis = BigQueryUtil.getBigQueryRetryWaitmillis();
@@ -579,15 +657,16 @@ public class ReflexBigQueryManager implements BigQueryManager {
 
 	/**
 	 * 検索処理.
-	 * @param bigQueryInfo BigQuery接続情報
 	 * @param bigQuery BigQueryコネクション
+	 * @param datasetId データセットID
+	 * @param location ロケーション
 	 * @param sql SQL
 	 * @param requestInfo リクエスト情報
 	 * @return 検索結果
 	 */
-	private List<Map<String, Object>> queryBqProc(BigQueryInfo bigQueryInfo,
-			BigQueryConnection bigQuery, String sql, RequestInfo requestInfo)
-	throws IOException, TaggingException {
+	private List<Map<String, Object>> queryBqProc(BigQueryConnection bigQuery, 
+			String datasetId, String location, String sql, RequestInfo requestInfo)
+					throws IOException, TaggingException {
 		// クエリを生成
 		QueryJobConfiguration queryConfig =
 				QueryJobConfiguration.newBuilder(sql)
@@ -596,7 +675,6 @@ public class ReflexBigQueryManager implements BigQueryManager {
 				.setUseLegacySql(false)
 				.build();
 
-		String location = BigQueryUtil.getLocation(bigQueryInfo);
 		// リトライ回数
 		int numRetries = BigQueryUtil.getBigQueryRetryCount();
 		int waitMillis = BigQueryUtil.getBigQueryRetryWaitmillis();
@@ -657,7 +735,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 		// 通らない
 		throw new IllegalStateException("The code that should not pass.");
 	}
-	
+
 	/**
 	 * Fieldの値を適切な型で取得
 	 * @param fieldValue FieldValue
@@ -665,7 +743,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 * @return Fieldの値
 	 */
 	private Object getFieldValueObject(FieldValue fieldValue, LegacySQLTypeName type) 
-	throws IOException {
+			throws IOException {
 		Object val = null;
 		Object tmpVal = fieldValue.getValue();
 		if (tmpVal != null) {
@@ -686,7 +764,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 		}
 		return val;
 	}
-	
+
 	/**
 	 * RECORDタイプを返却
 	 * @param fieldValueList FieldValueList
@@ -698,7 +776,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			Object val = null;
 			FieldValue.Attribute attribute = fieldValue.getAttribute();
 			if (logger.isTraceEnabled()) {
-				logger.debug("[getRecordValue] fieldValue = " + fieldValue + ", attribute = " + attribute);
+				logger.info("[getRecordValue] fieldValue = " + fieldValue + ", attribute = " + attribute);
 			}
 			if (attribute.equals(FieldValue.Attribute.RECORD)) {
 				val = getRecordValue(fieldValue.getRecordValue());
@@ -719,42 +797,51 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private BigQueryInfo getBigQueryInfo(String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		SystemContext systemContext = new SystemContext(serviceName,
 				requestInfo, connectionInfo);
-		String projectId = TaggingEnvUtil.getProp(serviceName, BigQueryConst.BIGQUERY_PROJECTID, null);
-		String datasetId = TaggingEnvUtil.getProp(serviceName, BigQueryConst.BIGQUERY_DATASET, null);
-		String location = TaggingEnvUtil.getProp(serviceName, BigQueryConst.BIGQUERY_LOCATION, null);
+		String projectId = BigQueryUtil.getProjectId(serviceName);
+		String datasetId = BigQueryUtil.getDatasetId(serviceName);
+		String location = BigQueryUtil.getLocation(serviceName);
 		byte[] secret = null;
 		ReflexContentInfo contentInfo = systemContext.getContent(BigQueryConst.URI_SECRET_JSON);
 		if (contentInfo != null) {
 			secret = contentInfo.getData();
 		}
-		if (TaggingServiceUtil.isBaaS()) {
-			if (secret != null && secret.length > 0 && !StringUtils.isBlank(datasetId)) {
-				return new BigQueryInfo(projectId, datasetId, location, secret);
+		String serviceAccount = TaggingEnvUtil.getProp(serviceName, 
+				BigQuerySettingConst.BIGQUERY_SERVICEACCOUNT, null);
+
+		if (StringUtils.isBlank(datasetId)) {
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getBigQueryInfo] No datasetId settings.");
 			}
-		} else {
-			if (!StringUtils.isBlank(datasetId)) {
-				return new BigQueryInfo(projectId, datasetId, location, secret);
+			throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (dataset)");
+		}
+
+		if (TaggingServiceUtil.isBaaS()) {
+			if ((secret == null || secret.length == 0) &&
+					 StringUtils.isBlank(serviceAccount)) {
+				if (logger.isTraceEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getBigQueryInfo] (BaaS) No settings. (serviceAccount or secret)");
+				}
+				throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (serviceAccount or secret)");
 			}
 		}
 
-		throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS);
+		return new BigQueryInfo(projectId, datasetId, location, secret, serviceAccount);
+
 	}
 
 	/**
 	 * BigQuery接続オブジェクトを取得.
-	 * @param bigQueryInfo BigQuery接続情報
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 * @return BigQuery接続オブジェクト
 	 */
-	BigQueryConnection getConnection(BigQueryInfo bigQueryInfo,
-			String serviceName,
+	BigQueryConnection getConnection(String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		String name = BigQueryConst.CONNECTION_INFO_BIGQUERY;
 		// リクエスト・スレッド内で取得済みのコネクションがあれば使い回す。
 		BigQueryConnection conn = (BigQueryConnection)connectionInfo.get(name);
@@ -767,7 +854,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 		int waitMillis = BigQueryUtil.getBigQueryRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
 			try {
-				BigQuery bigQuery = getBigQuery(bigQueryInfo, requestInfo, connectionInfo);
+				BigQuery bigQuery = getBigQuery(serviceName, requestInfo, connectionInfo);
 				conn = new BigQueryConnection(bigQuery);
 				connectionInfo.put(name, conn);
 				return conn;
@@ -786,22 +873,24 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 * BigQueryデータセットオブジェクトを取得.
 	 * @param bigQueryInfo BigQuery接続情報
 	 * @param bigQuery BigQueryコネクション
+	 * @param datasetId データセットID
+	 * @param location ロケーション
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 * @return BigQueryデータセットオブジェクト
 	 */
-	BigQueryDataset getDataset(BigQueryInfo bigQueryInfo,
-			BigQueryConnection bigQuery, String serviceName,
-			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
-		String datasetId = bigQueryInfo.getDatasetId();
+	BigQueryDataset getDataset(BigQueryConnection bigQuery, String datasetId, String location, 
+			String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+					throws IOException, TaggingException {
 		BigQueryDataset dataset = getDatasetProc(bigQuery, datasetId,
 				requestInfo, connectionInfo);
 		if (dataset == null) {
 			// データセットを生成
 			// Prepares a new dataset
-			String location = BigQueryUtil.getLocation(bigQueryInfo);
+			if (StringUtils.isBlank(location)) {
+				location = BigQueryUtil.getDefaultLocation();
+			}
 			dataset = createDatasetProc(bigQuery, datasetId, location,
 					requestInfo, connectionInfo);
 		}
@@ -818,7 +907,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private BigQueryDataset getDatasetProc(BigQueryConnection bigQuery, String datasetId,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		int numRetries = BigQueryUtil.getBigQueryRetryCount();
 		int waitMillis = BigQueryUtil.getBigQueryRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
@@ -844,7 +933,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	private BigQueryDataset createDatasetProc(BigQueryConnection bigQuery, String datasetId,
 			String location,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		DatasetInfo.Builder builder = DatasetInfo.newBuilder(datasetId);
 		builder = builder.setLocation(location);
 		DatasetInfo datasetInfo = builder.build();
@@ -870,7 +959,6 @@ public class ReflexBigQueryManager implements BigQueryManager {
 
 	/**
 	 * BigQueryテーブルオブジェクトを取得.
-	 * @param bigQueryInfo BigQuery接続情報
 	 * @param dataset データセットオブジェクト
 	 * @param tableFieldName テーブルとなるフィールド名
 	 * @param tableName テーブル名
@@ -883,11 +971,11 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 * @param connectionInfo コネクション情報
 	 * @return BigQueryテーブルオブジェクト
 	 */
-	BigQueryTable getTable(BigQueryInfo bigQueryInfo, BigQueryDataset dataset,
+	BigQueryTable getTable(BigQueryDataset dataset,
 			String tableFieldName, String tableName, List<Meta> metalist,
 			boolean addPrefixToFieldname, String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		BigQueryTable table = getTableProc(dataset, tableName, requestInfo, connectionInfo);
 		String prefixFieldname = BigQueryUtil.getPrefixFieldname(tableFieldName, 
 				addPrefixToFieldname);
@@ -901,7 +989,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			// tableに定義されているフィールドと、生成したフィールド定義を比較する。
 			TableDefinition currentTableDefinition = table.getTableDefinition();
 			Map<String, Field> currentBgFieldMap = getBqFields(currentTableDefinition);
-			
+
 			List<Field> addFields = new ArrayList<>();
 			Schema schema = tableDefinition.getSchema();
 			FieldList bqFieldList = schema.getFields();
@@ -936,14 +1024,13 @@ public class ReflexBigQueryManager implements BigQueryManager {
 					}
 				}
 			}
-		
+
 		}
 		return table;
 	}
 
 	/**
 	 * BigQueryテーブルオブジェクトを取得.
-	 * @param bigQueryInfo BigQuery接続情報
 	 * @param dataset データセットオブジェクト
 	 * @param tableName テーブル名
 	 * @param rowMap データmap(1行分)
@@ -952,10 +1039,10 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 * @param connectionInfo コネクション情報
 	 * @return BigQueryテーブルオブジェクト
 	 */
-	BigQueryTable getTable(BigQueryInfo bigQueryInfo, BigQueryDataset dataset,
+	BigQueryTable getTable(BigQueryDataset dataset,
 			String tableName, Map<String, Object> rowMap, String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		BigQueryTable table = getTableProc(dataset, tableName, requestInfo, connectionInfo);
 		if (table == null) {
 			// テーブルを生成
@@ -977,7 +1064,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private BigQueryTable getTableProc(BigQueryDataset dataset, String tableName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		int numRetries = BigQueryUtil.getBigQueryRetryCount();
 		int waitMillis = BigQueryUtil.getBigQueryRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
@@ -1004,7 +1091,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	private BigQueryTable createTableProc(BigQueryDataset dataset, String tableName,
 			TableDefinition tableDefinition,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		int numRetries = BigQueryUtil.getBigQueryRetryCount();
 		int waitMillis = BigQueryUtil.getBigQueryRetryWaitmillis();
 		// テーブルを生成
@@ -1027,19 +1114,76 @@ public class ReflexBigQueryManager implements BigQueryManager {
 
 	/**
 	 * BigQuery接続オブジェクトを取得.
-	 * @param bigQueryInfo BigQuery接続情報
+	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 * @return BigQuery接続オブジェクト
 	 */
-	private BigQuery getBigQuery(BigQueryInfo bigQueryInfo,
+	private BigQuery getBigQuery(String serviceName, RequestInfo requestInfo, 
+			ConnectionInfo connectionInfo) 
+					throws IOException, TaggingException, ReflexBigQueryException {
+		try {
+			return clientCache.get(serviceName, key -> {
+				try {
+					return createBigQuery(serviceName, requestInfo, connectionInfo);
+				} catch (IOException | TaggingException | ReflexBigQueryException e) {
+					// RuntimeExceptionしかスローできないため、一旦ラップする。
+					throw new MappingFunctionException(e);
+				}
+			});
+		} catch (MappingFunctionException re) {
+			Throwable t = re.getCause();
+			if (t != null) {
+				if (t instanceof IOException) {
+					throw (IOException)t;
+				} else if (t instanceof TaggingException) {
+					throw (TaggingException)t;
+				} else if (t instanceof ReflexBigQueryException) {
+					throw (ReflexBigQueryException)t;
+				}
+			}
+			throw re;
+		}
+	}
+
+	/**
+	 * BigQuery接続オブジェクトを生成.
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return BigQuery接続オブジェクト
+	 */
+	private BigQuery createBigQuery(String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, ReflexBigQueryException {
+					throws IOException, TaggingException, ReflexBigQueryException {
+		// BigQuery接続情報を取得
+		BigQueryInfo bigQueryInfo = getBigQueryInfo(serviceName,
+				requestInfo, connectionInfo);
+
 		BigQueryOptions bigqueryOptions = null;
 		if (bigQueryInfo.getSecret() == null) {
-			// デフォルト設定
-			bigqueryOptions = BigQueryOptions.newBuilder().build();
-			
+			if (StringUtils.isBlank(bigQueryInfo.getServiceAccount())) {
+				// デフォルト設定
+				return getBigQueryEnv().getBigQueryDefault();
+			} else {
+				// サービスに設定されたサービスアカウントとして認証
+
+				// 2. 権限借用（Impersonation）の認証情報を作成
+				// 「ベースの権限を使って、targetPrincipal(ユーザGSA)のトークンを生成する」という設定です。
+				// ユーザ側で許可設定がなされていない場合、この時点で（または次のクライアント作成時に）エラーになります。
+				ImpersonatedCredentials impersonatedCredentials =
+						ImpersonatedCredentials.newBuilder()
+						.setSourceCredentials(getBigQueryEnv().getGoogleCredentials())
+						.setTargetPrincipal(bigQueryInfo.getServiceAccount()) // ここで借用したい相手を指定
+						.setScopes(BigQueryConst.SCOPES)
+						.build();
+
+				bigqueryOptions = BigQueryOptions.newBuilder()
+						.setCredentials(impersonatedCredentials)
+						.setProjectId(bigQueryInfo.getProjectId())
+						.build();
+			}
+
 		} else {
 			// json秘密鍵を読み込む
 			InputStream jsonFile = null;
@@ -1048,7 +1192,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 
 				GoogleCredentials credentials = GoogleCredentials.fromStream(jsonFile);
 				bigqueryOptions = BigQueryOptions.newBuilder().setCredentials(credentials).build();
-				
+
 			} catch (BigQueryException e) {
 				throw new ReflexBigQueryException(e);
 			} finally {
@@ -1114,7 +1258,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 					if (BigQueryUtil.isPlainType(obj.getClass())) {
 						throw new IllegalParameterException("This entity can not be registered in BigQuery. (The first hierarchical item is not in record format.) " + field.getName());
 					}
-	
+
 					values.put(field.getName(), obj);
 				}
 			} catch (IllegalParameterException e) {
@@ -1123,7 +1267,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
 					sb.append("[getPostField] IllegalParameterException: ");
 					sb.append(e.getMessage());
-					logger.debug(sb.toString());
+					logger.info(sb.toString());
 				}
 				if (tmpE == null) {
 					tmpE = e;
@@ -1166,7 +1310,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private void checkRetry(IOException e, int r, int numRetries, int waitMillis,
 			RequestInfo requestInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 
 		// 設定エラーかどうか
 		if (BigQueryUtil.isSettingError(e, requestInfo)) {
@@ -1188,7 +1332,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			sb.append(e.getClass().getName());
 			sb.append(" ");
 			sb.append(e.getMessage());
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 
 		// 入力エラーかどうか
@@ -1220,9 +1364,9 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private void checkRetry(InterruptedException e, int r, int numRetries, int waitMillis,
 			RequestInfo requestInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		if (isEnableAccessLog()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo), e);
+			logger.info(LogUtil.getRequestInfoStr(requestInfo), e);
 		}
 
 		// リトライエラーかどうか
@@ -1252,7 +1396,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private void checkRetry(ReflexBigQueryException e, int r,
 			int numRetries, int waitMillis, RequestInfo requestInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		checkRetry(e, false ,r, numRetries, waitMillis, requestInfo);
 	}
 
@@ -1267,14 +1411,14 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private void checkRetry(ReflexBigQueryException e, boolean isSelect, int r,
 			int numRetries, int waitMillis, RequestInfo requestInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		if (logger.isTraceEnabled()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
 			sb.append(e.getClass().getSimpleName());
 			sb.append(" ");
 			sb.append(e.getMessage());
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 
 		// ReflexBigQueryExceptionはRuntimeExceptionをスローしないための例外なので、実際のエラーはcause。
@@ -1334,7 +1478,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			prefixStr = BigQueryUtil.getPrefixFieldname(tableFieldName, addPrefixToFieldname);
 			prefixLen = prefixStr.length();
 		}
-		
+
 		while (it.hasNext()) {
 			Field bqField = it.next();
 
@@ -1355,7 +1499,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 				if (addPrefixToFieldname && !bqFieldName.startsWith(prefixStr)) {
 					continue;
 				}
-				
+
 				// フィールド名に接頭辞(第一階層)を付加する場合、接頭辞を取り除いて項目名とする。
 				String tmpBqFieldName = bqFieldName;
 				if (prefixLen > 0) {
@@ -1505,7 +1649,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private Map<String, BigQueryTable> getBigQueryTables(BigQueryDataset dataset,
 			List<String> tablesByMetalist, RequestInfo requestInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		// データセットからテーブルリストを取得
 		List<BigQueryTable> tablesByDataset = getTablesByDataset(dataset, requestInfo);
 		// 一致するものを抽出
@@ -1579,7 +1723,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private List<BigQueryTable> getTablesByDataset(BigQueryDataset dataset,
 			RequestInfo requestInfo)
-	throws IOException, TaggingException {
+					throws IOException, TaggingException {
 		int numRetries = BigQueryUtil.getBigQueryRetryCount();
 		int waitMillis = BigQueryUtil.getBigQueryRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
@@ -1736,13 +1880,21 @@ public class ReflexBigQueryManager implements BigQueryManager {
 		}
 		return bqFieldMap;
 	}
-	
+
 	/**
 	 * BigQueryへのアクセスログを出力するかどうかを取得.
 	 * @return BigQueryへのアクセスログを出力する場合true
 	 */
 	private boolean isEnableAccessLog() {
 		return BigQueryUtil.isEnableAccessLog();
+	}
+
+	/**
+	 * BigQuery用static情報を取得.
+	 * @return BigQuery用static情報
+	 */
+	private BigQueryEnv getBigQueryEnv() {
+		return (BigQueryEnv)ReflexStatic.getStatic(BigQueryConst.STATIC_NAME_BIGQUERY_ENV);
 	}
 
 }

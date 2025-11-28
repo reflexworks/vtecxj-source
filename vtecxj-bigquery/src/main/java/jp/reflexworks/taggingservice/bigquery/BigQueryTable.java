@@ -48,12 +48,12 @@ public class BigQueryTable {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, datasetId, tableId));
+				logger.info(BigQueryUtil.getStartLog(command, datasetId, tableId));
 				startTime = new Date().getTime();
 			}
 			InsertAllResponse ret = table.insert(rows);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
 				startTime = new Date().getTime();
 			}
 			return ret;
@@ -78,12 +78,12 @@ public class BigQueryTable {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, datasetId, tableId));
+				logger.info(BigQueryUtil.getStartLog(command, datasetId, tableId));
 				startTime = new Date().getTime();
 			}
 			Table updTable = table.update(options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, datasetId, tableId, startTime));
 				startTime = new Date().getTime();
 			}
 			return new BigQueryTable(updTable);
