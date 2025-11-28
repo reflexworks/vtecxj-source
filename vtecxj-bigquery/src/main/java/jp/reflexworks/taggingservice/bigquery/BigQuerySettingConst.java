@@ -1,4 +1,4 @@
-package jp.reflexworks.taggingservice.storage;
+package jp.reflexworks.taggingservice.bigquery;
 
 import java.util.Arrays;
 import java.util.List;
@@ -15,21 +15,26 @@ import java.util.List;
  * 			});
  * ```
  */
-public interface CloudStorageSettingConst {
+public interface BigQuerySettingConst {
 
-	/** サイズ別コンテンツ登録のサイズ指定 **/
-	public static final String CONTENT_BYSIZE_PREFIX = "_content.bysize.";
-	/** 署名付きURLの有効期限(分) */
-	public static final String STORAGE_SIGNEDURL_EXPIRE_MIN = "_storage.signedurl.expire.min";
-	/** bucketのCORS Origin */
-	public static final String STORAGE_BUCKET_CORS_ORIGIN = "_storage.bucket.cors.origin";
+	/** BigQueryのプロジェクトID */
+	public static final String BIGQUERY_PROJECTID = "_bigquery.projectid";
+	/** BigQueryのデータセット名 */
+	public static final String BIGQUERY_DATASET = "_bigquery.dataset";
+	/** BigQueryのロケーション */
+	public static final String BIGQUERY_LOCATION = "_bigquery.location";
+	/** BigQueryのサービスアカウント(Email形式) */
+	public static final String BIGQUERY_SERVICEACCOUNT = "_bigquery.serviceaccount";
 
 	/**
 	 * サービスの情報のみ使用し、システムの情報を無視する設定一覧.
 	 */
 	public static final List<String> IGNORE_SYSTEM_INFO =
 			Arrays.asList(new String[]{
-					STORAGE_BUCKET_CORS_ORIGIN
+					BIGQUERY_PROJECTID, 
+					BIGQUERY_DATASET,
+					BIGQUERY_LOCATION,
+					BIGQUERY_SERVICEACCOUNT,
 			});
 
 }

@@ -6,6 +6,8 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
@@ -15,6 +17,9 @@ public class JsCallable extends ReflexCallable<Object> {
 
 	private Source source;
 	private JsContext jscontext;
+
+	/** ロガー. */
+	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	public JsCallable(Source source, JsContext jscontext) {
 		this.source = source;
@@ -55,6 +60,9 @@ public class JsCallable extends ReflexCallable<Object> {
 				Throwable host = e.asHostException();
 				if (host instanceof TaggingException) throw (TaggingException) host;
 				if (host instanceof IOException) throw (IOException) host;
+				if (logger.isInfoEnabled()) {
+					logger.info("[call PolyglotException] Error occured.", e);
+				}
 			}
 			// JS文法・型エラーの扱い（従来の "TypeError" を InvalidServiceSetting に）
 			String msg = e.getMessage();

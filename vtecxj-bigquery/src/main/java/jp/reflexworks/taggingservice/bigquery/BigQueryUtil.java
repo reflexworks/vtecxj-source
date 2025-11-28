@@ -30,7 +30,6 @@ import jp.reflexworks.taggingservice.exception.ConnectionException;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.sourceforge.reflex.util.DateUtil;
-import jp.sourceforge.reflex.util.StringUtils;
 
 /**
  * BigQueryユーティリティ
@@ -105,8 +104,7 @@ public class BigQueryUtil {
 	 */
 	public static boolean isEnableAccessLog() {
 		return TaggingEnvUtil.getSystemPropBoolean(
-				BigQueryConst.BIGQUERY_ENABLE_ACCESSLOG, false) &&
-				logger.isDebugEnabled();
+				BigQueryConst.BIGQUERY_ENABLE_ACCESSLOG, false);
 	}
 
 	/**
@@ -213,7 +211,7 @@ public class BigQueryUtil {
 		sb.append(errorMessage);
 		logger.warn(sb.toString());
 		if (logger.isDebugEnabled()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[convertException] " + errorMessage, e);
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[convertException] " + errorMessage, e);
 		}
 		if (isConnectionError(e)) {
 			connectionInfo.close(name);
@@ -380,7 +378,7 @@ public class BigQueryUtil {
 		}
 		String errorMsg = msg.toString();
 		if (logger.isDebugEnabled()) {
-			logger.debug("[throwBigQueryException] " + errorMsg);
+			logger.info("[throwBigQueryException] " + errorMsg);
 		}
 		throw new IllegalParameterException(errorMsg);
 	}
@@ -467,7 +465,7 @@ public class BigQueryUtil {
 				sb.append(e.getMessage());
 				sb.append(" isRetryable = ");
 				sb.append(e.isRetryable());
-				logger.debug(sb.toString());
+				logger.info(sb.toString());
 			}
 			String msg = e.getMessage();
 			// タイムアウトの場合リトライ対象とする。(仮)
@@ -498,7 +496,7 @@ public class BigQueryUtil {
 				sb.append(e.getClass().getSimpleName());
 				sb.append(": ");
 				sb.append(e.getMessage());
-				logger.debug(sb.toString());
+				logger.info(sb.toString());
 			}
 			String msg = e.getMessage();
 			// タイムアウトの場合リトライ対象とする。(仮)
@@ -526,7 +524,7 @@ public class BigQueryUtil {
 				sb.append(e.getClass().getSimpleName());
 				sb.append(": ");
 				sb.append(e.getMessage());
-				logger.debug(sb.toString());
+				logger.info(sb.toString());
 			}
 			String msg = e.getMessage();
 			// タイムアウトの場合リトライ対象とする。(仮)
@@ -561,14 +559,10 @@ public class BigQueryUtil {
 	 * @param bigQueryInfo BigQuery情報
 	 * @return ロケーション
 	 */
-	public static String getLocation(BigQueryInfo bigQueryInfo) {
-		String location = bigQueryInfo.getLocation();
-		if (StringUtils.isBlank(location)) {
-			location = TaggingEnvUtil.getSystemProp(
+	public static String getDefaultLocation() {
+		return TaggingEnvUtil.getSystemProp(
 					BigQueryConst.BIGQUERY_DEFAULT_LOCATION,
 					BigQueryConst.LOCATION_DEFAULT);
-		}
-		return location;
 	}
 
 	/**
@@ -733,5 +727,32 @@ public class BigQueryUtil {
 		TableDefinition tableDefinition = builder.build();
 		return tableDefinition;
 	}
-
+	
+	/**
+	 * サービスに指定されたBigQueryのプロジェクトIDを取得
+	 * @param serviceName サービス名
+	 * @return BigQueryのプロジェクトID
+	 */
+	public static String getProjectId(String serviceName) {
+		return TaggingEnvUtil.getProp(serviceName, BigQuerySettingConst.BIGQUERY_PROJECTID, null);
+	}
+	
+	/**
+	 * サービスに指定されたBigQueryのデータセットIDを取得
+	 * @param serviceName サービス名
+	 * @return BigQueryのデータセットID
+	 */
+	public static String getDatasetId(String serviceName) {
+		return TaggingEnvUtil.getProp(serviceName, BigQuerySettingConst.BIGQUERY_DATASET, null);
+	}
+	
+	/**
+	 * サービスに指定されたBigQueryのロケーションを取得
+	 * @param serviceName サービス名
+	 * @return BigQueryのロケーション
+	 */
+	public static String getLocation(String serviceName) {
+		return TaggingEnvUtil.getProp(serviceName, BigQuerySettingConst.BIGQUERY_LOCATION, null);
+	}
+	
 }

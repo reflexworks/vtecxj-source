@@ -24,8 +24,10 @@ import jp.reflexworks.taggingservice.util.RetryUtil;
  */
 public class BigQueryPostCallable extends ReflexCallable<Boolean> {
 
-	/** BigQuery接続情報 */
-	private BigQueryInfo bigQueryInfo;
+	/** データセットID */
+	private String datasetId;
+	/** ロケーション */
+	private String location;
 	/** RowToInsert map (キー:テーブル、値:登録データリスト) */
 	private Map<String, List<RowToInsert>> rowToInsertsMap;
 	/** metalist */
@@ -45,16 +47,18 @@ public class BigQueryPostCallable extends ReflexCallable<Boolean> {
 
 	/**
 	 * コンストラクタ
-	 * @param bigQueryInfo BigQuery接続情報
+	 * @param datasetId データセットID
+	 * @param location ロケーション
 	 * @param rowToInsertsMap 登録データリスト格納Map
 	 * @param metalist Metalist
 	 * @param tableNames テーブルとなるフィールド名とテーブル名のMap
 	 * @param addPrefixToFieldname フィールド名に接頭辞(第一階層)を付加する場合true
 	 */
-	public BigQueryPostCallable(BigQueryInfo bigQueryInfo,
+	public BigQueryPostCallable(String datasetId, String location,
 			Map<String, List<RowToInsert>> rowToInsertsMap, List<Meta> metalist,
 			Map<String, String> tableNames, boolean addPrefixToFieldname) {
-		this.bigQueryInfo = bigQueryInfo;
+		this.datasetId = datasetId;
+		this.location = location;
 		this.rowToInsertsMap = rowToInsertsMap;
 		this.metalist = metalist;
 		this.tableNames = tableNames;
@@ -64,13 +68,15 @@ public class BigQueryPostCallable extends ReflexCallable<Boolean> {
 	/**
 	 * コンストラクタ.
 	 * ログデータ用。(Feedからの登録でなくMapに項目名と値を設定)
-	 * @param bigQueryInfo BigQuery接続情報
+	 * @param datasetId データセットID
+	 * @param location ロケーション
 	 * @param rowToInsertsMap 登録データリスト格納Map
 	 * @param rowMap 1行分の項目名とデータ
 	 */
-	public BigQueryPostCallable(BigQueryInfo bigQueryInfo,
+	public BigQueryPostCallable(String datasetId, String location,
 			Map<String, List<RowToInsert>> rowToInsertsMap, Map<String, Object> rowMap) {
-		this.bigQueryInfo = bigQueryInfo;
+		this.datasetId = datasetId;
+		this.location = location;
 		this.rowToInsertsMap = rowToInsertsMap;
 		this.rowMap = rowMap;
 	}
@@ -82,7 +88,7 @@ public class BigQueryPostCallable extends ReflexCallable<Boolean> {
 	public Boolean call() throws IOException, TaggingException {
 		RequestInfo requestInfo = getRequestInfo();
 		if (logger.isTraceEnabled()) {
-			logger.trace(LogUtil.getRequestInfoStr(requestInfo) + "[BigQueryPost call] start.");
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[BigQueryPost call] start.");
 		}
 
 		// ReflexContextを取得
@@ -93,24 +99,24 @@ public class BigQueryPostCallable extends ReflexCallable<Boolean> {
 		ReflexBigQueryManager bigQueryManager = new ReflexBigQueryManager();
 
 		// コネクションを取得
-		BigQueryConnection bigQuery = bigQueryManager.getConnection(bigQueryInfo,
+		BigQueryConnection bigQuery = bigQueryManager.getConnection(
 				serviceName, requestInfo, connectionInfo);
 		// データセットを取得
-		BigQueryDataset dataset = bigQueryManager.getDataset(bigQueryInfo, bigQuery,
+		BigQueryDataset dataset = bigQueryManager.getDataset(bigQuery, datasetId, location,
 				serviceName, requestInfo, connectionInfo);
 		// テーブルオブジェクトを生成
 		Map<String, BigQueryTable> tableMap = new HashMap<String, BigQueryTable>();
 		if (metalist != null) {
 			for (String tableFieldName : rowToInsertsMap.keySet()) {
 				String tableName = getTableName(tableFieldName);
-				BigQueryTable table = bigQueryManager.getTable(bigQueryInfo, dataset,
+				BigQueryTable table = bigQueryManager.getTable(dataset,
 						tableFieldName, tableName, metalist, addPrefixToFieldname, 
 						serviceName, requestInfo, connectionInfo);
 				tableMap.put(tableFieldName, table);
 			}
 		} else {
 			for (String tableName : rowToInsertsMap.keySet()) {
-				BigQueryTable table = bigQueryManager.getTable(bigQueryInfo, dataset,
+				BigQueryTable table = bigQueryManager.getTable(dataset,
 						tableName, rowMap, serviceName, 
 						requestInfo, connectionInfo);
 				tableMap.put(tableName, table);
@@ -134,7 +140,7 @@ public class BigQueryPostCallable extends ReflexCallable<Boolean> {
 				boolean isRetry = BigQueryUtil.isRetryError(e, requestInfo);
 				if (isRetry) {
 					if (logger.isDebugEnabled()) {
-						logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[BigQueryPost call] retry: " + r);
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[BigQueryPost call] retry: " + r);
 					}
 					RetryUtil.sleep(waitMillis + r * 10);
 				}
@@ -142,7 +148,7 @@ public class BigQueryPostCallable extends ReflexCallable<Boolean> {
 		}
 
 		if (logger.isTraceEnabled()) {
-			logger.trace(LogUtil.getRequestInfoStr(requestInfo) + "[BigQueryPost call] end.");
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[BigQueryPost call] end.");
 		}
 		return true;
 	}

@@ -55,6 +55,23 @@
       </exclusions>
     </dependency>
  
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+      <version>3.2.3</version>
+      <!-- 以下のjarはgoogle cloud storaege, bigqueryで別のバージョンが使用されるため、ここでは除く。 -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.checkerframework</groupId>
+          <artifactId>checker-qual</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- 以下はコンパイル時には不要だが、実行環境に必要 -->
     <dependency>
       <groupId>io.grpc</groupId>

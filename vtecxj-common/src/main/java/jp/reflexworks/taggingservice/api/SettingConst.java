@@ -24,12 +24,6 @@ public interface SettingConst {
 	public static final String MAIL_PREFIX = "_mail.";
 	/** IPアドレスホワイトリスト設定(サービス管理者) **/
 	public static final String WHITE_REMOTEADDR_PREFIX = "_white.remoteaddress.";
-	/** BigQueryのプロジェクトID */
-	public static final String BIGQUERY_PROJECTID = "_bigquery.projectid";
-	/** BigQueryのデータセット名 */
-	public static final String BIGQUERY_DATASET = "_bigquery.dataset";
-	/** BigQueryのロケーション */
-	public static final String BIGQUERY_LOCATION = "_bigquery.location";
 	/** JSON出力においてfeed.entryを省略するかどうか */
 	public static final String JSON_STARTARRAYBRACKET = "_json.startarraybracket";
 	/** バッチジョブ **/
@@ -64,10 +58,6 @@ public interface SettingConst {
 	public static final String MESSAGEQUEUE_EXPIRE_MIN = "_messagequeue.expire.min";
 	/** サービス設定 : CORS(クロスドメイン) Origin **/
 	public static final String CORS_ORIGIN = "_cors.origin";
-	/** サービス設定 : reCAPTCHA 秘密鍵 (v3) (旧) **/
-	public static final String RECAPTCHA_SECRETKEY = "_recaptcha.secretkey";
-	/** サービス設定 : reCAPTCHA 秘密鍵 (v2) (旧) **/
-	public static final String RECAPTCHA_SECRETKEY_V2 = "_recaptcha.secretkey.v2";
 	/** WSSEにおいてキャプチャ不要な失敗回数 */
 	public static final String WSSE_WITHOUT_CAPTCHA = "_wsse.without.captcha";
 	/** RDB設定 */
@@ -81,8 +71,7 @@ public interface SettingConst {
 	 * </p>
 	 */
 	public static final List<String> IGNORE_SYSTEM_IF_EXIST_SERVICE_INFO =
-			Arrays.asList(new String[]{MAIL_PREFIX, BIGQUERY_PROJECTID, BIGQUERY_DATASET,
-					BIGQUERY_LOCATION});
+			Arrays.asList(new String[]{MAIL_PREFIX});
 
 	/** ユーザ初期エントリー設定 : ユーザ番号に置き換える記号 */
 	public static final String SETTING_USERINIT_UID = "#";

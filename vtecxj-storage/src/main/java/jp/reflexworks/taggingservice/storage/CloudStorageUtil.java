@@ -1,5 +1,6 @@
 package jp.reflexworks.taggingservice.storage;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
@@ -9,17 +10,21 @@ import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageClass;
 import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.StorageOptions;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
+import jp.reflexworks.taggingservice.conn.ReflexConnection;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.LockingException;
@@ -749,16 +754,68 @@ public class CloudStorageUtil {
 
 	/**
 	 * Storage接続インタフェースを取得.
+	 * @param serviceName サービス名
+	 * @param connectionInfo コネクション情報
+	 * @return Storage接続インタフェース
+	 */
+	public static CloudStorageConnection getStorage(String serviceName,
+			ConnectionInfo connectionInfo)
+	throws IOException {
+		String connName = CloudStorageConst.CONNECTION_INFO;
+		CloudStorageConnection storage = null;
+		boolean exists = false;
+		ReflexConnection<?> reflexConn = connectionInfo.get(connName);
+		if (reflexConn != null) {
+			// コネクション情報からコネクションを取得
+			storage = (CloudStorageConnection)reflexConn;
+			exists = true;
+		}
+		if (storage == null) {
+			// Google Cloud Storageコネクションを取得
+			storage = CloudStorageUtil.getStorageConnection();
+			if (storage != null) {
+				// 取得したCloud Storageコネクションをコネクション情報に格納
+				if (exists) {
+					connectionInfo.close(connName);
+				}
+				connectionInfo.put(connName, storage);
+			}
+		}
+		return storage;
+	}
+
+	/**
+	 * Cloud Storageコネクションを取得.
+	 * 初期処理で元になるCloud Storage接続オブジェクトは生成済みである状態で使用する。
+	 * @return Cloud Storageコネクション
+	 */
+	public static CloudStorageConnection getStorageConnection() {
+		CloudStorage storage = getCloudStorage();
+		return new CloudStorageConnection(storage);
+	}
+
+	/**
+	 * Cloud Storage接続オブジェクトを取得.
+	 * 初期処理で元になるCloud Storage接続オブジェクトは生成済みである状態で使用する。
+	 * @return Cloud Storage接続オブジェクト
+	 */
+	public static CloudStorage getCloudStorage() {
+		Storage baseStorage = getStorageEnv().getStorage();
+		return new CloudStorage(baseStorage);
+	}
+
+	/**
+	 * Storage接続インタフェースを取得.
 	 * @param secret 秘密鍵
 	 * @return Storage接続インタフェース
 	 */
-	public static CloudStorage getStorage(byte[] secret) throws IOException {
+	public static CloudStorage createStorage(byte[] secret) throws IOException {
 		// リトライ回数
 		int numRetries = CloudStorageUtil.getStorageDownloadRetryCount();
 		int waitMillis = CloudStorageUtil.getStorageDownloadRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
 			try {
-				return CloudStorage.getStorage(secret);
+				return createStorageProc(secret);
 
 			} catch (CloudStorageException e) {
 				// リトライ判定、入力エラー判定
@@ -771,27 +828,50 @@ public class CloudStorageUtil {
 			}
 		}
 
-		throw new IllegalStateException("Unreachable code. (getStorage)");
+		throw new IllegalStateException("Unreachable code. (createStorage)");
 	}
 
 	/**
-	 * サービス名から秘密鍵を取得 (コンテンツ登録・取得用).
-	 * @param namespace 名前空間
-	 * @return 秘密鍵 (コンテンツ登録・取得用)
+	 * Storage接続インタフェースを取得.
+	 * @param secret 秘密鍵
+	 * @return Storage接続インタフェース
 	 */
-	public static byte[] getContentSecret(String namespace) {
-		CloudStorageEnv storageEnv = getStorageEnv();
-		return storageEnv.getContentSecret(namespace);
-	}
+	private static CloudStorage createStorageProc(byte[] secret) 
+	throws CloudStorageException, IOException {
+		StorageOptions storageOptions = null;
+		try {
+			if (secret == null) {
+				if (CloudStorageUtil.isEnableAccessLog()) {
+					logger.info("[createStorageProc] secret is not used.");
+				}
+				storageOptions = StorageOptions.getDefaultInstance();
+			} else {
+				if (CloudStorageUtil.isEnableAccessLog()) {
+					logger.info("[createStorageProc] secret is used.");
+				}
+				ByteArrayInputStream bin = new ByteArrayInputStream(secret);
+				GoogleCredentials credentials = GoogleCredentials.fromStream(bin);
+				storageOptions = StorageOptions.newBuilder().setCredentials(credentials).build();
+			}
+			String command = "createStorageProc";
+			long startTime = 0;
+			if (CloudStorageUtil.isEnableAccessLog()) {
+				logger.info(CloudStorageUtil.getStartLog(command));
+				startTime = new Date().getTime();
+			}
+			Storage storage = storageOptions.getService();
+			if (CloudStorageUtil.isEnableAccessLog()) {
+				logger.info(CloudStorageUtil.getEndLog(command, startTime));
+				startTime = new Date().getTime();
+			}
+			return new CloudStorage(storage);
 
-	/**
-	 * サービス名から秘密鍵を取得 (バケット登録用).
-	 * @param serviceName サービス名
-	 * @return 秘密鍵 (バケット登録用)
-	 */
-	public static byte[] getBucketSecret(String serviceName) {
-		CloudStorageEnv storageEnv = getStorageEnv();
-		return storageEnv.getBucketSecret(serviceName);
+		} catch (StorageException e) {
+			if (logger.isInfoEnabled()) {
+				logger.info("[createStorageProc] StorageException", e);
+			}
+			throw CloudStorageUtil.convertException(e);
+		}
 	}
 
 }

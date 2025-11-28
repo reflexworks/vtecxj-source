@@ -47,6 +47,8 @@ public class PropertyManagerDefault implements PropertyManager {
 
 	/** システム設定接頭辞 */
 	public static final String SYSTEM_PROP_PREFIX = "_";
+	/** サービスの情報のみ使用し、システムの情報を無視する設定を定義するフィールド名 */
+	public static final String FIELD_NAME_IGNORE_SYSTEM_INFO = "IGNORE_SYSTEM_INFO";
 
 	/** メモリ上のstaticオブジェクト格納キー : web.xmlとプロパティから値を取得するクラス */
 	private static final String STATIC_NAME_PROPERTY_CONTEXTUTIL ="_property_contextutil";
@@ -60,6 +62,8 @@ public class PropertyManagerDefault implements PropertyManager {
 	private static final String STATIC_NAME_PROPERTY_SERVICEMAP_REVISIONS ="_property_servicemap_revisions";
 	/** メモリ上のstaticオブジェクト格納キー : サービスプロパティ項目 */
 	private static final String STATIC_NAME_PROPERTY_EACHSERVICEPROPS ="_property_eachserviceprops";
+	/** メモリ上のstaticオブジェクト格納キー : サービスプロパティ項目のうち、システム管理サービスの情報を取得しない項目 */
+	private static final String STATIC_NAME_PROPERTY_EACHSERVICEPROPS_IGNORE_SYSTEM ="_property_eachserviceprops_ignore_system";
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -116,11 +120,19 @@ public class PropertyManagerDefault implements PropertyManager {
 			logger.warn("[init] StaticDuplicatedException: " + STATIC_NAME_PROPERTY_SERVICEMAP_REVISIONS, e);
 		}
 		// eachServiceProps
-		Set<String> eachServiceProps = initEachServiceProps();
+		Set<String>[] initEachServicePropsArray = initEachServiceProps();
+		Set<String> eachServiceProps = initEachServicePropsArray[0];
 		try {
 			ReflexStatic.setStatic(STATIC_NAME_PROPERTY_EACHSERVICEPROPS, eachServiceProps);
 		} catch (StaticDuplicatedException e) {
 			logger.warn("[init] StaticDuplicatedException: " + STATIC_NAME_PROPERTY_EACHSERVICEPROPS, e);
+		}
+		// eachServicePropsIgnoreSystem
+		Set<String> eachServicePropsIgnoreSystem = initEachServicePropsArray[1];
+		try {
+			ReflexStatic.setStatic(STATIC_NAME_PROPERTY_EACHSERVICEPROPS_IGNORE_SYSTEM, eachServicePropsIgnoreSystem);
+		} catch (StaticDuplicatedException e) {
+			logger.warn("[init] StaticDuplicatedException: " + STATIC_NAME_PROPERTY_EACHSERVICEPROPS_IGNORE_SYSTEM, e);
 		}
 	}
 
@@ -149,6 +161,11 @@ public class PropertyManagerDefault implements PropertyManager {
 			if (val != null) {
 				return val;
 			}
+			// サービスごとの設定で値がない場合、システム管理サービスの値を参照不可かどうか
+			if (isIgnoreSystem(key)) {
+				return val;
+			}
+
 			String propPrefix = getEachServicePropPrefix(key);
 			if (propPrefix != null) {
 				// 前方一致設定で、サービスに他の設定がある場合、
@@ -708,13 +725,24 @@ public class PropertyManagerDefault implements PropertyManager {
 	}
 
 	/**
-	 * サービスごとに設定できるシステム設定項目を設定
-	 * @return サービスごとに設定できるシステム設定項目リスト
+	 * static領域からeachServicePropsIgnoreSystemを取得.
+	 * @return eachServicePropsIgnoreSystem
 	 */
-	private Set<String> initEachServiceProps() {
+	private Set<String> getEachServicePropsIgnoreSystem() {
+		return (Set<String>)ReflexStatic.getStatic(
+				STATIC_NAME_PROPERTY_EACHSERVICEPROPS_IGNORE_SYSTEM);
+	}
+
+	/**
+	 * サービスごとに設定できるシステム設定項目を設定
+	 * @return [0]サービスごとに設定できるシステム設定項目リスト
+	 *         [1]サービスごとに設定できるシステム設定項目のうち、システム管理サービスの情報を使用しない
+	 */
+	private Set<String>[] initEachServiceProps() {
 		Set<String> eachServiceProps = new ConcurrentSkipListSet<String>();
+		Set<String> eachServicePropsIgnoreSystem = new ConcurrentSkipListSet<String>();
 		Field[] fields = SettingConst.class.getDeclaredFields();
-		initEachServicePropsProc(eachServiceProps, fields);
+		initEachServicePropsProc(eachServiceProps, eachServicePropsIgnoreSystem, fields);
 		// 追加のサービス設定項目クラス
 		Set<String> serviceSettingClassNames = getSet(
 				TaggingEnvConst.SERVICESETTING_CLASS_PREFIX);
@@ -723,23 +751,26 @@ public class PropertyManagerDefault implements PropertyManager {
 				try {
 					Class<?> serviceSettingClass = Class.forName(serviceSettingClassName);
 					Field[] serviceSettingFields = serviceSettingClass.getDeclaredFields();
-					initEachServicePropsProc(eachServiceProps, serviceSettingFields);
+					initEachServicePropsProc(eachServiceProps, eachServicePropsIgnoreSystem, 
+							serviceSettingFields);
 
 				} catch (ClassNotFoundException e) {
 					logger.warn("[initEachServiceProps] ClassNotFoundException: " + e.getMessage());
 				}
 			}
 		}
-
-		return eachServiceProps;
+		
+		return new Set[]{eachServiceProps, eachServicePropsIgnoreSystem};
 	}
 
 	/**
 	 * サービスごとの設定項目を指定されたリストに登録
 	 * @param eachServiceProps サービスごとの設定項目を格納するリスト
+	 * @param eachServicePropsIgnoreSystem サービスごとの設定項目のうち、システム管理サービスの情報を使用しない項目
 	 * @param fields サービスごとの設定項目を定義したクラスのフィールド配列
 	 */
-	private void initEachServicePropsProc(Set<String> eachServiceProps, Field[] fields) {
+	private void initEachServicePropsProc(Set<String> eachServiceProps, 
+			Set<String> eachServicePropsIgnoreSystem, Field[] fields) {
 		if (fields == null) {
 			return;
 		}
@@ -756,6 +787,10 @@ public class PropertyManagerDefault implements PropertyManager {
 							sbProps.append(prop);
 							sbProps.append(", ");
 						}
+					} else if (fld instanceof List && FIELD_NAME_IGNORE_SYSTEM_INFO.equals(field.getName())) {
+						// サービスの情報のみ使用し、システムの情報を無視する設定一覧
+						List<String> ignoreSystemInfos = (List<String>)fld;
+						eachServicePropsIgnoreSystem.addAll(ignoreSystemInfos);
 					}
 				} catch (IllegalAccessException e) {
 					logger.warn("[initEachServicePropsProc] IllegalAccessException: " + e.getMessage());
@@ -919,6 +954,16 @@ public class PropertyManagerDefault implements PropertyManager {
 		}
 
 		return isSetting;
+	}
+	
+	/**
+	 * システム管理サービスの設定取得を行わないかどうか
+	 * @param name 設定名
+	 * @return システム管理サービスの設定取得を行わない場合true
+	 */
+	private boolean isIgnoreSystem(String name) {
+		Set<String> ignoreSystemProps = getEachServicePropsIgnoreSystem();
+		return ignoreSystemProps.contains(name);
 	}
 
 	/**

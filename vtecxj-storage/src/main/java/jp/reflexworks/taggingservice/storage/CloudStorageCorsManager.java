@@ -120,7 +120,7 @@ public class CloudStorageCorsManager {
 		String bucketName = cloudStorageManager.getBucketName(true, namespace,
 				serviceName, requestInfo, connectionInfo);
 		
-		CloudStorageConnection storage = cloudStorageManager.getStorageBucket(
+		CloudStorageConnection storage = CloudStorageUtil.getStorage(
 				serviceName, connectionInfo);
 		
 		CloudStorageBucket bucket = null;

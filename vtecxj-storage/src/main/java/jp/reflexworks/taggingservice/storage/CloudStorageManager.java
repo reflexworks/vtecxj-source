@@ -37,7 +37,6 @@ import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
-import jp.reflexworks.taggingservice.conn.ReflexConnection;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.PaymentRequiredException;
 import jp.reflexworks.taggingservice.exception.StaticDuplicatedException;
@@ -97,6 +96,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		}
 		storageEnv.setBucketPrefix(prefix);
 
+		// Cloud Storage 接続オブジェクトを生成しstatic保持
 		// 秘密鍵の設定
 		DeflateUtil deflateUtil = null;
 		ConnectionInfo connectionInfo = null;
@@ -107,61 +107,29 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 			deflateUtil = new DeflateUtil();
 			connectionInfo = new ConnectionInfoImpl(deflateUtil, requestInfo);
 
-			// バケット登録用
+			byte[] secret = null;
 			String secretFilename = env.getSystemProp(
-					CloudStorageConst.STORAGE_FILE_SECRET_BUCKET);
-			if (StringUtils.isBlank(secretFilename)) {
-				secretFilename = env.getSystemProp(
-						CloudStorageConst.STORAGE_FILE_SECRET);
-			}
+					CloudStorageConst.STORAGE_FILE_SECRET);
 			String jsonPath = FileUtil.getResourceFilename(secretFilename);
 			if (!StringUtils.isBlank(jsonPath)) {
-				byte[] secret = getSecretFileData(jsonPath);
-				if (secret != null) {
-					if (!checkBucketConnection(secret, serviceName, requestInfo, connectionInfo)) {
-						String message = "secret json is invalid. " + secretFilename;
-						logger.warn("[init] Cloud storage Connection failed. " + message);
-						throw new IllegalStateException(message);
-					}
-					// 接続OKの場合、鍵を格納する。
-					storageEnv.setBucketSecret(serviceName, secret);
-				}
-			} else {
-				// 秘密鍵なしで接続
-				if (!checkBucketConnection(null, serviceName, requestInfo, connectionInfo)) {
-					String message = " (no secret json)";
-					logger.warn("[init] Cloud storage Connection failed." + message);
-					throw new IllegalStateException(message);
-				}
+				secret = getSecretFileData(jsonPath);
 			}
 
-			// コンテンツ登録・取得用
-			secretFilename = env.getSystemProp(
-					CloudStorageConst.STORAGE_FILE_SECRET_CONTENT);
-			if (StringUtils.isBlank(secretFilename)) {
-				secretFilename = env.getSystemProp(
-						CloudStorageConst.STORAGE_FILE_SECRET);
+			// Storageコネクションを生成
+			CloudStorageConnection storage = createStorage(secret);
+
+			if (!checkBucketConnection(storage, serviceName, requestInfo, connectionInfo)) {
+				String message = "secret json is invalid. " + secretFilename;
+				logger.warn("[init] Cloud storage Connection failed. " + message);
+				throw new IllegalStateException(message);
 			}
-			jsonPath = FileUtil.getResourceFilename(secretFilename);
-			if (!StringUtils.isBlank(jsonPath)) {
-				byte[] secret = getSecretFileData(jsonPath);
-				if (secret != null) {
-					if (!checkContentConnection(secret, serviceName, requestInfo, connectionInfo)) {
-						String message = "secret json is invalid. " + secretFilename;
-						logger.warn("[init] Cloud storage Connection failed. " + message);
-						throw new IllegalStateException(message);
-					}
-					// 接続OKの場合、鍵を格納する。
-					storageEnv.setContentSecret(serviceName, secret);
-				}
-			} else {
-				// 秘密鍵なしで接続
-				if (!checkContentConnection(null, serviceName, requestInfo, connectionInfo)) {
-					String message = " (no secret json)";
-					logger.warn("[init] Cloud storage Connection failed." + message);
-					throw new IllegalStateException(message);
-				}
+			if (!checkContentConnection(storage, serviceName, requestInfo, connectionInfo)) {
+				String message = "secret json is invalid. " + secretFilename;
+				logger.warn("[init] Cloud storage Connection failed. " + message);
+				throw new IllegalStateException(message);
 			}
+			// 接続OKの場合、Cloud Storage接続オブジェクトを格納する。(スレッドセーフ)
+			storageEnv.setStorage(storage.getConnection().getStorage());
 
 		} catch (FileNotFoundException e) {
 			logger.warn("[init] json file is not found.", e);
@@ -353,7 +321,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		for (int r = 0; r <= numRetries; r++) {
 			try {
 				// Storage接続インタフェース取得
-				storage = getStorageContent(namespace, connectionInfo);
+				storage = CloudStorageUtil.getStorage(serviceName, connectionInfo);
 				// Cloud Storageへアップロード
 				storage.create(builder.build(), data);
 				break;
@@ -465,7 +433,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		for (int r = 0; r <= numRetries; r++) {
 			try {
 				// Storage接続インタフェース取得
-				storage = getStorageContent(namespace, connectionInfo);
+				storage = CloudStorageUtil.getStorage(serviceName, connectionInfo);
 				// Cloud Storageからダウンロード
 				CloudStorageBlob blob = storage.get(blobid);
 				if (blob != null) {
@@ -571,7 +539,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		for (int r = 0; r <= numRetries; r++) {
 			try {
 				// Storage接続インタフェース取得
-				storage = getStorageContent(namespace, connectionInfo);
+				storage = CloudStorageUtil.getStorage(serviceName, connectionInfo);
 				// Cloud Storageから削除
 				return storage.delete(blobid);
 
@@ -638,12 +606,12 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	 *        正常に処理され、nullが返る。
 	 *     ・アップロード
 	 *        com.google.cloud.storage.StorageException: Not Found
-	 * @param secret 秘密鍵
+	 * @param storage Cloud Storage connection
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	private boolean checkContentConnection(byte[] secret, String serviceName,
+	private boolean checkContentConnection(CloudStorageConnection storage, String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		// まずバケット名をデータストアから取得
@@ -654,8 +622,6 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		if (StringUtils.isBlank(bucketName)) {
 			throw new IOException("Bucket is nothing. serviceName = " + serviceName);
 		}
-		// Storageコネクションを生成
-		CloudStorageConnection storage = getStorage(secret);
 		// 接続確認
 		return checkConnection(storage, bucketName);
 	}
@@ -707,18 +673,15 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	 * バケット用コネクションの接続確認.
 	 * データストアからバケット名を取得する。
 	 * アップロードの場合、バケット名の登録が無ければバケットを生成する。
-	 * @param secret 秘密鍵
+	 * @param storage Cloud Storage connection
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 * @return バケット名
 	 */
-	private boolean checkBucketConnection(byte[] secret, String serviceName,
+	private boolean checkBucketConnection(CloudStorageConnection storage, String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
-		// Storageコネクションを生成
-		CloudStorageConnection storage = getStorage(secret);
-
 		// データストアからバケット名を取得
 		String systemService = TaggingEnvUtil.getSystemService();
 		SystemContext systemContext = new SystemContext(systemService, requestInfo,
@@ -744,76 +707,12 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	}
 
 	/**
-	 * コンテンツ登録・取得用Storage接続インタフェースを取得.
-	 * @param namespace 名前空間
-	 * @param connectionInfo コネクション情報
-	 * @return コンテンツ登録・取得用Storage接続インタフェース
-	 */
-	private CloudStorageConnection getStorageContent(String namespace,
-			ConnectionInfo connectionInfo)
-	throws IOException {
-		return getStorage(CloudStorageConst.CONNECTION_INFO_CONTENT, namespace,
-				connectionInfo);
-	}
-
-	/**
-	 * バケット登録用Storage接続インタフェースを取得.
-	 * @param namespace 名前空間
-	 * @param connectionInfo コネクション情報
-	 * @return バケット登録用Storage接続インタフェース
-	 */
-	CloudStorageConnection getStorageBucket(String namespace,
-			ConnectionInfo connectionInfo)
-	throws IOException {
-		return getStorage(CloudStorageConst.CONNECTION_INFO_BUCKET, namespace,
-				connectionInfo);
-	}
-
-	/**
-	 * Storage接続インタフェースを取得.
-	 * @param connName コネクション名
-	 * @param namespace 名前空間
-	 * @param connectionInfo コネクション情報
-	 * @return Storage接続インタフェース
-	 */
-	private CloudStorageConnection getStorage(String connName, String namespace,
-			ConnectionInfo connectionInfo)
-	throws IOException {
-		CloudStorageConnection storage = null;
-		boolean exists = false;
-		ReflexConnection<?> reflexConn = connectionInfo.get(connName);
-		if (reflexConn != null) {
-			// コネクション情報からコネクションを取得
-			storage = (CloudStorageConnection)reflexConn;
-			exists = true;
-		}
-		if (storage == null) {
-			// Google Cloud Storageコネクションを取得
-			byte[] secret = null;
-			if (CloudStorageConst.CONNECTION_INFO_CONTENT.equals(connName)) {
-				secret = getContentSecret(namespace);
-			} else {
-				secret = getBucketSecret(namespace);
-			}
-			storage = getStorage(secret);
-			if (storage != null) {
-				// 取得したCloud Storageコネクションをコネクション情報に格納
-				if (exists) {
-					connectionInfo.close(connName);
-				}
-				connectionInfo.put(connName, storage);
-			}
-		}
-		return storage;
-	}
-
-	/**
-	 * Storage接続インタフェースを取得.
+	 * Storage接続インタフェースを生成.
 	 * @param secret 秘密鍵
 	 * @return Storage接続インタフェース
 	 */
-	private CloudStorageConnection getStorage(byte[] secret) throws IOException {
-		CloudStorage storage = CloudStorageUtil.getStorage(secret);
+	private CloudStorageConnection createStorage(byte[] secret) throws IOException {
+		CloudStorage storage = CloudStorageUtil.createStorage(secret);
 		return new CloudStorageConnection(storage);
 	}
 
@@ -853,7 +752,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 
 		if (isCreate) {
 			// データストアにバケット名が登録されていない場合、このサービス用のバケットを登録する。
-			CloudStorageConnection storage = getStorageBucket(namespace,
+			CloudStorageConnection storage = CloudStorageUtil.getStorage(serviceName,
 					connectionInfo);
 			return createBucket(storage, serviceName, systemContext,
 					requestInfo, connectionInfo);
@@ -1064,32 +963,6 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	}
 
 	/**
-	 * サービス名から秘密鍵を取得 (コンテンツ登録・取得用).
-	 * @param namespace 名前空間
-	 * @return 秘密鍵 (コンテンツ登録・取得用)
-	 */
-	private byte[] getContentSecret(String namespace) {
-		return CloudStorageUtil.getContentSecret(namespace);
-	}
-
-	/**
-	 * サービス名から秘密鍵を取得 (バケット登録用).
-	 * @param serviceName サービス名
-	 * @return 秘密鍵 (バケット登録用)
-	 */
-	private byte[] getBucketSecret(String serviceName) {
-		return CloudStorageUtil.getBucketSecret(serviceName);
-	}
-
-	/**
-	 * Google Cloud Storage用static情報を取得.
-	 * @return Google Cloud Storage用static情報
-	 */
-	private CloudStorageEnv getStorageEnv() {
-		return CloudStorageUtil.getStorageEnv();
-	}
-
-	/**
 	 * URIの先頭の"/"を除去
 	 * @param uri URI
 	 * @return Google Cloud Storage用ファイル名
@@ -1293,9 +1166,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	@Override
 	public void closeService(String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 			throws IOException, TaggingException {
-		CloudStorageEnv storageEnv = getStorageEnv();
-		storageEnv.removeContentSecret(serviceName);
-		storageEnv.removeBucketSecret(serviceName);
+		// Do nothing.
 	}
 
 	/**
@@ -1481,7 +1352,7 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		for (int r = 0; r <= numRetries; r++) {
 			try {
 				// Storage接続インタフェース取得
-				CloudStorageConnection storage = getStorageContent(namespace, connectionInfo);
+				CloudStorageConnection storage = CloudStorageUtil.getStorage(serviceName, connectionInfo);
 				// 署名付きURLの取得
 				URL url = storage.signUrl(
 								blobInfo,

@@ -181,10 +181,7 @@ public class CleanStorageBlogic implements ReflexBlogic<ReflexContext, Boolean> 
 	 */
 	private CloudStorage getStorage(String systemService)
 	throws IOException {
-		// 秘密鍵の取得
-		byte[] secret = CloudStorageUtil.getBucketSecret(systemService);
-		// Storage接続インタフェース取得
-		return CloudStorageUtil.getStorage(secret);
+		return CloudStorageUtil.getCloudStorage();
 	}
 
 	/**

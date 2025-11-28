@@ -4,13 +4,17 @@ import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.cloud.recaptchaenterprise.v1.RecaptchaEnterpriseServiceClient;
 import com.google.cloud.recaptchaenterprise.v1.RecaptchaEnterpriseServiceSettings;
 import com.google.recaptchaenterprise.v1.Assessment;
@@ -30,13 +34,13 @@ import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.AuthenticationException;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
+import jp.reflexworks.taggingservice.exception.MappingFunctionException;
 import jp.reflexworks.taggingservice.exception.StaticDuplicatedException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.CaptchaManager;
 import jp.reflexworks.taggingservice.plugin.def.CaptchaManagerDefault;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.LogUtil;
-import jp.reflexworks.taggingservice.util.RetryUtil;
 import jp.sourceforge.reflex.util.FileUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -47,9 +51,36 @@ import jp.sourceforge.reflex.util.StringUtils;
 public class ReflexReCaptchaManager implements CaptchaManager {
 
 	/** ロガー. */
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	private static Logger logger = LoggerFactory.getLogger(ReflexReCaptchaManager.class);
 
-	/**
+	/** 
+	 * reCAPTCHA Enterprise接続オブジェクト(com.google.cloud.bigquery.BigQuery)はスレッドセーフのため使い回す。
+	 * キー:サービス名、値:reCAPTCHA Enterprise接続オブジェクト
+	 */
+	private static final Cache<String, RecaptchaEnterpriseServiceClient> clientCache = 
+			Caffeine.newBuilder()
+			.expireAfterAccess(ReCaptchaConst.CACHE_EXPIRE_MIN, TimeUnit.MINUTES)
+			.maximumSize(ReCaptchaConst.CACHE_MAXSIZE)
+			.removalListener(
+					// 型指定できないので、中でcastする。
+					(key, value, cause) -> {
+						RecaptchaEnterpriseServiceClient client = (RecaptchaEnterpriseServiceClient)value;
+						if (client != null) {
+							try {
+								client.close();  // コネクション解放
+							} catch (Throwable e) {
+								StringBuilder sb = new StringBuilder();
+								sb.append("[clientCache removalListener] Error occured. ");
+								sb.append(e.getClass().getName());
+								sb.append(": ");
+								sb.append(e.getMessage());
+								logger.warn(sb.toString(), e);
+							}
+						}
+					})
+			.build();
+
+    /**
 	 * 初期起動時の処理.
 	 */
 	public void init() {
@@ -58,24 +89,22 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 		// reCAPTCHA Enterprise用static情報をメモリに格納
 		ReCaptchaEnv reCaptchaEnv = new ReCaptchaEnv();
 		try {
-			ReflexStatic.setStatic(ReCaptchaConst.STATIC_NAME_RECAPTCHA, reCaptchaEnv);
+			ReflexStatic.setStatic(ReCaptchaConst.STATIC_NAME_RECAPTCHA_ENV, reCaptchaEnv);
 		} catch (StaticDuplicatedException e) {
-			reCaptchaEnv = (ReCaptchaEnv)ReflexStatic.getStatic(ReCaptchaConst.STATIC_NAME_RECAPTCHA);
+			reCaptchaEnv = (ReCaptchaEnv)ReflexStatic.getStatic(ReCaptchaConst.STATIC_NAME_RECAPTCHA_ENV);
 		}
 
+		// システム管理サービスのサービスアカウント秘密鍵を取得
 		try {
-			String serviceName = env.getSystemService();
-			// サービスアカウント秘密鍵を取得
 			String secretFilename = env.getSystemProp(ReCaptchaConst.RECAPTCHA_FILE_SECRET);
 			String jsonPath = FileUtil.getResourceFilename(secretFilename);
 			if (!StringUtils.isBlank(jsonPath)) {
 				byte[] secret = getSecretFileData(jsonPath);
 				if (secret != null) {
 					// 鍵を格納する。
-					reCaptchaEnv.setSecret(serviceName, secret);
+					reCaptchaEnv.setDefaultSecret(secret);
 				}
 			}
-
 		} catch (FileNotFoundException e) {
 			logger.warn("[init] json file is not found.", e);
 			throw new IllegalStateException(e);
@@ -83,13 +112,30 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 			logger.warn("[init] IOException", e);
 			throw new IllegalStateException(e);
 		}
+		
+		// Googleデフォルト認証情報を取得
+		try {
+			GoogleCredentials googleCredentials = GoogleCredentials.getApplicationDefault();
+			reCaptchaEnv.setGoogleCredentials(googleCredentials);
+		} catch (IOException e) {
+			logger.warn("[init] IOException", e);
+			//throw new IllegalStateException(e);
+		}
 	}
 
 	/**
 	 * シャットダウン処理.
 	 */
 	public void close() {
-		// Do nothing.
+		try {
+			// すべてのエントリを削除 → removalListener が順次呼ばれる
+			clientCache.invalidateAll();
+			// 保留中の削除通知などを即時処理したい場合
+			clientCache.cleanUp();
+		} catch (Throwable e) {
+			logger.warn("[close] Error occured.", e);
+			throw new IllegalStateException(e);
+		}
 	}
 
 	/**
@@ -168,11 +214,10 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 				SecurityConst.RECAPTCHA_RETRY_WAITMILLIS_DEFAULT);
 		// 接続情報
 		ReCaptchaInfo reCaptchaInfo = getReCaptchaInfo(serviceName, requestInfo, connectionInfo);
-		RecaptchaEnterpriseServiceSettings settings = getRecaptchaEnterpriseServiceSettings(reCaptchaInfo);
+		RecaptchaEnterpriseServiceClient client = getReCaptchaClient(reCaptchaInfo,
+				serviceName, requestInfo, connectionInfo);
 		for (int r = 0; r <= numRetries; r++) {
-			try (RecaptchaEnterpriseServiceClient client = 
-					RecaptchaEnterpriseServiceClient.create(settings)) {
-
+			try {
 				// 追跡するイベントのプロパティを設定する。
 				Event event = Event.newBuilder().setSiteKey(sitekey).setToken(recaptchaResponse).build();
 
@@ -242,9 +287,6 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 			} catch (ApiException e) {
 				// 例外を編集
 				convertException(e);
-			} catch (IOException e) {
-				// リトライ判定
-				RetryUtil.checkRetry(e, r, numRetries, waitMillis, requestInfo);
 			}
 		}
 	}
@@ -311,44 +353,52 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 	}
 
 	/**
-	 * reCAPTCHA EnterpriseのプロジェクトIDを取得
-	 * @param serviceName サービス名
-	 * @return reCAPTCHA EnterpriseのプロジェクトID
-	 */
-	private String getReCaptchaProjectId(String serviceName) {
-		if (logger.isTraceEnabled()) {
-			StringBuilder sb = new StringBuilder();
-			sb.append("[getReCaptchaProjectId] serviceName=");
-			sb.append(serviceName);
-			sb.append(", service secretkey=");
-			sb.append(TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_SITEKEY_V2, null));
-			logger.debug(sb.toString());
-		}
-		return TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_PROJECTID, 
-				TaggingEnvUtil.getSystemProp(ReCaptchaConst.GCP_PROJECTID, null)); 
-	}
-
-	/**
 	 * reCAPTCHA Enterprise 認証設定オブジェクトを取得.
-	 * @param serviceName サービス名
+	 * @param reCaptchaInfo reCaptcha設定情報
+	 * @param secret サービスアカウント秘密鍵
 	 * @param requestInfo リクエスト情報
-	 * @param connectionInfo コネクション情報
 	 * @return reCAPTCHA Enterprise 認証設定オブジェクト
 	 */
 	private RecaptchaEnterpriseServiceSettings getRecaptchaEnterpriseServiceSettings(
-			ReCaptchaInfo reCaptchaInfo)
+			ReCaptchaInfo reCaptchaInfo, byte[] secret, RequestInfo requestInfo)
 	throws IOException, TaggingException {
 		RecaptchaEnterpriseServiceSettings recaptchaEnterpriseServiceSettings = null;
-		if (reCaptchaInfo.getSecret() == null) {
-			// デフォルト設定
-			recaptchaEnterpriseServiceSettings =
-					RecaptchaEnterpriseServiceSettings.newBuilder().build();
+		if (secret == null) {
+			if (StringUtils.isBlank(reCaptchaInfo.getServiceAccount())) {
+				// デフォルト設定
+				recaptchaEnterpriseServiceSettings =
+						RecaptchaEnterpriseServiceSettings.newBuilder().build();
+			} else {
+				if (logger.isInfoEnabled()) {	// TODO test
+					StringBuilder sb = new StringBuilder();
+					sb.append(LogUtil.getRequestInfoStr(requestInfo));
+					sb.append("[getRecaptchaEnterpriseServiceSettings] userCredentials");
+					logger.info(sb.toString());
+				}
+				// 1. ユーザのSAになりすますためのCredentialを作成
+				// vtecxのSA -> IAM Credentials API -> ユーザSAの短期トークン
+				GoogleCredentials userCredentials = ImpersonatedCredentials.create(
+						getReCaptchaEnv().getGoogleCredentials(),
+						reCaptchaInfo.getServiceAccount(),
+						null, // delegateEmail (通常はnull)
+						ReCaptchaConst.SCOPES, // 必要なスコープ
+						ReCaptchaConst.TOKEN_EXPIRE_SEC // トークンの有効期限(秒)
+						);
+
+				// クレデンシャルをリフレッシュして有効化を確認
+				userCredentials.refreshIfExpired();
+
+				// 2. クライアント設定に認証情報を注入
+				recaptchaEnterpriseServiceSettings = RecaptchaEnterpriseServiceSettings.newBuilder()
+						.setCredentialsProvider(() -> userCredentials)
+						.build();
+			}
 			
 		} else {
 			// json秘密鍵を読み込む
 			InputStream jsonFile = null;
 			try {
-				jsonFile = new ByteArrayInputStream(reCaptchaInfo.getSecret());
+				jsonFile = new ByteArrayInputStream(secret);
 
 				GoogleCredentials credentials = GoogleCredentials.fromStream(jsonFile);
 				recaptchaEnterpriseServiceSettings =
@@ -375,9 +425,46 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 	private ReCaptchaInfo getReCaptchaInfo(String serviceName,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		if (logger.isTraceEnabled()) {
+			StringBuilder sb = new StringBuilder();
+			sb.append("[getReCaptchaProjectId] serviceName=");
+			sb.append(serviceName);
+			sb.append(", service secretkey=");
+			sb.append(TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_SITEKEY_V2, null));
+			logger.debug(sb.toString());
+		}
+		
+		// まずサービスアカウントを取得
+		String serviceAccount = TaggingEnvUtil.getProp(serviceName, 
+				ReCaptchaSettingConst.RECAPTCHA_SERVICEACCOUNT, null);
+		String defVal = null;
+		if (StringUtils.isBlank(serviceAccount)) {
+			// サービスごとのサービスアカウント設定がなければ、システム管理サービスの設定利用OK
+			defVal = TaggingEnvUtil.getSystemProp(ReCaptchaConst.GCP_PROJECTID, null);
+		}
+		
+		// プロジェクトIDの指定がなければエラー
+		String projectId = TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_PROJECTID, 
+				defVal); 
+		if (!StringUtils.isBlank(projectId)) {
+			return new ReCaptchaInfo(projectId, serviceAccount);
+		}
+
+		throw new InvalidServiceSettingException(ReCaptchaConst.MSG_NO_SETTINGS);
+	}
+	
+	/**
+	 * サービスアカウント秘密鍵を取得
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return サービスアカウント秘密鍵
+	 */
+	private byte[] getSecret(String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
 		SystemContext systemContext = new SystemContext(serviceName,
 				requestInfo, connectionInfo);
-		
+
 		// サービスごとの設定を取得。なければデフォルトの秘密鍵を使用する。
 		byte[] secret = null;
 		ReflexContentInfo contentInfo = systemContext.getContent(ReCaptchaConst.URI_SECRET_JSON);
@@ -386,18 +473,9 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 		} else {
 			// デフォルト秘密鍵の取得
 			ReCaptchaEnv reCaptchaEnv = getReCaptchaEnv();
-			secret = reCaptchaEnv.getSecret(serviceName);
+			secret = reCaptchaEnv.getDefaultSecret();
 		}
-		
-		// プロジェクトIDを取得
-		String projectId = getReCaptchaProjectId(serviceName);
-		
-		//if (secret != null && secret.length > 0 && !StringUtils.isBlank(projectId)) {
-		if (!StringUtils.isBlank(projectId)) {
-			return new ReCaptchaInfo(projectId, secret);
-		}
-
-		throw new InvalidServiceSettingException(ReCaptchaConst.MSG_NO_SETTINGS);
+		return secret;
 	}
 
 	/**
@@ -414,7 +492,7 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 	 * @return reCAPTHCA Enterprise用static情報
 	 */
 	private ReCaptchaEnv getReCaptchaEnv() {
-		return (ReCaptchaEnv)ReflexStatic.getStatic(ReCaptchaConst.STATIC_NAME_RECAPTCHA);
+		return (ReCaptchaEnv)ReflexStatic.getStatic(ReCaptchaConst.STATIC_NAME_RECAPTCHA_ENV);
 	}
 	
 	/**
@@ -430,6 +508,56 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 		} else {
 			throw e;
 		}
+	}
+	
+	/**
+	 * reCAPTCHA Enterprise接続オブジェクトを取得
+	 * @param recaptchaInfo reCAPTCHA Enterprise情報
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return reCAPTCHA Enterprise接続オブジェクト
+	 */
+	private RecaptchaEnterpriseServiceClient getReCaptchaClient(ReCaptchaInfo recaptchaInfo,
+			String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		try {
+			return clientCache.get(serviceName, key -> {
+				try {
+					return createReCaptchaClient(
+							recaptchaInfo, serviceName, requestInfo, connectionInfo);
+				} catch (IOException | TaggingException e) {
+					// RuntimeExceptionしかスローできないため、一旦ラップする。
+					throw new MappingFunctionException(e);
+				}
+			});
+		} catch (MappingFunctionException re) {
+			Throwable t = re.getCause();
+			if (t != null) {
+				if (t instanceof IOException) {
+					throw (IOException)t;
+				} else if (t instanceof TaggingException) {
+					throw (TaggingException)t;
+				}
+			}
+			throw re;
+		}
+	}
+	
+	/**
+	 * reCAPTCHA Enterprise接続オブジェクトを作成
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return reCAPTCHA Enterprise接続オブジェクト
+	 */
+	private RecaptchaEnterpriseServiceClient createReCaptchaClient(ReCaptchaInfo reCaptchaInfo,
+			String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		byte[] secret = getSecret(serviceName, requestInfo, connectionInfo);
+		RecaptchaEnterpriseServiceSettings settings = getRecaptchaEnterpriseServiceSettings(
+				reCaptchaInfo, secret, requestInfo);
+		return RecaptchaEnterpriseServiceClient.create(settings);
 	}
 
 }

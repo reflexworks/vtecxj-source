@@ -63,12 +63,12 @@ public class BigQueryConnection implements ReflexConnection<BigQuery> {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, datasetId, null));
+				logger.info(BigQueryUtil.getStartLog(command, datasetId, null));
 				startTime = new Date().getTime();
 			}
 			Dataset dataset = bigQuery.getDataset(datasetId, options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, datasetId, null, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, datasetId, null, startTime));
 				startTime = new Date().getTime();
 			}
 			if (dataset == null) {
@@ -94,12 +94,12 @@ public class BigQueryConnection implements ReflexConnection<BigQuery> {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, datasetId, null));
+				logger.info(BigQueryUtil.getStartLog(command, datasetId, null));
 				startTime = new Date().getTime();
 			}
 			Dataset dataset = bigQuery.create(datasetInfo, options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, datasetId, null, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, datasetId, null, startTime));
 				startTime = new Date().getTime();
 			}
 			if (dataset == null) {
@@ -124,12 +124,12 @@ public class BigQueryConnection implements ReflexConnection<BigQuery> {
 		long startTime = 0;
 		try {
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getStartLog(command, null, null));	// 
+				logger.info(BigQueryUtil.getStartLog(command, null, null));	// 
 				startTime = new Date().getTime();
 			}
 			Job job = bigQuery.create(jobInfo, options);
 			if (BigQueryUtil.isEnableAccessLog()) {
-				logger.debug(BigQueryUtil.getEndLog(command, null, null, startTime));
+				logger.info(BigQueryUtil.getEndLog(command, null, null, startTime));
 				startTime = new Date().getTime();
 			}
 			if (job == null) {

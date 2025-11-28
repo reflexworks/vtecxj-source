@@ -1,7 +1,5 @@
 package jp.reflexworks.taggingservice.storage;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.net.URL;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
@@ -10,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.api.gax.paging.Page;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -19,7 +16,6 @@ import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.SignUrlOption;
 import com.google.cloud.storage.StorageException;
-import com.google.cloud.storage.StorageOptions;
 
 /**
  * Storageのラップクラス
@@ -36,51 +32,8 @@ public class CloudStorage {
 	 * コンストラクタ
 	 * @param storage Storage
 	 */
-	CloudStorage(Storage storage) {
+	public CloudStorage(Storage storage) {
 		this.storage = storage;
-	}
-
-	/**
-	 * Storage接続インタフェースを取得.
-	 * @param secret 秘密鍵
-	 * @return Storage接続インタフェース
-	 */
-	public static CloudStorage getStorage(byte[] secret) 
-	throws CloudStorageException, IOException {
-		StorageOptions storageOptions = null;
-		try {
-			if (secret == null) {
-				if (CloudStorageUtil.isEnableAccessLog()) {
-					logger.info("[getStorage] secret is not used.");
-				}
-				storageOptions = StorageOptions.getDefaultInstance();
-			} else {
-				if (CloudStorageUtil.isEnableAccessLog()) {
-					logger.info("[getStorage] secret is used.");
-				}
-				ByteArrayInputStream bin = new ByteArrayInputStream(secret);
-				GoogleCredentials credentials = GoogleCredentials.fromStream(bin);
-				storageOptions = StorageOptions.newBuilder().setCredentials(credentials).build();
-			}
-			String command = "getStorage";
-			long startTime = 0;
-			if (CloudStorageUtil.isEnableAccessLog()) {
-				logger.info(CloudStorageUtil.getStartLog(command));
-				startTime = new Date().getTime();
-			}
-			Storage storage = storageOptions.getService();
-			if (CloudStorageUtil.isEnableAccessLog()) {
-				logger.info(CloudStorageUtil.getEndLog(command, startTime));
-				startTime = new Date().getTime();
-			}
-			return new CloudStorage(storage);
-
-		} catch (StorageException e) {
-			if (logger.isInfoEnabled()) {
-				logger.info("[getStorage] StorageException", e);
-			}
-			throw CloudStorageUtil.convertException(e);
-		}
 	}
 	
 	/**
@@ -239,6 +192,14 @@ public class CloudStorage {
 		} catch (StorageException e) {
 			throw CloudStorageUtil.convertException(e);
 		}
+	}
+
+	/**
+	 * Cloud Storage接続オブジェクトを取得.
+	 * @return Cloud Storage接続オブジェクト
+	 */
+	public Storage getStorage() {
+		return storage;
 	}
 
 	/**
