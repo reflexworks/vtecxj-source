@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import jp.reflexworks.atom.entry.Category;
 import jp.reflexworks.atom.entry.EntryBase;
+import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
 
@@ -59,7 +60,7 @@ public class ReflexPushNotificationUtil {
 	public static boolean isDebugLog(String serviceName) {
 		try {
 			return TaggingEnvUtil.getPropBoolean(serviceName,
-					ReflexPushNotificationConst.DEBUGLOG_NOTIFICATION, false);
+					ReflexPushNotificationSettingConst.DEBUGLOG_NOTIFICATION, false);
 		} catch (InvalidServiceSettingException e) {
 			return false;
 		}
@@ -73,5 +74,14 @@ public class ReflexPushNotificationUtil {
 		return TaggingEnvUtil.getSystemPropBoolean(
 				ReflexPushNotificationConst.PUSHNOTIFICATION_ENABLE_ACCESSLOG, false);
 	}
-	
+
+	/**
+	 * Push Notification用static情報を取得.
+	 * @return Push Notification用static情報
+	 */
+	public static ReflexPushNotificationEnv getPushNotificationEnv() {
+		return (ReflexPushNotificationEnv)ReflexStatic.getStatic(
+				ReflexPushNotificationConst.STATIC_NAME_PUSHNOTIFICATION_ENV);
+	}
+
 }

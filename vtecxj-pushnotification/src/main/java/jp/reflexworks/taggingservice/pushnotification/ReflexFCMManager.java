@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ImpersonatedCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.BatchResponse;
@@ -27,6 +28,7 @@ import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.RetryUtil;
@@ -57,10 +59,28 @@ public class ReflexFCMManager {
 		String serviceName = systemContext.getServiceName();
 		ReflexAuthentication auth = systemContext.getAuth();
 		RequestInfo requestInfo = systemContext.getRequestInfo();
-
-		EntryBase privateKeyEntry = getFirebasePrivateKeyEntry(systemContext);
-		if (privateKeyEntry == null) {
-			throw new InvalidServiceSettingException("Firebase private key is required.");
+		
+		// サービスアカウント名優先
+		// BaaSでサービスアカウントの設定がなければ、秘密鍵JSONファイルを検索する。
+		boolean isBaaS = TaggingServiceUtil.isBaaS();
+		String serviceAccount = null;
+		String projectId = null;
+		EntryBase privateKeyEntry = null;
+		if (isBaaS) {
+			serviceAccount = TaggingEnvUtil.getProp(serviceName, 
+					ReflexPushNotificationSettingConst.FCM_SERVICEACCOUNT, null);
+			projectId = TaggingEnvUtil.getProp(serviceName, 
+					ReflexPushNotificationSettingConst.FCM_PROJECT_ID, null);
+			if (StringUtils.isBlank(serviceAccount)) {
+				privateKeyEntry = getFirebasePrivateKeyEntry(systemContext);
+				if (privateKeyEntry == null) {
+					throw new InvalidServiceSettingException("Firebase service account setting is required.");
+				}
+			} else {
+				if (StringUtils.isBlank(projectId)) {
+					throw new InvalidServiceSettingException("Firebase project id setting is required.");
+				}
+			}
 		}
 		
 		// TODO (2022.11.16)badge未対応。
@@ -76,13 +96,17 @@ public class ReflexFCMManager {
 		}
 		
 		FirebaseApp firebaseApp = null;
-		String firebaseAppName = getFirebaseAppName(privateKeyEntry, serviceName);
+		String firebaseAppName = getFirebaseAppName(isBaaS, serviceAccount, privateKeyEntry, serviceName);
 		try {
-			firebaseApp = FirebaseApp.getInstance(firebaseAppName);
+			if (StringUtils.isBlank(firebaseAppName)) {
+				firebaseApp = FirebaseApp.getInstance();
+			} else {
+				firebaseApp = FirebaseApp.getInstance(firebaseAppName);
+			}
 		} catch (IllegalStateException | NullPointerException e) {
 			// このサービス・サーバではFirebase生成なし
 			if (logger.isTraceEnabled()) {
-				logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 						"[pushFCM] [FirebaseApp.getInstance] IllegalStateException(InvalidServiceSettingException): " + e.getMessage());
 			}
 		}
@@ -90,16 +114,29 @@ public class ReflexFCMManager {
 		// Firebaseオブジェクトが未生成か、/_settings/firebase.json エントリーが更新された場合
 		if (firebaseApp == null) {
 			try {
-				FirebaseOptions firebaseOptions = getFirebaseOptions(systemContext);
-				if (firebaseOptions == null) {
-					throw new InvalidServiceSettingException("Firebase service account setting is required.");
+				if (!isBaaS) {
+					// BaaSでない場合、デフォルトの認証情報
+					firebaseApp = FirebaseApp.initializeApp();
+				} else {
+					FirebaseOptions firebaseOptions = null;
+					if (!StringUtils.isBlank(serviceAccount)) {
+						// Workload Identity + サービスアカウントの権限借用 で認証
+						firebaseOptions = getFirebaseOptions(serviceAccount, projectId);
+						
+					} else {
+						// サービスアカウント秘密鍵JSONで認証
+						firebaseOptions = getFirebaseOptionsBySecret(systemContext);
+						if (firebaseOptions == null) {
+							throw new InvalidServiceSettingException("Firebase service account setting is required.");
+						}
+					}
+					firebaseApp = FirebaseApp.initializeApp(firebaseOptions, firebaseAppName);
 				}
-				firebaseApp = FirebaseApp.initializeApp(firebaseOptions, firebaseAppName);
-					
+				
 			} catch (IllegalStateException e) {
 				// 他のスレッドでFirebase登録
-				if (logger.isDebugEnabled()) {
-					logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 							"[pushFCM] [FirebaseApp.initializeApp] IllegalStateException: " + e.getMessage());
 				}
 				firebaseApp = FirebaseApp.getInstance(firebaseAppName);
@@ -139,14 +176,14 @@ public class ReflexFCMManager {
 		boolean isDebugLog = ReflexPushNotificationUtil.isDebugLog(serviceName);
 		String fromInfo = getFromInfo(entry, fcmUids, auth);
 		// リトライ回数
-		int numRetries = getFcmPushRetryCount();
-		int waitMillis = getFcmPushRetryWaitmillis();
+		int numRetries = getFcmPushRetryCount(serviceName);
+		int waitMillis = getFcmPushRetryWaitmillis(serviceName);
 		for (int r = 0; r <= numRetries; r++) {
 			try {
 				// Send a message to the device corresponding to the provided
 				// registration token.
-				BatchResponse response = FirebaseMessaging.getInstance(firebaseApp).sendMulticast(
-						fcmMessage);
+				// 推奨: HTTP/2 を使用して個別に送信処理を行う (sendMulticast の代替)
+				BatchResponse response = FirebaseMessaging.getInstance(firebaseApp).sendEachForMulticast(fcmMessage);
 
 				// See the BatchResponse reference documentation
 				// for the contents of response.
@@ -192,7 +229,7 @@ public class ReflexFCMManager {
 										acsb.append(fcmException.getClass().getName());
 										acsb.append(" : ");
 										acsb.append(exStr);
-										logger.debug(acsb.toString());
+										logger.info(acsb.toString());
 									}
 								}
 							}
@@ -200,7 +237,7 @@ public class ReflexFCMManager {
 					}
 
 					if (isAccessLog) {
-						logger.debug(LogUtil.getRequestInfoStr(requestInfo) + 
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) + 
 								"[pushFCM] " + sb.toString());
 					}
 					if (isDebugLog) {
@@ -212,7 +249,7 @@ public class ReflexFCMManager {
 
 			} catch (FirebaseMessagingException e) {
 				// エラー判定
-				if (logger.isDebugEnabled()) {
+				if (logger.isInfoEnabled()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(systemContext.getRequestInfo()));
 					sb.append("[pushFCM] FirebaseMessagingException errorCode=");
@@ -221,7 +258,7 @@ public class ReflexFCMManager {
 					sb.append(e.getMessagingErrorCode());
 					sb.append(", ");
 					sb.append(e.getMessage());
-					logger.debug(sb.toString());
+					logger.info(sb.toString());
 				}
 				
 				boolean isRetry = false;
@@ -229,8 +266,8 @@ public class ReflexFCMManager {
 					isRetry = isRetryError(e);
 				}
 				if (isRetry) {
-					if (logger.isDebugEnabled()) {
-						logger.debug(LogUtil.getRequestInfoStr(requestInfo) + 
+					if (logger.isInfoEnabled()) {
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) + 
 								RetryUtil.getRetryLog(e, r));
 					}
 					RetryUtil.sleep(waitMillis);
@@ -242,11 +279,36 @@ public class ReflexFCMManager {
 	}
 
 	/**
+	 * サービスアカウント名よりFirebaseの認証情報を取得.
+	 * Workload Identity + サービスアカウントの権限借用 で認証
+	 * @param serviceAccount サービスアカウント
+	 * @param projectId プロジェクトID
+	 * @return Firebaseの認証情報
+	 */
+	private FirebaseOptions getFirebaseOptions(String serviceAccount, String projectId)
+	throws IOException, TaggingException {
+		// 2. 権限借用（Impersonation）の認証情報を作成
+		// 「ベースの権限を使って、targetPrincipal(ユーザGSA)のトークンを生成する」という設定です。
+		// ユーザ側で許可設定がなされていない場合、この時点で（または次のクライアント作成時に）エラーになります。
+		ImpersonatedCredentials impersonatedCredentials =
+				ImpersonatedCredentials.newBuilder()
+				.setSourceCredentials(ReflexPushNotificationUtil.getPushNotificationEnv().getGoogleCredentials())
+				.setTargetPrincipal(serviceAccount) // ここで借用したい相手を指定
+				.setScopes(ReflexPushNotificationConst.SCOPES)
+				.build();
+
+		return  FirebaseOptions.builder()
+				.setCredentials(impersonatedCredentials)
+				.setProjectId(projectId)
+				.build();
+	}
+
+	/**
 	 * サービスアカウント秘密鍵JSONよりFirebaseの認証情報を取得.
 	 * @param systemContext SystemContext
 	 * @return Firebaseの認証情報
 	 */
-	private FirebaseOptions getFirebaseOptions(SystemContext systemContext)
+	private FirebaseOptions getFirebaseOptionsBySecret(SystemContext systemContext)
 	throws IOException, TaggingException {
 		byte[] secret = null;
 		ReflexContentInfo contentInfo = systemContext.getContent(
@@ -260,14 +322,14 @@ public class ReflexFCMManager {
 				return FirebaseOptions.builder().setCredentials(
 						GoogleCredentials.fromStream(in)).build();
 			} catch (IOException e) {
-				if (logger.isDebugEnabled()) {
+				if (logger.isInfoEnabled()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(systemContext.getRequestInfo()));
 					sb.append("[getFirebaseOptions] ");
 					sb.append(e.getClass().getName());
 					sb.append(": ");
 					sb.append(e.getMessage());
-					logger.debug(sb.toString());
+					logger.info(sb.toString());
 				}
 				// サービス設定不正のため InvalidServiceSettingException でラップする。
 				throw new InvalidServiceSettingException(e);
@@ -317,43 +379,70 @@ public class ReflexFCMManager {
 
 	/**
 	 * FirebaseApp名を取得.
-	 * {サービス名}#{更新日時}#{revision}。
+	 *   * BaaSでない場合: null
+	 *   * サービスアカウント指定の場合: {サービス名}#{サービスアカウント}
+	 *   * サービスアカウント未指定の場合: {サービス名}#{更新日時}#{revision}
 	 * FirebaseAppは一度作成すると更新できないので、リビジョンごとに生成する必要がある。
+	 * @param isBaaS BaaSの場合true
+	 * @param serviceAccount サービスアカウント
 	 * @param entry /_settings/firebase.json エントリー
 	 * @param serviceName サービス名
 	 * @return FirebaseApp名
 	 */
-	private String getFirebaseAppName(EntryBase entry, String serviceName) {
-		if (entry == null) {
+	private String getFirebaseAppName(boolean isBaaS, String serviceAccount, EntryBase entry, String serviceName) {
+		if (!isBaaS) {
+			// BaaSでない場合null
 			return null;
 		}
-		StringBuilder sb = new StringBuilder();
-		sb.append(serviceName);
-		sb.append("#");
-		sb.append(entry.updated);
-		sb.append("#");
-		sb.append(TaggingEntryUtil.getRevisionById(entry.id));
-		return sb.toString();
+		// BaaSの場合
+		if (!StringUtils.isBlank(serviceAccount)) {
+			StringBuilder sb = new StringBuilder();
+			sb.append(serviceName);
+			sb.append("#");
+			sb.append(serviceAccount);
+			return sb.toString();
+		} else {
+			if (entry == null) {
+				return null;
+			}
+			StringBuilder sb = new StringBuilder();
+			sb.append(serviceName);
+			sb.append("#");
+			sb.append(entry.updated);
+			sb.append("#");
+			sb.append(TaggingEntryUtil.getRevisionById(entry.id));
+			return sb.toString();
+		}
 	}
 
 	/**
 	 * FCM Push通知失敗時リトライ総数を取得.
+	 * @param serviceName サービス名
 	 * @return FCM Push通知失敗時リトライ総数
 	 */
-	private int getFcmPushRetryCount() {
-		return TaggingEnvUtil.getSystemPropInt(
-				ReflexPushNotificationConst.FCM_PUSH_RETRY_COUNT,
-				ReflexPushNotificationConst.FCM_PUSH_RETRY_COUNT_DEFAULT);
+	private int getFcmPushRetryCount(String serviceName) 
+	throws InvalidServiceSettingException {
+		return TaggingEnvUtil.getPropInt(serviceName, 
+				ReflexPushNotificationSettingConst.FCM_PUSH_RETRY_COUNT,
+				TaggingEnvUtil.getSystemPropInt(
+						ReflexPushNotificationSettingConst.FCM_PUSH_RETRY_COUNT,
+						ReflexPushNotificationSettingConst.FCM_PUSH_RETRY_COUNT_DEFAULT)
+				);
 	}
 
 	/**
 	 * FCM Push通知失敗でリトライ時のスリープ時間(ミリ秒)を取得.
+	 * @param serviceName サービス名
 	 * @return FCM Push通知失敗でリトライ時のスリープ時間(ミリ秒)
 	 */
-	private int getFcmPushRetryWaitmillis() {
-		return TaggingEnvUtil.getSystemPropInt(
-				ReflexPushNotificationConst.FCM_PUSH_RETRY_WAITMILLIS,
-				ReflexPushNotificationConst.FCM_PUSH_RETRY_WAITMILLIS_DEFAULT);
+	private int getFcmPushRetryWaitmillis(String serviceName) 
+	throws InvalidServiceSettingException {
+		return TaggingEnvUtil.getPropInt(serviceName, 
+				ReflexPushNotificationSettingConst.FCM_PUSH_RETRY_WAITMILLIS, 
+				TaggingEnvUtil.getSystemPropInt(
+						ReflexPushNotificationSettingConst.FCM_PUSH_RETRY_WAITMILLIS,
+						ReflexPushNotificationSettingConst.FCM_PUSH_RETRY_WAITMILLIS_DEFAULT)
+				);
 	}
 	
 	/**
@@ -373,6 +462,23 @@ public class ReflexFCMManager {
 		}
 		
 		return false;
+	}
+	
+	/**
+	 * シャットダウン時の処理
+	 */
+	void close() {
+		List<FirebaseApp> apps = FirebaseApp.getApps();
+		for (FirebaseApp app : apps) {
+			try {
+				app.delete();
+			} catch (Throwable e) {
+				// Do nothing.
+				if (logger.isInfoEnabled()) {
+					logger.info("[close] Error occured.", e);
+				}
+			}
+		}
 	}
 
 }

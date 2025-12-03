@@ -1,6 +1,8 @@
 package jp.reflexworks.taggingservice.pushnotification;
 
-import jp.reflexworks.taggingservice.api.SettingConst;
+import java.util.Arrays;
+import java.util.List;
+
 import jp.reflexworks.taggingservice.util.Constants;
 
 /**
@@ -10,16 +12,6 @@ public interface ReflexPushNotificationConst {
 
 	/** 設定 : Push通知のアクセスログを出力するかどうか */
 	public static final String PUSHNOTIFICATION_ENABLE_ACCESSLOG = "_pushnotification.enable.accesslog";
-	/** 設定 : FCM Push通知に失敗したときのリトライ回数 **/
-	public static final String FCM_PUSH_RETRY_COUNT = "_fcm.push.retry.count";
-	/** 設定 : FCM Push通知リトライ時のスリープ時間(ミリ秒) **/
-	public static final String FCM_PUSH_RETRY_WAITMILLIS = "_fcm.push.retry.waitmillis";
-	/** 設定 : デバッグログエントリー出力フラグ サービスごとに設定 **/
-	public static final String DEBUGLOG_NOTIFICATION = SettingConst.DEBUGLOG + "notification";
-	/** 設定デフォルト : FCM Push通知失敗時のリトライ回数デフォルト値 */
-	public static final int FCM_PUSH_RETRY_COUNT_DEFAULT = 2;
-	/** 設定デフォルト : FCM Push通知失敗でリトライ時のスリープ時間デフォルト値 */
-	public static final int FCM_PUSH_RETRY_WAITMILLIS_DEFAULT = 200;
 
 	/** Firebaseサービスアカウント秘密鍵JSON格納キー */
 	public static final String URI_SECRET_JSON = Constants.URI_SETTINGS + "/firebase.json";
@@ -55,5 +47,11 @@ public interface ReflexPushNotificationConst {
 	public static final String DEBUGLOG_SUBTITLE = "INFO";
 	/** デバッグログエントリー サブタイトル */
 	public static final String DEBUGLOG_SUBTITLE_WARN = "WARN";
+	
+	/** メモリ上のstaticオブジェクト格納キー : Push Notification環境情報 */
+	public static final String STATIC_NAME_PUSHNOTIFICATION_ENV = "_pushnotification_env";
+
+	/** FCM Workload Identity 権限借用のscope */
+	public static final List<String> SCOPES = Arrays.asList("https://www.googleapis.com/auth/firebase.messaging");
 
 }
