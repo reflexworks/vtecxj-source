@@ -7,14 +7,18 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.auth.oauth2.GoogleCredentials;
+
 import jp.reflexworks.atom.entry.Contributor;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
+import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.blogic.UserBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
+import jp.reflexworks.taggingservice.exception.StaticDuplicatedException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.PushNotificationManager;
 import jp.reflexworks.taggingservice.pushnotification.ReflexPushNotificationConst.PushType;
@@ -38,14 +42,32 @@ public class ReflexPushNotificationManager implements PushNotificationManager {
 	 */
 	@Override
 	public void init() {
-		// Do nothing.
+		// Push Notification用static情報をメモリに格納
+		ReflexPushNotificationEnv pushNotificationEnv = new ReflexPushNotificationEnv();
+		try {
+			ReflexStatic.setStatic(ReflexPushNotificationConst.STATIC_NAME_PUSHNOTIFICATION_ENV, 
+					pushNotificationEnv);
+		} catch (StaticDuplicatedException e) {
+			pushNotificationEnv = (ReflexPushNotificationEnv)ReflexStatic.getStatic(
+					ReflexPushNotificationConst.STATIC_NAME_PUSHNOTIFICATION_ENV);
+		}
+
+		// Googleデフォルト認証情報を生成
+		try {
+			GoogleCredentials googleCredentials = GoogleCredentials.getApplicationDefault();
+			pushNotificationEnv.setGoogleCredentials(googleCredentials);
+		} catch (IOException e) {
+			logger.warn("[init] IOException", e);
+			//throw new IllegalStateException(e);
+		}
 	}
 
 	/**
 	 * シャットダウン処理.
 	 */
 	public void close() {
-		// Do nothing.
+		ReflexFCMManager fcmManager = new ReflexFCMManager();
+		fcmManager.close();
 	}
 
 	/**

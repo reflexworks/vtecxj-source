@@ -822,9 +822,9 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			if ((secret == null || secret.length == 0) &&
 					 StringUtils.isBlank(serviceAccount)) {
 				if (logger.isTraceEnabled()) {
-					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getBigQueryInfo] (BaaS) No settings. (serviceAccount or secret)");
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getBigQueryInfo] (BaaS) No settings. (serviceAccount)");
 				}
-				throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (serviceAccount or secret)");
+				throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (serviceAccount)");
 			}
 		}
 
