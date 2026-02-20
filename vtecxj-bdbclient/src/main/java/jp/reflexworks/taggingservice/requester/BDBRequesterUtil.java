@@ -88,6 +88,24 @@ public class BDBRequesterUtil {
 	}
 
 	/**
+	 * BDBインデックス生成リクエストのアクセス失敗時リトライ総数を取得.
+	 * @return BDBインデックス生成リクエストのアクセス失敗時リトライ総数
+	 */
+	public static int getBDBIndexPutRetryCount() {
+		return TaggingEnvUtil.getSystemPropInt(BDBClientConst.BDBINDEXPUT_RETRY_COUNT,
+				BDBClientConst.BDBINDEXPUT_RETRY_COUNT_DEFAULT);
+	}
+
+	/**
+	 * BDBインデックス生成リクエストのアクセス失敗時リトライ時のスリープ時間を取得.
+	 * @return BDBインデックス生成リクエストのアクセス失敗時のスリープ時間(ミリ秒)
+	 */
+	public static int getBDBIndexPutRetryWaitmillis() {
+		return TaggingEnvUtil.getSystemPropInt(BDBClientConst.BDBINDEXPUT_RETRY_WAITMILLIS,
+				BDBClientConst.BDBINDEXPUT_RETRY_WAITMILLIS_DEFAULT);
+	}
+
+	/**
 	 * サービスのBDB情報格納URIを取得.
 	 * /_bdb/service/{サービス名}
 	 * @param serviceName サービス名
