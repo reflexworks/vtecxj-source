@@ -48,6 +48,10 @@ public interface BDBClientConst {
 	public static final String ENTRYSERVER_PUT_LIMIT = "_entryserver.put.limit";
 	/** 設定 : メインスレッドキャッシュのアクセスログ(処理経過ログ)を出力するかどうか */
 	public static final String INITMAINTHREADCACHE_ENABLE_ACCESSLOG = "_initmainthreadcache.enable.accesslog";
+	/** インデックス登録更新に失敗したときのリトライ回数 **/
+	public static final String BDBINDEXPUT_RETRY_COUNT = "_bdbindexput.retry.count";
+	/** インデックス登録更新リトライ時のスリープ時間(ミリ秒) **/
+	public static final String BDBINDEXPUT_RETRY_WAITMILLIS = "_bdbindexput.retry.waitmillis";
 
 	/** 設定デフォルト : BDBリクエストのタイムアウト(ミリ秒) */
 	static final int BDBREQUEST_TIMEOUT_MILLIS_DEFAULT = 60000;
@@ -75,6 +79,10 @@ public interface BDBClientConst {
 	static final int ENTRYSERVER_GET_LIMIT_DEFAULT = 500;
 	/** 設定デフォルト : Entryサーバ最大更新数 (リクエストヘッダ制限に対応) **/
 	static final int ENTRYSERVER_PUT_LIMIT_DEFAULT = 500;
+	/** 設定デフォルト : リトライ総数 */
+	static final int BDBINDEXPUT_RETRY_COUNT_DEFAULT = 10;
+	/** 設定デフォルト : リトライ時のスリープ時間(ミリ秒) */
+	static final int BDBINDEXPUT_RETRY_WAITMILLIS_DEFAULT = 3000;
 
 	/** コネクション情報格納キー : Entryメモリキャッシュ */
 	static final String CONNECTION_INFO_ENTRYMAP ="_ds_entrymap";

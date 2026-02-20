@@ -3454,6 +3454,7 @@ public class UserManagerDefault implements UserManager {
 	 * ユーザステータス更新の引数チェック.
 	 * feedのentryにアカウント(entryのtitle)、またはUID(entryのlink selfのhref)が指定されているかチェックする。
 	 * ユーザ削除の引数もこのメソッドでチェックする。
+	 * アカウント指定の場合、このメソッド内でキーがセットされる。
 	 * @param feed ユーザステータス更新の入力feed
 	 * @param systemContext SystemContext
 	 */
@@ -3493,9 +3494,13 @@ public class UserManagerDefault implements UserManager {
 			}
 		} else {
 			// アカウント指定
-			String account = entry.title;
+			//String account = entry.title;
+			String account = UserUtil.editAccount(entry.title);
 			if (StringUtils.isBlank(account)) {
 				throw new IllegalParameterException("Please specify account.");
+			}
+			if (!entry.title.equals(account)) {
+				entry.title = account;
 			}
 			userTopEntry = getUserTopEntryByAccount(account, systemContext);
 			if (userTopEntry != null) {
