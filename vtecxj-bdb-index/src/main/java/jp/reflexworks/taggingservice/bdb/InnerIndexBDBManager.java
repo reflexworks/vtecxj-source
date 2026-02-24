@@ -50,6 +50,8 @@ public class InnerIndexBDBManager {
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	/** KEY_SHORTENING採番の排他ロック */
+	private static final Object SHORTENING_ALLOCIDS_LOCK = new Object();
 
 	/**
 	 * インデックス登録・更新
@@ -667,9 +669,11 @@ public class InnerIndexBDBManager {
 				}
 
 				// Itemテーブルに存在しない場合、登録
-				// 短縮値を取得
-				shortening = allocids(bdbEnv, InnerIndexBDBConst.KEY_SHORTENING,
-						false, requestInfo, connectionInfo);
+				// KEY_SHORTENING採番だけは直列化して、DBAllocidsの競合を抑える。
+				synchronized (SHORTENING_ALLOCIDS_LOCK) {
+					shortening = allocids(bdbEnv, InnerIndexBDBConst.KEY_SHORTENING,
+							false, requestInfo, connectionInfo);
+				}
 
 				// トランザクション開始
 				bdbTxn = bdbEnv.beginTransaction();

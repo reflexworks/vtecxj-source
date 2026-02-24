@@ -49,6 +49,8 @@ public class FullTextSearchBDBManager {
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
+	/** KEY_SHORTENING採番の排他ロック */
+	private static final Object SHORTENING_ALLOCIDS_LOCK = new Object();
 
 	/**
 	 * 全文検索インデックス登録・更新
@@ -673,9 +675,11 @@ public class FullTextSearchBDBManager {
 				}
 
 				// Itemテーブルに存在しない場合、登録
-				// 短縮値を取得
-				shortening = allocids(bdbEnv, FullTextSearchBDBConst.KEY_SHORTENING,
-						false, requestInfo, connectionInfo);
+				// KEY_SHORTENING採番だけは直列化して、DBAllocidsの競合を抑える。
+				synchronized (SHORTENING_ALLOCIDS_LOCK) {
+					shortening = allocids(bdbEnv, FullTextSearchBDBConst.KEY_SHORTENING,
+							false, requestInfo, connectionInfo);
+				}
 
 				try {
 					// トランザクション開始
