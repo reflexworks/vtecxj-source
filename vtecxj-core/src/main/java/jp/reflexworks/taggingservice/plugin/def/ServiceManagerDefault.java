@@ -1594,6 +1594,34 @@ public class ServiceManagerDefault implements ServiceManager {
 	}
 
 	/**
+	 * サービスのアクセスカウンタを取得.
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return アクセスカウンタ
+	 */
+	public long getAccessCount(String serviceName, RequestInfo requestInfo,
+			ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		// システム管理サービスにてアクセスカウンタを取得
+		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
+				requestInfo, connectionInfo);
+		String uri = TaggingServiceUtil.getAccessCountTodayUri(serviceName);
+		if (logger.isTraceEnabled()) {
+			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+					"[getAccessCount] uri: " + uri + " start.");
+		}
+		Long count = systemContext.getCacheLong(uri);
+		if (logger.isTraceEnabled()) {
+			logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[getAccessCount] uri: " + uri + " , count: " + count);
+		}
+		if (count == null) {
+			return 0;
+		}
+		return count;
+	}
+
+	/**
 	 * サービスに関するStatic情報を更新する必要があるかどうかチェックする.
 	 * @param targetServiceName 対象サービス名
 	 * @param accessTime Static情報更新時間

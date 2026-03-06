@@ -5,8 +5,10 @@ import java.util.Map;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexContentInfo;
 import jp.reflexworks.taggingservice.api.ReflexContext;
+import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 
@@ -66,6 +68,16 @@ public interface ContentManager extends ReflexPlugin {
 	 */
 	public FeedBase getSignedUrl(String method, String uri, Map<String, String> headers, 
 			ReflexContext reflexContext)
+	throws IOException, TaggingException;
+
+	/**
+	 * サービスのストレージ使用量を取得.
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return ストレージ使用量(byte)
+	 */
+	public long getStorageUsage(String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
 
 }

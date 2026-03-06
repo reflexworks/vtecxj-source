@@ -336,6 +336,22 @@ public class TaggingServlet extends ReflexServletBase {
 				}
 				retObj = reflexContext.getNoGroupMember(param.getUri());
 
+			} else if (param.getOption(RequestParam.PARAM_ACCESSCOUNT) != null) {
+				// アクセスカウンタ取得
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_accesscount");
+				}
+				long accesscount = reflexContext.getAccessCount();
+				retObj = MessageUtil.createMessageFeed(StringUtils.toString(accesscount, 0), serviceName);
+
+			} else if (param.getOption(RequestParam.PARAM_STORAGEUSAGE) != null) {
+				// データ使用量取得
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_storageusage");
+				}
+				long storageusage = reflexContext.getStorageUsage();
+				retObj = MessageUtil.createMessageFeed(StringUtils.toString(storageusage, 0), serviceName);
+
 			} else if (param.getOption(RequestParam.PARAM_PAGINATION) != null) {
 				// ページング
 				if (logger.isInfoEnabled()) {

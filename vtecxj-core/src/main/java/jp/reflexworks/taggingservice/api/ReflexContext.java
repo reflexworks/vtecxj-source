@@ -2688,4 +2688,18 @@ public interface ReflexContext extends BaseReflexContext {
 			FeedBase feed, String parentUri, Map<String, String> tableNames, boolean async)
 	throws IOException, TaggingException;
 
+	/**
+	 * サービスのアクセスカウンタを取得.
+	 * @return アクセスカウンタ
+	 */
+	public long getAccessCount()
+	throws IOException, TaggingException;
+
+	/**
+	 * サービスのストレージ使用量を取得.
+	 * @return ストレージ使用量(byte)
+	 */
+	public long getStorageUsage()
+	throws IOException, TaggingException;
+
 }

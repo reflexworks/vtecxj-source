@@ -568,4 +568,20 @@ public class ServiceBlogic {
 				requestInfo, connectionInfo);
 	}
 
+	/**
+	 * サービスのアクセスカウンタを取得.
+	 * @param reflexContext ReflexContext
+	 * @return アクセスカウンタ
+	 */
+	public long getAccessCount(ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		// サービス管理者かどうか
+		AclBlogic aclBlogic = new AclBlogic();
+		aclBlogic.checkAuthedGroup(reflexContext.getAuth(), Constants.URI_GROUP_ADMIN);
+		// アクセスカウンタ取得
+		ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
+		return serviceManager.getAccessCount(reflexContext.getServiceName(), 
+				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
+	}
+
 }

@@ -12,11 +12,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Part;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Part;
 import jp.reflexworks.atom.api.AtomConst;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
@@ -541,6 +542,26 @@ public class ContentBlogic implements ReflexServletConst {
 					req.getHeader(ReflexServletConst.HEADER_IF_NONE_MATCH));
 		}
 		return null;
+	}
+
+	/**
+	 * サービスのストレージ使用量を取得.
+	 * @param reflexContext ReflexContext
+	 * @return ストレージ使用量(byte)
+	 */
+	public long getStorageUsage(ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		// サービス管理者かどうか
+		AclBlogic aclBlogic = new AclBlogic();
+		aclBlogic.checkAuthedGroup(reflexContext.getAuth(), Constants.URI_GROUP_ADMIN);
+		// ストレージ使用量取得
+		ContentManager contentManager = TaggingEnvUtil.getContentManager();
+		if (contentManager == null) {
+			// コンテンツマネージャーの指定がない場合、ストレージが使用できていないので0を返す。
+			return 0;
+		}
+		return contentManager.getStorageUsage(reflexContext.getServiceName(),
+				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
 	}
 
 	/**
