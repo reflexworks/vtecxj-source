@@ -17,6 +17,7 @@ import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
+import jp.reflexworks.taggingservice.storage.CloudStorageConst;
 import jp.reflexworks.taggingservice.storage.CloudStorageUtil;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -119,8 +120,8 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 					// 昨日の年月を取得
 					String accessCountYMUri = getAccessCountYMUri(serviceName);
 					// BDBにアクセスカウンタをインクリメント
-					if (logger.isTraceEnabled()) {
-						logger.debug("[addAccessCount] uri = " + accessCountYMUri + " , addids = " + todaysCount);
+					if (isEnableAccessLog()) {
+						logger.info("[addAccessCount] uri = " + accessCountYMUri + " , addids = " + todaysCount);
 					}
 					systemContext.addids(accessCountYMUri, todaysCount);
 				}
@@ -189,8 +190,8 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 		// バケット名取得
 		String bucketName = CloudStorageUtil.getBucketNameByEntry(serviceName, systemContext);
 		if (StringUtils.isBlank(bucketName)) {
-			if (logger.isTraceEnabled()) {
-				logger.debug("[getStorageTotalsize] bucketName is null. serviceName = " + serviceName);
+			if (isEnableAccessLog()) {
+				logger.info("[getStorageTotalsize] bucketName is null. serviceName = " + serviceName);
 			}
 			return null;
 		}
@@ -219,8 +220,8 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 				sb.append(line + Constants.NEWLINE);
 			}
 			String str = sb.toString();
-			if (logger.isTraceEnabled()) {
-				logger.debug(logprefix + " [out] " + str);
+			if (isEnableAccessLog()) {
+				logger.info(logprefix + " [out] " + str);
 			}
 
 			br.close();
@@ -262,8 +263,8 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 			} else {
 				usage = str;
 			}
-			if (logger.isTraceEnabled()) {
-				logger.debug(logprefix + " [usage] " + usage);
+			if (isEnableAccessLog()) {
+				logger.info(logprefix + " [usage] " + usage);
 			}
 
 			// 戻り値
@@ -289,6 +290,15 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 				}
 			}
 		}
+	}
+
+	/**
+	 * ストレージへのアクセスログを出力するかどうかを取得.
+	 * @return ストレージへのアクセスログを出力する場合true
+	 */
+	public boolean isEnableAccessLog() {
+		return TaggingEnvUtil.getSystemPropBoolean(
+				CloudStorageConst.STORAGE_ENABLE_ACCESSLOG, false);
 	}
 
 }

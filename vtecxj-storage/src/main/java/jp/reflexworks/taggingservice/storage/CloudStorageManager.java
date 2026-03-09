@@ -1472,7 +1472,8 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	public long getStorageUsage(String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		String uri = TaggingServiceUtil.getStorageTotalsizeUri(serviceName);
-		SystemContext systemContext = new SystemContext(serviceName, requestInfo, connectionInfo);
+		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(), 
+				requestInfo, connectionInfo);
 		Long size = systemContext.getCacheLong(uri);
 		if (size == null) {
 			return 0;
