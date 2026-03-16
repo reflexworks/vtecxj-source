@@ -41,16 +41,6 @@ public class InitializeConst {
 	public static final String INIT_BDBSERVER_ALLOCIDS_PREFIX = "_init.bdbserver.allocids.";
 	/** 全文検索Indexサーバのサーバ名・ホスト名設定接頭辞(production振り分け用) */
 	public static final String INIT_BDBSERVER_FULLTEXTSEARCH_PREFIX = "_init.bdbserver.fulltextsearch.";
-	/** Entryサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用) */
-	public static final String INIT_BDBSERVER_STAGING_ENTRY_PREFIX = "_init.bdbserver.staging.entry.";
-	/** Manifestサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用) */
-	public static final String INIT_BDBSERVER_STAGING_MANIFEST_PREFIX = "_init.bdbserver.staging.manifest.";
-	/** Indexサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用) */
-	public static final String INIT_BDBSERVER_STAGING_INDEX_PREFIX = "_init.bdbserver.staging.index.";
-	/** 採番・カウンタサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用) */
-	public static final String INIT_BDBSERVER_STAGING_ALLOCIDS_PREFIX = "_init.bdbserver.staging.allocids.";
-	/** 全文検索Indexサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用) */
-	public static final String INIT_BDBSERVER_STAGING_FULLTEXTSEARCH_PREFIX = "_init.bdbserver.staging.fulltextsearch.";
 
 	// BDB関連
 	/** URI : bdb */
@@ -79,10 +69,8 @@ public class InitializeConst {
 	public static final String URI_BDB_ALSERVER = URI_BDB + URI_ALSERVER;
 	/** URI : settings properties */
 	public static final String URI_SETTINGS_PROPERTIES = "/_settings/properties";
-	/** URI : bdb staging */
-	public static final String URI_BDB_STAGING = URI_BDB + "/" + Constants.SERVICE_STATUS_STAGING;
-	/** URI : bdb production */
-	public static final String URI_BDB_PRODUCTION = URI_BDB + "/" + Constants.SERVICE_STATUS_PRODUCTION;
+	/** URI : bdb assignable */
+	public static final String URI_BDB_ASSIGNABLE = Constants.URI_BDB_ASSIGNABLE;
 	/** URI : maintenance notice */
 	public static final String URI_SETTINGS_MAINTENANCE_NOTICE = "/_settings/maintenance_notice";
 	/** URI : diskusage alert */
@@ -102,16 +90,6 @@ public class InitializeConst {
 	public static final int INIT_BDBSERVER_ALLOCIDS_PREFIX_LEN = INIT_BDBSERVER_ALLOCIDS_PREFIX.length();
 	/** 全文検索Indexサーバのサーバ名・ホスト名設定接頭辞(production振り分け用)の文字列長 */
 	public static final int INIT_BDBSERVER_FULLTEXTSEARCH_PREFIX_LEN = INIT_BDBSERVER_FULLTEXTSEARCH_PREFIX.length();
-	/** Entryサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用)の文字列長 */
-	public static final int INIT_BDBSERVER_STAGING_ENTRY_PREFIX_LEN = INIT_BDBSERVER_STAGING_ENTRY_PREFIX.length();
-	/** Manifestサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用)の文字列長 */
-	public static final int INIT_BDBSERVER_STAGING_MANIFEST_PREFIX_LEN = INIT_BDBSERVER_STAGING_MANIFEST_PREFIX.length();
-	/** Indexサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用)の文字列長 */
-	public static final int INIT_BDBSERVER_STAGING_INDEX_PREFIX_LEN = INIT_BDBSERVER_STAGING_INDEX_PREFIX.length();
-	/** 採番・カウンタサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用)の文字列長 */
-	public static final int INIT_BDBSERVER_STAGING_ALLOCIDS_PREFIX_LEN = INIT_BDBSERVER_STAGING_ALLOCIDS_PREFIX.length();
-	/** 全文検索Indexサーバのサーバ名・ホスト名設定接頭辞(staging振り分け用)の文字列長 */
-	public static final int INIT_BDBSERVER_STAGING_FULLTEXTSEARCH_PREFIX_LEN = INIT_BDBSERVER_STAGING_FULLTEXTSEARCH_PREFIX.length();
 
 	/** 各BDBサーバリクエストプロトコル */
 	public static final String PROTOCOL = "http://";

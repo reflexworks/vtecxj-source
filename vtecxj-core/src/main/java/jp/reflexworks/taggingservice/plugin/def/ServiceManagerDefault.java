@@ -1528,9 +1528,13 @@ public class ServiceManagerDefault implements ServiceManager {
 
 		} else {
 			// 指定サービスが一般サービスの場合、BDB再割り当て、データ移行処理
-			DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
-			datastoreManager.changeServiceStatus(targetServiceName, serviceStatus,
-					reflexContext);
+			//DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
+			//datastoreManager.changeServiceStatus(targetServiceName, serviceStatus,
+			//		reflexContext);
+			// 指定サービスが一般サービスの場合も、ステータスを更新して終了。
+			// TODO 課金処理を行う
+			setServiceStatus(entry, serviceStatus);
+			entry = systemContext.put(entry);
 		}
 
 		return targetServiceName;

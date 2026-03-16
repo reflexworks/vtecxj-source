@@ -135,12 +135,12 @@ public interface Constants extends AtomConst {
 	public static final String URI_FTCONDITION = "/ftcondition";
 	/** URI : インデックス検索条件 */
 	public static final String URI_IDXCONDITION = "/idxcondition";
-	/** URI : staging の割り当てserver */
-	public static final String URI_BDB_STAGING = URI_BDB + "/" + SERVICE_STATUS_STAGING;
-	/** URI : production の割り当てserver */
-	public static final String URI_BDB_PRODUCTION = URI_BDB + "/" + SERVICE_STATUS_PRODUCTION;
 	/** URI : 予約済み割り当てserver */
 	public static final String URI_BDB_RESERVATION = URI_BDB + "/reservation";
+	/** URI : 割り当て可能server */
+	public static final String URI_ASSIGNABLE = "/assignable";
+	/** URI : 割り当て可能server */
+	public static final String URI_BDB_ASSIGNABLE = URI_BDB + URI_ASSIGNABLE;
 
 	/** Cookie : upload */
 	public static final String COOKIE_UPLOAD = "upload";

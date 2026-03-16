@@ -152,7 +152,7 @@ public class BDBClientServiceManager {
 			String serverTypeUri, int num, BDBServerType serverType, SystemContext systemContext)
 	throws IOException, TaggingException {
 		// サーバ割り当て
-		// /_bdb/{staging|production}/***serverをFeed検索
+		// /_bdb/assignable/***serverをFeed検索
 		List<String> serverNames = getAssignableServers(serviceName, serviceStatus, serverTypeUri,
 				systemContext);
 		if (serverNames == null || serverNames.isEmpty()) {
@@ -205,7 +205,7 @@ public class BDBClientServiceManager {
 			serversFeed = systemContext.getFeed(parentUri);
 		}
 
-		// 2. 1でリストを取得できなかった場合、/_bdb/{staging|production}/***serverをFeed検索
+		// 2. 1でリストを取得できなかった場合、/_bdb/assignable/***serverをFeed検索
 		if (!TaggingEntryUtil.isExistData(serversFeed)) {
 			parentUri = getAssignableServerUri(serviceStatus, serverTypeUri);
 			serversFeed = systemContext.getFeed(parentUri);
@@ -215,16 +215,14 @@ public class BDBClientServiceManager {
 
 	/**
 	 * サービスへの割り当て候補BDBサーバ名リスト取得のためのURIを取得
-	 *   /_bdb/{staging|production}/***server
+	 *   /_bdb/assignable/***server
 	 * @param serviceStatus サービスステータス
 	 * @param serverTypeUri サーバタイプURI (/***server)
 	 * @return URI
 	 */
 	public String getAssignableServerUri(String serviceStatus, String serverTypeUri) {
 		StringBuilder sb = new StringBuilder();
-		sb.append(Constants.URI_BDB);
-		sb.append("/");
-		sb.append(serviceStatus);
+		sb.append(Constants.URI_BDB_ASSIGNABLE);
 		sb.append(serverTypeUri);
 		return sb.toString();
 	}
