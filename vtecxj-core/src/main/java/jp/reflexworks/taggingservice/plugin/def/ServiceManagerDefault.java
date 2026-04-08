@@ -47,6 +47,7 @@ import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
 import jp.reflexworks.taggingservice.plugin.NamespaceManager;
+import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.plugin.UserManager;
 import jp.reflexworks.taggingservice.service.ServiceConst;
@@ -897,7 +898,7 @@ public class ServiceManagerDefault implements ServiceManager {
 	 * @param entry エントリー
 	 * @param status サービスステータス
 	 */
-	private void setServiceStatus(EntryBase entry, String status) {
+	public void setServiceStatus(EntryBase entry, String status) {
 		entry.subtitle = status;
 		entry.id = null;	// 楽観的排他チェックを行わない
 	}
@@ -1271,7 +1272,12 @@ public class ServiceManagerDefault implements ServiceManager {
 	public void deleteservice(String delServiceName, ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		// 同期処理にする
-		deleteserviceProc(delServiceName, false, reflexContext);
+		EntryBase entry = deleteserviceProc(delServiceName, false, reflexContext);
+		// 課金処理の解約
+		PaymentManager paymentManager = TaggingEnvUtil.getPaymentManager();
+		if (paymentManager != null) {
+			paymentManager.deletePayment(delServiceName, entry, reflexContext);
+		}
 	}
 
 	/**
@@ -1280,8 +1286,9 @@ public class ServiceManagerDefault implements ServiceManager {
 	 * @param async 非同期処理の場合true
 	 * @param reflexContext 削除サービスのReflexContext
 	 * @param delServiceAuth 削除サービスの管理者認証情報
+	 * @return サービスエントリー
 	 */
-	private void deleteserviceProc(String delServiceName, boolean async,
+	private EntryBase deleteserviceProc(String delServiceName, boolean async,
 			ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
@@ -1324,6 +1331,7 @@ public class ServiceManagerDefault implements ServiceManager {
 			// createservice実行時、削除失敗サービスを再削除する場合は同期処理
 			deleteserviceCallable(delServiceName, entry, reflexContext);
 		}
+		return entry;
 	}
 
 	/**
@@ -1464,7 +1472,7 @@ public class ServiceManagerDefault implements ServiceManager {
 	 * サービス公開.
 	 * @param targetServiceName 対象サービス名
 	 * @param reflexContext システム管理サービスのReflexContext
-	 * @return 公開したサービス名
+	 * @return 支払い登録のためのリダイレクトURL。課金がない場合はnull;
 	 */
 	public String serviceToProduction(String targetServiceName, ReflexContext reflexContext)
 	throws IOException, TaggingException {
@@ -1476,7 +1484,7 @@ public class ServiceManagerDefault implements ServiceManager {
 	 * サービス非公開.
 	 * @param targetServiceName 対象サービス名
 	 * @param reflexContext システム管理サービスのReflexContext
-	 * @return 非公開にしたサービス名
+	 * @return null
 	 */
 	public String serviceToStaging(String targetServiceName, ReflexContext reflexContext)
 	throws IOException, TaggingException {
@@ -1490,7 +1498,7 @@ public class ServiceManagerDefault implements ServiceManager {
 	 * @param serviceStatus 設定するサービスステータス
 	 * @param expectedServiceStatus 現在のサービスステータス。このステータスでなければエラーとする。
 	 * @param reflexContext システム管理サービスのReflexContext
-	 * @return サービス名
+	 * @return 支払い登録のためのリダイレクトURL。課金がない場合はnull。
 	 */
 	private String changeServiceStatus(String targetServiceName, String serviceStatus,
 			String expectedServiceStatus, ReflexContext reflexContext)
@@ -1503,8 +1511,8 @@ public class ServiceManagerDefault implements ServiceManager {
 
 		// 指定サービスが存在しなければエラー
 		String uri = getServiceUri(targetServiceName);
-		EntryBase entry = systemContext.getEntry(uri, false);
-		String currentServiceStatus = getServiceStatus(entry);
+		EntryBase serviceEntry = systemContext.getEntry(uri, false);
+		String currentServiceStatus = getServiceStatus(serviceEntry);
 		if (StringUtils.isBlank(currentServiceStatus)) {
 			throw new IllegalParameterException("The service does not exist. " + targetServiceName);
 		}
@@ -1523,17 +1531,59 @@ public class ServiceManagerDefault implements ServiceManager {
 
 		if (TaggingEnvUtil.getSystemService().equals(targetServiceName)) {
 			// 指定サービスがシステム管理サービスの場合、ステータスを更新して終了。
-			setServiceStatus(entry, serviceStatus);
-			entry = systemContext.put(entry);
+			setServiceStatus(serviceEntry, serviceStatus);
+			serviceEntry = systemContext.put(serviceEntry);
 
 		} else {
 			// 指定サービスが一般サービスの場合、BDB再割り当て、データ移行処理
-			DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
-			datastoreManager.changeServiceStatus(targetServiceName, serviceStatus,
-					reflexContext);
+			//DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
+			//datastoreManager.changeServiceStatus(targetServiceName, serviceStatus,
+			//		reflexContext);
+			// 指定サービスが一般サービスの場合
+			if (Constants.SERVICE_STATUS_PRODUCTION.equals(serviceStatus)) {
+				// productionに更新の場合、課金処理
+				return registerPayment(targetServiceName, serviceEntry, reflexContext);
+			} else {
+				// stagingに更新の場合、課金処理を削除
+				cancelPayment(targetServiceName, serviceEntry, reflexContext);
+			}
 		}
 
-		return targetServiceName;
+		return null;
+	}
+	
+	/**
+	 * 課金処理
+	 * @param targetServiceName 対象サービス名
+	 * @param serviceEntry サービスエントリー
+	 * @param reflexContext ReflexContext
+	 * @return リダイレクトURL
+	 */
+	private String registerPayment(String targetServiceName, EntryBase serviceEntry, 
+			ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		PaymentManager paymentManager = TaggingEnvUtil.getPaymentManager();
+		if (paymentManager != null) {
+			return paymentManager.registerPayment(targetServiceName, serviceEntry, reflexContext);
+		} else {
+			return null;
+		}
+	}
+	
+	/**
+	 * 課金処理の削除
+	 * @param targetServiceName 対象サービス名
+	 * @param serviceEntry サービスエントリー
+	 * @param reflexContext ReflexContext
+	 * @return リダイレクトURL
+	 */
+	private void cancelPayment(String targetServiceName, EntryBase serviceEntry, 
+			ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		PaymentManager paymentManager = TaggingEnvUtil.getPaymentManager();
+		if (paymentManager != null) {
+			paymentManager.cancelPayment(targetServiceName, serviceEntry, reflexContext);
+		}
 	}
 
 	/**
@@ -1591,6 +1641,34 @@ public class ServiceManagerDefault implements ServiceManager {
 		if (count > maxCount) {
 			throw new PaymentRequiredException(ServiceConst.MSG_OVER_ACCESS_COUNT);
 		}
+	}
+
+	/**
+	 * サービスのアクセスカウンタを取得.
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return アクセスカウンタ
+	 */
+	public long getAccessCount(String serviceName, RequestInfo requestInfo,
+			ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		// システム管理サービスにてアクセスカウンタを取得
+		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
+				requestInfo, connectionInfo);
+		String uri = TaggingServiceUtil.getAccessCountTodayUri(serviceName);
+		if (logger.isTraceEnabled()) {
+			logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+					"[getAccessCount] uri: " + uri + " start.");
+		}
+		Long count = systemContext.getCacheLong(uri);
+		if (logger.isTraceEnabled()) {
+			logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[getAccessCount] uri: " + uri + " , count: " + count);
+		}
+		if (count == null) {
+			return 0;
+		}
+		return count;
 	}
 
 	/**

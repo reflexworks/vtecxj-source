@@ -330,4 +330,10 @@ public interface MessageManager extends ReflexPlugin {
 	 */
 	public String getMsgDeleteGroupadmin(FeedBase feed, String serviceName);
 
+	/**
+	 * SecretManager再読み込みのメッセージを取得.
+	 * @return メッセージ
+	 */
+	public String getMsgReloadSecret();
+
 }

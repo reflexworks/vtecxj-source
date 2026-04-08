@@ -107,30 +107,18 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		feed.addEntry(createBDBFolder());
 		// BDBの各サービス設定フォルダ (/_bdb/service)
 		feed.addEntry(createBDBServiceFolder());
-		// BDBのstaging割り当てフォルダ (/_bdb/staging)
-		feed.addEntry(createBDBStagingFolder());
-		// Manifestサーバのstaging割り当てフォルダ (/_bdb/staging/mnfserver)
-		feed.addEntry(createBDBStagingMnfFolder());
-		// Entryサーバのstaging割り当てフォルダ (/_bdb/staging/entryserver)
-		feed.addEntry(createBDBStagingEntryFolder());
-		// インデックスサーバのstaging割り当てフォルダ (/_bdb/staging/idxserver)
-		feed.addEntry(createBDBStagingIdxFolder());
-		// 全文検索インデックスサーバのstaging割り当てフォルダ (/_bdb/staging/ftserver)
-		feed.addEntry(createBDBStagingFtFolder());
-		// 採番・カウンタサーバのstaging割り当てフォルダ (/_bdb/staging/alserver)
-		feed.addEntry(createBDBStagingAlFolder());
-		// BDBのproduction割り当てフォルダ (/_bdb/production)
-		feed.addEntry(createBDBProductionFolder());
-		// Manifestサーバのproduction割り当てフォルダ (/_bdb/production/mnfserver)
-		feed.addEntry(createBDBProductionMnfFolder());
-		// Entryサーバのproduction割り当てフォルダ (/_bdb/production/entryserver)
-		feed.addEntry(createBDBProductionEntryFolder());
-		// インデックスサーバのproduction割り当てフォルダ (/_bdb/production/idxserver)
-		feed.addEntry(createBDBProductionIdxFolder());
-		// 全文検索インデックスサーバのproduction割り当てフォルダ (/_bdb/production/ftserver)
-		feed.addEntry(createBDBProductionFtFolder());
-		// 採番・カウンタサーバのproduction割り当てフォルダ (/_bdb/production/alserver)
-		feed.addEntry(createBDBProductionAlFolder());
+		// BDBの割り当てフォルダ (/_bdb/assignable)
+		feed.addEntry(createBDBAssignableFolder());
+		// Manifestサーバの割り当てフォルダ (/_bdb/assignable/mnfserver)
+		feed.addEntry(createBDBAssignableMnfFolder());
+		// Entryサーバの割り当てフォルダ (/_bdb/assignable/entryserver)
+		feed.addEntry(createBDBAssignableEntryFolder());
+		// インデックスサーバの割り当てフォルダ (/_bdb/assignable/idxserver)
+		feed.addEntry(createBDBAssignableIdxFolder());
+		// 全文検索インデックスサーバの割り当てフォルダ (/_bdb/assignable/ftserver)
+		feed.addEntry(createBDBAssignableFtFolder());
+		// 採番・カウンタサーバの割り当てフォルダ (/_bdb/assignable/alserver)
+		feed.addEntry(createBDBAssignableAlFolder());
 		// BDBサーバ予約済みフォルダ (/_bdb/reservation)
 		feed.addEntry(createBDBReservationFolder());
 
@@ -307,134 +295,68 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	}
 
 	/**
-	 * BDBのstaging割り当て設定フォルダEntryを生成
+	 * BDBの割り当て設定フォルダEntryを生成
 	 * @return Entry
 	 */
-	private EntryBase createBDBStagingFolder() {
+	private EntryBase createBDBAssignableFolder() {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_STAGING);
+		entry.setMyUri(InitializeConst.URI_BDB_ASSIGNABLE);
 		return entry;
 	}
 
 	/**
-	 * Manifestサーバのstaging割り当て設定フォルダEntryを生成
+	 * Manifestサーバの割り当て設定フォルダEntryを生成
 	 * @return Entry
 	 */
-	private EntryBase createBDBStagingMnfFolder() {
+	private EntryBase createBDBAssignableMnfFolder() {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_STAGING + InitializeConst.URI_MNFSERVER);
+		entry.setMyUri(InitializeConst.URI_BDB_ASSIGNABLE + InitializeConst.URI_MNFSERVER);
 		return entry;
 	}
 
 	/**
-	 * Entryサーバのstaging割り当て設定フォルダEntryを生成
+	 * Entryサーバの割り当て設定フォルダEntryを生成
 	 * @return Entry
 	 */
-	private EntryBase createBDBStagingEntryFolder() {
+	private EntryBase createBDBAssignableEntryFolder() {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_STAGING + InitializeConst.URI_ENTRYSERVER);
+		entry.setMyUri(InitializeConst.URI_BDB_ASSIGNABLE + InitializeConst.URI_ENTRYSERVER);
 		return entry;
 	}
 
 	/**
-	 * インデックスサーバのstaging割り当て設定フォルダEntryを生成
+	 * インデックスサーバの割り当て設定フォルダEntryを生成
 	 * @return Entry
 	 */
-	private EntryBase createBDBStagingIdxFolder() {
+	private EntryBase createBDBAssignableIdxFolder() {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_STAGING + InitializeConst.URI_IDXSERVER);
+		entry.setMyUri(InitializeConst.URI_BDB_ASSIGNABLE + InitializeConst.URI_IDXSERVER);
 		return entry;
 	}
 
 	/**
-	 * 全文検索インデックスサーバのstaging割り当て設定フォルダEntryを生成
+	 * 全文検索インデックスサーバの割り当て設定フォルダEntryを生成
 	 * @return Entry
 	 */
-	private EntryBase createBDBStagingFtFolder() {
+	private EntryBase createBDBAssignableFtFolder() {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_STAGING + InitializeConst.URI_FTSERVER);
+		entry.setMyUri(InitializeConst.URI_BDB_ASSIGNABLE + InitializeConst.URI_FTSERVER);
 		return entry;
 	}
 
 	/**
-	 * 採番・カウンタサーバのstaging割り当て設定フォルダEntryを生成
+	 * 採番・カウンタサーバの割り当て設定フォルダEntryを生成
 	 * @return Entry
 	 */
-	private EntryBase createBDBStagingAlFolder() {
+	private EntryBase createBDBAssignableAlFolder() {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_STAGING + InitializeConst.URI_ALSERVER);
-		return entry;
-	}
-
-	/**
-	 * BDBのproduction割り当て設定フォルダEntryを生成
-	 * @return Entry
-	 */
-	private EntryBase createBDBProductionFolder() {
-		EntryBase entry = TaggingEntryUtil.createAtomEntry();
-		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_PRODUCTION);
-		return entry;
-	}
-
-	/**
-	 * Manifestサーバのproduction割り当て設定フォルダEntryを生成
-	 * @return Entry
-	 */
-	private EntryBase createBDBProductionMnfFolder() {
-		EntryBase entry = TaggingEntryUtil.createAtomEntry();
-		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_PRODUCTION + InitializeConst.URI_MNFSERVER);
-		return entry;
-	}
-
-	/**
-	 * Entryサーバのproduction割り当て設定フォルダEntryを生成
-	 * @return Entry
-	 */
-	private EntryBase createBDBProductionEntryFolder() {
-		EntryBase entry = TaggingEntryUtil.createAtomEntry();
-		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_PRODUCTION + InitializeConst.URI_ENTRYSERVER);
-		return entry;
-	}
-
-	/**
-	 * インデックスtサーバのproduction割り当て設定フォルダEntryを生成
-	 * @return Entry
-	 */
-	private EntryBase createBDBProductionIdxFolder() {
-		EntryBase entry = TaggingEntryUtil.createAtomEntry();
-		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_PRODUCTION + InitializeConst.URI_IDXSERVER);
-		return entry;
-	}
-
-	/**
-	 * 全文検索インデックスサーバのproduction割り当て設定フォルダEntryを生成
-	 * @return Entry
-	 */
-	private EntryBase createBDBProductionFtFolder() {
-		EntryBase entry = TaggingEntryUtil.createAtomEntry();
-		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_PRODUCTION + InitializeConst.URI_FTSERVER);
-		return entry;
-	}
-
-	/**
-	 * 採番・カウンタサーバのproduction割り当て設定フォルダEntryを生成
-	 * @return Entry
-	 */
-	private EntryBase createBDBProductionAlFolder() {
-		EntryBase entry = TaggingEntryUtil.createAtomEntry();
-		// URI
-		entry.setMyUri(InitializeConst.URI_BDB_PRODUCTION + InitializeConst.URI_ALSERVER);
+		entry.setMyUri(InitializeConst.URI_BDB_ASSIGNABLE + InitializeConst.URI_ALSERVER);
 		return entry;
 	}
 
@@ -466,7 +388,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 */
 	private List<EntryBase> createBDBMnfServers() {
 		List<EntryBase> bdbServers = new ArrayList<>();
-		// production
 		Map<String, String> initBdbservers = TaggingEnvUtil.getSystemPropMap(
 				InitializeConst.INIT_BDBSERVER_MANIFEST_PREFIX);
 		if (initBdbservers != null) {
@@ -474,21 +395,7 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 				String serverName = mapEntry.getKey().substring(
 						InitializeConst.INIT_BDBSERVER_MANIFEST_PREFIX_LEN);
 				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBMnfServer(serverName, host, 
-						Constants.SERVICE_STATUS_PRODUCTION);
-				bdbServers.add(bdbServerEntry);
-			}
-		}
-		// staging
-		initBdbservers = TaggingEnvUtil.getSystemPropMap(
-				InitializeConst.INIT_BDBSERVER_STAGING_MANIFEST_PREFIX);
-		if (initBdbservers != null) {
-			for (Map.Entry<String, String> mapEntry : initBdbservers.entrySet()) {
-				String serverName = mapEntry.getKey().substring(
-						InitializeConst.INIT_BDBSERVER_STAGING_MANIFEST_PREFIX_LEN);
-				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBMnfServer(serverName, host, 
-						Constants.SERVICE_STATUS_STAGING);
+				EntryBase bdbServerEntry = createBDBMnfServer(serverName, host);
 				bdbServers.add(bdbServerEntry);
 			}
 		}
@@ -501,10 +408,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 *   title=http://{host}/b
 	 * @param serverName サーバ名
 	 * @param host ホスト名
-	 * @param serviceStatus サービスステータス (staging/production)
 	 * @return Entry
 	 */
-	private EntryBase createBDBMnfServer(String serverName, String host, String serviceStatus) {
+	private EntryBase createBDBMnfServer(String serverName, String host) {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
 		StringBuilder sb = new StringBuilder();
@@ -520,11 +426,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		sb.append(InitializeConst.SERVLET_PATH);
 		entry.title = sb.toString();
 
-		// 指定された公開区分に割り当て /_bdb/{production|staging}/mnfserver/{サーバ名}
+		// 割り当て /_bdb/assignable/mnfserver/{サーバ名}
 		sb = new StringBuilder();
-		sb.append(InitializeConst.URI_BDB);
-		sb.append("/");
-		sb.append(serviceStatus);
+		sb.append(InitializeConst.URI_BDB_ASSIGNABLE);
 		sb.append(InitializeConst.URI_MNFSERVER);
 		sb.append("/");
 		sb.append(serverName);
@@ -551,7 +455,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 */
 	private List<EntryBase> createBDBEntryServers() {
 		List<EntryBase> bdbServers = new ArrayList<>();
-		// production
 		Map<String, String> initBdbservers = TaggingEnvUtil.getSystemPropMap(
 				InitializeConst.INIT_BDBSERVER_ENTRY_PREFIX);
 		if (initBdbservers != null) {
@@ -559,21 +462,7 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 				String serverName = mapEntry.getKey().substring(
 						InitializeConst.INIT_BDBSERVER_ENTRY_PREFIX_LEN);
 				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBEntryServer(serverName, host, 
-						Constants.SERVICE_STATUS_PRODUCTION);
-				bdbServers.add(bdbServerEntry);
-			}
-		}
-		// staging
-		initBdbservers = TaggingEnvUtil.getSystemPropMap(
-				InitializeConst.INIT_BDBSERVER_STAGING_ENTRY_PREFIX);
-		if (initBdbservers != null) {
-			for (Map.Entry<String, String> mapEntry : initBdbservers.entrySet()) {
-				String serverName = mapEntry.getKey().substring(
-						InitializeConst.INIT_BDBSERVER_STAGING_ENTRY_PREFIX_LEN);
-				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBEntryServer(serverName, host, 
-						Constants.SERVICE_STATUS_STAGING);
+				EntryBase bdbServerEntry = createBDBEntryServer(serverName, host);
 				bdbServers.add(bdbServerEntry);
 			}
 		}
@@ -586,10 +475,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 *   title=http://{host}/b
 	 * @param serverName サーバ名
 	 * @param host ホスト名
-	 * @param serviceStatus サービスステータス (staging/production)
 	 * @return Entry
 	 */
-	private EntryBase createBDBEntryServer(String serverName, String host, String serviceStatus) {
+	private EntryBase createBDBEntryServer(String serverName, String host) {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
 		StringBuilder sb = new StringBuilder();
@@ -605,11 +493,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		sb.append(InitializeConst.SERVLET_PATH);
 		entry.title = sb.toString();
 
-		// 指定された公開区分に割り当て /_bdb/{production|staging}/entryserver/{サーバ名}
+		// 割り当て /_bdb/assignable/entryserver/{サーバ名}
 		sb = new StringBuilder();
-		sb.append(InitializeConst.URI_BDB);
-		sb.append("/");
-		sb.append(serviceStatus);
+		sb.append(InitializeConst.URI_BDB_ASSIGNABLE);
 		sb.append(InitializeConst.URI_ENTRYSERVER);
 		sb.append("/");
 		sb.append(serverName);
@@ -636,7 +522,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 */
 	private List<EntryBase> createBDBIdxServers() {
 		List<EntryBase> bdbServers = new ArrayList<>();
-		// production
 		Map<String, String> initBdbservers = TaggingEnvUtil.getSystemPropMap(
 				InitializeConst.INIT_BDBSERVER_INDEX_PREFIX);
 		if (initBdbservers != null) {
@@ -644,21 +529,7 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 				String serverName = mapEntry.getKey().substring(
 						InitializeConst.INIT_BDBSERVER_INDEX_PREFIX_LEN);
 				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBIdxServer(serverName, host, 
-						Constants.SERVICE_STATUS_PRODUCTION);
-				bdbServers.add(bdbServerEntry);
-			}
-		}
-		// staging
-		initBdbservers = TaggingEnvUtil.getSystemPropMap(
-				InitializeConst.INIT_BDBSERVER_STAGING_INDEX_PREFIX);
-		if (initBdbservers != null) {
-			for (Map.Entry<String, String> mapEntry : initBdbservers.entrySet()) {
-				String serverName = mapEntry.getKey().substring(
-						InitializeConst.INIT_BDBSERVER_STAGING_INDEX_PREFIX_LEN);
-				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBIdxServer(serverName, host, 
-						Constants.SERVICE_STATUS_STAGING);
+				EntryBase bdbServerEntry = createBDBIdxServer(serverName, host);
 				bdbServers.add(bdbServerEntry);
 			}
 		}
@@ -671,10 +542,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 *   title=http://{host}/b
 	 * @param serverName サーバ名
 	 * @param host ホスト名
-	 * @param serviceStatus サービスステータス (staging/production)
 	 * @return Entry
 	 */
-	private EntryBase createBDBIdxServer(String serverName, String host, String serviceStatus) {
+	private EntryBase createBDBIdxServer(String serverName, String host) {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
 		StringBuilder sb = new StringBuilder();
@@ -690,11 +560,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		sb.append(InitializeConst.SERVLET_PATH);
 		entry.title = sb.toString();
 
-		// 指定された公開区分に割り当て /_bdb/{production|staging}/idxserver/{サーバ名}
+		// 割り当て /_bdb/assignable/idxserver/{サーバ名}
 		sb = new StringBuilder();
-		sb.append(InitializeConst.URI_BDB);
-		sb.append("/");
-		sb.append(serviceStatus);
+		sb.append(InitializeConst.URI_BDB_ASSIGNABLE);
 		sb.append(InitializeConst.URI_IDXSERVER);
 		sb.append("/");
 		sb.append(serverName);
@@ -721,7 +589,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 */
 	private List<EntryBase> createBDBFtServers() {
 		List<EntryBase> bdbServers = new ArrayList<>();
-		// production
 		Map<String, String> initBdbservers = TaggingEnvUtil.getSystemPropMap(
 				InitializeConst.INIT_BDBSERVER_FULLTEXTSEARCH_PREFIX);
 		if (initBdbservers != null) {
@@ -729,21 +596,7 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 				String serverName = mapEntry.getKey().substring(
 						InitializeConst.INIT_BDBSERVER_FULLTEXTSEARCH_PREFIX_LEN);
 				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBFtServer(serverName, host, 
-						Constants.SERVICE_STATUS_PRODUCTION);
-				bdbServers.add(bdbServerEntry);
-			}
-		}
-		// staging
-		initBdbservers = TaggingEnvUtil.getSystemPropMap(
-				InitializeConst.INIT_BDBSERVER_STAGING_FULLTEXTSEARCH_PREFIX);
-		if (initBdbservers != null) {
-			for (Map.Entry<String, String> mapEntry : initBdbservers.entrySet()) {
-				String serverName = mapEntry.getKey().substring(
-						InitializeConst.INIT_BDBSERVER_STAGING_FULLTEXTSEARCH_PREFIX_LEN);
-				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBFtServer(serverName, host, 
-						Constants.SERVICE_STATUS_STAGING);
+				EntryBase bdbServerEntry = createBDBFtServer(serverName, host);
 				bdbServers.add(bdbServerEntry);
 			}
 		}
@@ -756,10 +609,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 *   title=http://{host}/b
 	 * @param serverName サーバ名
 	 * @param host ホスト名
-	 * @param serviceStatus サービスステータス (staging/production)
 	 * @return Entry
 	 */
-	private EntryBase createBDBFtServer(String serverName, String host, String serviceStatus) {
+	private EntryBase createBDBFtServer(String serverName, String host) {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
 		StringBuilder sb = new StringBuilder();
@@ -775,11 +627,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		sb.append(InitializeConst.SERVLET_PATH);
 		entry.title = sb.toString();
 
-		// 指定された公開区分に割り当て /_bdb/{production|staging}/ftserver/{サーバ名}
+		// 割り当て /_bdb/assignable/ftserver/{サーバ名}
 		sb = new StringBuilder();
-		sb.append(InitializeConst.URI_BDB);
-		sb.append("/");
-		sb.append(serviceStatus);
+		sb.append(InitializeConst.URI_BDB_ASSIGNABLE);
 		sb.append(InitializeConst.URI_FTSERVER);
 		sb.append("/");
 		sb.append(serverName);
@@ -806,7 +656,6 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 */
 	private List<EntryBase> createBDBAlServers() {
 		List<EntryBase> bdbServers = new ArrayList<>();
-		// production
 		Map<String, String> initBdbservers = TaggingEnvUtil.getSystemPropMap(
 				InitializeConst.INIT_BDBSERVER_ALLOCIDS_PREFIX);
 		if (initBdbservers != null) {
@@ -814,21 +663,7 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 				String serverName = mapEntry.getKey().substring(
 						InitializeConst.INIT_BDBSERVER_ALLOCIDS_PREFIX_LEN);
 				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBAlServer(serverName, host, 
-						Constants.SERVICE_STATUS_PRODUCTION);
-				bdbServers.add(bdbServerEntry);
-			}
-		}
-		// staging
-		initBdbservers = TaggingEnvUtil.getSystemPropMap(
-				InitializeConst.INIT_BDBSERVER_STAGING_ALLOCIDS_PREFIX);
-		if (initBdbservers != null) {
-			for (Map.Entry<String, String> mapEntry : initBdbservers.entrySet()) {
-				String serverName = mapEntry.getKey().substring(
-						InitializeConst.INIT_BDBSERVER_STAGING_ALLOCIDS_PREFIX_LEN);
-				String host = mapEntry.getValue();
-				EntryBase bdbServerEntry = createBDBAlServer(serverName, host, 
-						Constants.SERVICE_STATUS_STAGING);
+				EntryBase bdbServerEntry = createBDBAlServer(serverName, host);
 				bdbServers.add(bdbServerEntry);
 			}
 		}
@@ -841,10 +676,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 	 *   title=http://{host}/b
 	 * @param serverName サーバ名
 	 * @param host ホスト名
-	 * @param serviceStatus サービスステータス (staging/production)
 	 * @return Entry
 	 */
-	private EntryBase createBDBAlServer(String serverName, String host, String serviceStatus) {
+	private EntryBase createBDBAlServer(String serverName, String host) {
 		EntryBase entry = TaggingEntryUtil.createAtomEntry();
 		// URI
 		StringBuilder sb = new StringBuilder();
@@ -860,11 +694,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		sb.append(InitializeConst.SERVLET_PATH);
 		entry.title = sb.toString();
 
-		// 指定された公開区分に割り当て /_bdb/{production|staging}/alserver/{サーバ名}
+		// 割り当て /_bdb/assignable/alserver/{サーバ名}
 		sb = new StringBuilder();
-		sb.append(InitializeConst.URI_BDB);
-		sb.append("/");
-		sb.append(serviceStatus);
+		sb.append(InitializeConst.URI_BDB_ASSIGNABLE);
 		sb.append(InitializeConst.URI_ALSERVER);
 		sb.append("/");
 		sb.append(serverName);
@@ -977,6 +809,11 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		entry.setMyUri(Constants.URI_SERVICE + "/" + serviceName);
 		entry.addAlternate(userServiceAdminUri);
 		entry.rights = uid;
+		entries.add(entry);
+
+		// /_group/$vtecx
+		entry = TaggingEntryUtil.createEntry(serviceName);
+		entry.setMyUri(Constants.URI_GROUP_VTECX);
 		entries.add(entry);
 
 		return entries;

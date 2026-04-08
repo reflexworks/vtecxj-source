@@ -53,5 +53,6 @@ public interface MessageConst {
 	public static final String MSG_WRITELOG = "Log output.";
 	public static final String MSG_CREATEGROUPADMIN = "The group admin has been created.";
 	public static final String MSG_DELETEGROUPADMIN = "The group admin has been deleted.";
+	public static final String MSG_RELOAD_SECRET = "The secrets have been reloaded.";
 
 }

@@ -1455,4 +1455,22 @@ public class SystemContext implements ReflexContext {
 		return reflexContext.bulkPutBdbq(feed, parentUri, tableNames, async);
 	}
 
+	@Override
+	public long getAccessCount()
+	throws IOException, TaggingException {
+		return reflexContext.getAccessCount();
+	}
+
+	@Override
+	public long getStorageUsage()
+	throws IOException, TaggingException {
+		return reflexContext.getStorageUsage();
+	}
+
+	@Override
+	public void reloadSecret()
+	throws IOException, TaggingException {
+		reflexContext.reloadSecret();
+	}
+
 }

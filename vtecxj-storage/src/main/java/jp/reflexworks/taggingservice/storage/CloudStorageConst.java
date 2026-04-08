@@ -65,7 +65,9 @@ public class CloudStorageConst {
 	/** ストレージへのアクセスログを出力するかどうか */
 	public static final String STORAGE_ENABLE_ACCESSLOG = "_storage.enable.accesslog";
 	/** ストレージの最大合計容量 (stagingサービス用) */
-	public static final String STORAGE_MAX_TOTALSIZE = "_storage.max.totalsize";
+	public static final String STORAGE_MAX_TOTALSIZE_STAGING = "_storage.max.totalsize.staging";
+	/** ストレージの最大合計容量 (productionサービス用) */
+	public static final String STORAGE_MAX_TOTALSIZE_PRODUCTION = "_storage.max.totalsize.production";
 	/** バケット作成ロックの有効期限(秒) */
 	public static final String STORAGE_LOCK_EXPIRE_SEC = "_storage.lock.expire.sec";
 	/** バケットに設定するCORSの有効期間(秒) */
@@ -101,8 +103,10 @@ public class CloudStorageConst {
 	public static final int STORAGE_CACHELOCK_RETRY_COUNT_DEFAULT = 200;
 	/** ローカルキャッシュロック失敗でリトライ時のスリープ時間デフォルト値 */
 	public static final int STORAGE_CACHELOCK_RETRY_WAITMILLIS_DEFAULT = 100;
-	/** ストレージの最大合計容量デフォルト値 */
-	public static final long STORAGE_MAX_TOTALSIZE_DEFAULT = 104857600;
+	/** ストレージの最大合計容量デフォルト値 (staging) */
+	public static final long STORAGE_MAX_TOTALSIZE_STAGING_DEFAULT = 104857600L;
+	/** ストレージの最大合計容量デフォルト値 (production) */
+	public static final long STORAGE_MAX_TOTALSIZE_PRODUCTION_DEFAULT = 5368709120L;
 	/** バケット作成ロックの有効期限(秒)デフォルト値 */
 	public static final int STORAGE_LOCK_EXPIRE_SEC_DEFAULT = 300;
 	/** 署名付きURLの有効期限(分) デフォルト値 */

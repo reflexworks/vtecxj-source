@@ -19,21 +19,25 @@ import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
+import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
 import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.StaticDuplicatedException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.model.RequestInfoImpl;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.NamespaceManager;
 import jp.reflexworks.taggingservice.plugin.ResourceMapperManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.plugin.SettingService;
+import jp.reflexworks.taggingservice.sys.SystemAuthentication;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.taskqueue.TaskQueueUtil;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.RetryUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
+import jp.sourceforge.reflex.util.DeflateUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -103,6 +107,24 @@ public class ServiceManagerDefaultSetting {
 			ReflexStatic.setStatic(STATIC_NAME_SERVICE_APIKEYREVISIONMAP, apiKeyRevisionMap);
 		} catch (StaticDuplicatedException e) {
 			logger.warn("[init] StaticDuplicatedException: " + STATIC_NAME_SERVICE_APIKEYREVISIONMAP, e);
+		}
+		
+		// システム管理サービスの初期処理
+		try {
+			initSystemService();
+
+		} catch (StaticDuplicatedException e) {
+			// エラーを出力し処理継続
+			if (logger.isInfoEnabled()) {
+				logger.info("[init] Setting environment is duplicated: " +
+						e.getMessage());
+			}
+		} catch (IOException e) {
+			logger.error("[init] Error occurred.", e);
+			throw new IllegalStateException(e);
+		} catch (TaggingException e) {
+			logger.error("[init] Error occurred.", e);
+			throw new IllegalStateException(e);
 		}
 	}
 
@@ -606,6 +628,100 @@ public class ServiceManagerDefaultSetting {
 			settingService.closeService(serviceName,
 					requestInfo, connectionInfo);
 		}
+	}
+
+	/**
+	 * システム管理サービスの初期設定.
+	 */
+	private void initSystemService()
+	throws IOException, TaggingException {
+		// 各種設定
+		String serviceName = TaggingEnvUtil.getSystemService();
+		String ip = "init";
+		String method = "init";
+		String url = "";
+		String uid = SystemAuthentication.UID_SYSTEM;
+		String account = SystemAuthentication.ACCOUNT_SYSTEM;
+
+		// オブジェクト生成
+		// リクエスト情報
+		RequestInfo requestInfo = new RequestInfoImpl(serviceName, ip, uid,
+				account, method, url);
+		DeflateUtil deflateUtil = null;
+		ConnectionInfo connectionInfo = null;
+		try {
+			deflateUtil = new DeflateUtil();
+			connectionInfo = new ConnectionInfoImpl(deflateUtil, requestInfo);
+
+			// ノードのオートスケール時にクラスタへのアクセスができなくなる期間があるため、
+			// リトライ処理を設け、リトライ時間を長く、リトライ回数を多く設定する。
+			int numRetries = getServiceSettingsInitRetryCount();
+			int waitMillis = getServiceSettingsInitRetryWaitmillis();
+			for (int r = 0; r <= numRetries; r++) {
+				try {
+					// サービス情報の設定
+					settingServiceIfAbsent(serviceName, requestInfo, connectionInfo);
+					break;
+
+				} catch (IOException e) {
+					// リトライ判定、入力エラー判定
+					try {
+						convertError(e, Constants.GET, requestInfo);
+					} catch (IOException ie) {
+						throw new IllegalStateException(ie);
+					}
+					if (r >= numRetries) {
+						// リトライ対象だがリトライ回数を超えた場合
+						throw new IllegalStateException(e);
+					}
+					if (logger.isDebugEnabled()) {
+						logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+								"[initSystemServic] " + RetryUtil.getRetryLog(e, r));
+					}
+					RetryUtil.sleep(waitMillis + r * 10);
+				} catch (TaggingException e) {
+					throw new IllegalStateException(e);
+				}
+			}
+
+		} finally {
+			if (connectionInfo != null) {
+				connectionInfo.close();
+			}
+		}
+	}
+
+	/**
+	 * 例外を変換する.
+	 * リトライ対象の場合例外をスローしない。
+	 * @param e データストア例外
+	 * @param method GET, POST, PUT or DELETE
+	 * @param requestInfo リクエスト情報
+	 */
+	private void convertError(IOException e, String method, RequestInfo requestInfo)
+	throws IOException {
+		if (RetryUtil.isRetryError(e, method)) {
+			return;
+		}
+		throw e;
+	}
+
+	/**
+	 * 初期起動でのアクセス失敗時リトライ総数を取得.
+	 * @return 初期起動でのアクセス失敗時リトライ総数
+	 */
+	private int getServiceSettingsInitRetryCount() {
+		return TaggingEnvUtil.getSystemPropInt(TaggingEnvConst.SERVICESETTINGS_INIT_RETRY_COUNT,
+				TaggingEnvConst.SERVICESETTINGS_INIT_RETRY_COUNT_DEFAULT);
+	}
+
+	/**
+	 * 初期起動でのアクセス失敗時リトライ時のスリープ時間を取得.
+	 * @return 初期起動でのアクセス失敗時のスリープ時間(ミリ秒)
+	 */
+	private int getServiceSettingsInitRetryWaitmillis() {
+		return TaggingEnvUtil.getSystemPropInt(TaggingEnvConst.SERVICESETTINGS_INIT_RETRY_WAITMILLIS,
+				TaggingEnvConst.SERVICESETTINGS_INIT_RETRY_WAITMILLIS_DEFAULT);
 	}
 
 	/**

@@ -19,6 +19,7 @@ import jp.reflexworks.taggingservice.plugin.ContentManager;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
+import jp.reflexworks.taggingservice.plugin.InUseSecretManager;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
@@ -27,6 +28,7 @@ import jp.reflexworks.taggingservice.plugin.MessageManager;
 import jp.reflexworks.taggingservice.plugin.MonitorManager;
 import jp.reflexworks.taggingservice.plugin.NamespaceManager;
 import jp.reflexworks.taggingservice.plugin.OAuthManager;
+import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.PdfManager;
 import jp.reflexworks.taggingservice.plugin.PropertyManager;
 import jp.reflexworks.taggingservice.plugin.PushNotificationManager;
@@ -219,6 +221,12 @@ public interface ReflexEnv extends BaseReflexEnv {
 	public List<ExecuteAtCreateService> getExecuteAtCreateServiceList();
 
 	/**
+	 * SecretManager使用管理クラスリストを取得.
+	 * @return SecretManager使用管理クラスリスト
+	 */
+	public List<InUseSecretManager> getInUseSecretManagerList();
+
+	/**
 	 * Datastore managerを取得.
 	 * @return Datastore manager
 	 */
@@ -409,6 +417,12 @@ public interface ReflexEnv extends BaseReflexEnv {
 	 * @return Secret管理プラグイン
 	 */
 	public SecretManager getSecretManager();
+
+	/**
+	 * 課金管理プラグインを取得.
+	 * @return 課金管理プラグイン
+	 */
+	public PaymentManager getPaymentManager();
 
 	/**
 	 * サーバ稼働中かどうか.

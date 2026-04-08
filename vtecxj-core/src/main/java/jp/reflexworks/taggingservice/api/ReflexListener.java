@@ -2,11 +2,12 @@ package jp.reflexworks.taggingservice.api;
 
 import java.io.IOException;
 
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
 import jp.reflexworks.servlet.util.ServletContextUtil;
 import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
 import jp.reflexworks.taggingservice.env.TaggingEnv;
@@ -50,9 +51,6 @@ public class ReflexListener implements ServletContextListener {
 			// 3. TaggingEnvの初期処理
 			env.init();
 
-			// システム管理サービスの初期設定
-			initSystemService();
-
 			if (logger.isInfoEnabled()) {
 				logger.info("[contextInitialized] end.");
 			}
@@ -63,12 +61,6 @@ public class ReflexListener implements ServletContextListener {
 				logger.info("[contextInitialized] Setting environment is duplicated: " +
 						e.getMessage());
 			}
-		} catch (IOException e) {
-			logger.error("[contextInitialized] Error occurred.", e);
-			throw new IllegalStateException(e);
-		} catch (TaggingException e) {
-			logger.error("[contextInitialized] Error occurred.", e);
-			throw new IllegalStateException(e);
 		}
 	}
 

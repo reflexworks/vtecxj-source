@@ -34,6 +34,7 @@ import jp.reflexworks.taggingservice.plugin.ContentManager;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
+import jp.reflexworks.taggingservice.plugin.InUseSecretManager;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
@@ -42,6 +43,7 @@ import jp.reflexworks.taggingservice.plugin.MessageManager;
 import jp.reflexworks.taggingservice.plugin.MonitorManager;
 import jp.reflexworks.taggingservice.plugin.NamespaceManager;
 import jp.reflexworks.taggingservice.plugin.OAuthManager;
+import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.PdfManager;
 import jp.reflexworks.taggingservice.plugin.PluginUtil;
 import jp.reflexworks.taggingservice.plugin.PropertyManager;
@@ -138,6 +140,8 @@ public class TaggingEnv implements ReflexEnv {
 	private Class<? extends OAuthManager> oauthManagerClass;
 	/** Secret manager */
 	private Class<? extends SecretManager> secretManagerClass;
+	/** Payment manager */
+	private Class<? extends PaymentManager> paymentManagerClass;
 
 	/** クローズ処理が必要なManagerリスト */
 	private final List<Class<? extends ClosingForShutdown>> closingForShutdownList =
@@ -154,6 +158,10 @@ public class TaggingEnv implements ReflexEnv {
 	/** サービス登録時に処理が必要なManagerリスト */
 	private final List<Class<? extends ExecuteAtCreateService>> executeAtCreateServiceList =
 			new ArrayList<Class<? extends ExecuteAtCreateService>>();
+
+	/** SecretManagerを使用しているManagerリスト */
+	private final List<Class<? extends InUseSecretManager>> inUseSecretManagerList =
+			new ArrayList<Class<? extends InUseSecretManager>>();
 
 	/** 起動中かどうか */
 	private boolean isRunning;
@@ -400,10 +408,10 @@ public class TaggingEnv implements ReflexEnv {
 		sessionManagerClass = (Class<? extends SessionManager>)initPluginProc(
 				TaggingEnvConst.PLUGIN_SESSIONMANAGER, null, false);
 
-		// サービス管理プラグイン
-		serviceManagerClass = (Class<? extends ServiceManager>)initPluginProc(
-				TaggingEnvConst.PLUGIN_SERVICEMANAGER,
-				TaggingEnvConst.PLUGIN_SERVICEMANAGER_DEFAULT, true);
+		// 非同期処理管理プラグイン
+		taskQueueManagerClass = (Class<? extends TaskQueueManager>)initPluginProc(
+				TaggingEnvConst.PLUGIN_TASKQUEUEMANAGER,
+				TaggingEnvConst.PLUGIN_TASKQUEUEMANAGER_DEFAULT, true);
 
 		// ユーザ管理プラグイン
 		userManagerClass = (Class<? extends UserManager>)initPluginProc(
@@ -440,15 +448,15 @@ public class TaggingEnv implements ReflexEnv {
 				TaggingEnvConst.PLUGIN_SECURITYMANAGER,
 				TaggingEnvConst.PLUGIN_SECURITYMANAGER_DEFAULT, true);
 
+		// サービス管理プラグイン
+		serviceManagerClass = (Class<? extends ServiceManager>)initPluginProc(
+				TaggingEnvConst.PLUGIN_SERVICEMANAGER,
+				TaggingEnvConst.PLUGIN_SERVICEMANAGER_DEFAULT, true);
+
 		// キャプチャ管理プラグイン
 		captchaManagerClass = (Class<? extends CaptchaManager>)initPluginProc(
 				TaggingEnvConst.PLUGIN_CAPTCHAMANAGER,
 				TaggingEnvConst.PLUGIN_CAPTCHAMANAGER_DEFAULT, false);
-
-		// 非同期処理管理プラグイン
-		taskQueueManagerClass = (Class<? extends TaskQueueManager>)initPluginProc(
-				TaggingEnvConst.PLUGIN_TASKQUEUEMANAGER,
-				TaggingEnvConst.PLUGIN_TASKQUEUEMANAGER_DEFAULT, true);
 
 		// メール管理プラグイン
 		emailManagerClass = (Class<? extends EMailManager>)initPluginProc(
@@ -492,6 +500,10 @@ public class TaggingEnv implements ReflexEnv {
 		// OAuth管理プラグイン
 		oauthManagerClass = (Class<? extends OAuthManager>)initPluginProc(
 				TaggingEnvConst.PLUGIN_OAUTHMANAGER, null, false);
+
+		// 決済管理プラグイン
+		paymentManagerClass = (Class<? extends PaymentManager>)initPluginProc(
+				TaggingEnvConst.PLUGIN_PAYMENTMANAGER, null, false);
 	}
 
 	/**
@@ -587,6 +599,9 @@ public class TaggingEnv implements ReflexEnv {
 			}
 			if (ExecuteAtCreateService.class.isAssignableFrom(cls)) {
 				executeAtCreateServiceList.add(cls);
+			}
+			if (InUseSecretManager.class.isAssignableFrom(cls)) {
+				inUseSecretManagerList.add(cls);
 			}
 		}
 	}
@@ -1106,6 +1121,23 @@ public class TaggingEnv implements ReflexEnv {
 	}
 
 	/**
+	 * SecretManager使用管理クラスリストを取得.
+	 * @return SecretManager使用管理クラスリスト
+	 */
+	public List<InUseSecretManager> getInUseSecretManagerList() {
+		List<InUseSecretManager> list = new ArrayList<>();
+		try {
+			for (Class<? extends InUseSecretManager> cls : inUseSecretManagerList) {
+				InUseSecretManager manager = (InUseSecretManager)PluginUtil.newInstance(cls);
+				list.add(manager);
+			}
+		} catch (PluginException e) {
+			throw new IllegalStateException(e);
+		}
+		return list;
+	}
+
+	/**
 	 * サーバ稼働中かどうか.
 	 * 起動処理中の場合falseを返す。
 	 * @return サーバ稼働中の場合true
@@ -1605,6 +1637,21 @@ public class TaggingEnv implements ReflexEnv {
 		}
 		try {
 			return (SecretManager)PluginUtil.newInstance(secretManagerClass);
+		} catch (PluginException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	/**
+	 * 決済管理プラグインを取得.
+	 * @return payment manager
+	 */
+	public PaymentManager getPaymentManager() {
+		if (paymentManagerClass == null) {
+			return null;
+		}
+		try {
+			return (PaymentManager)PluginUtil.newInstance(paymentManagerClass);
 		} catch (PluginException e) {
 			throw new IllegalStateException(e);
 		}

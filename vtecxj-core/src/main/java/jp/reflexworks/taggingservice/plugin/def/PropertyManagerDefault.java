@@ -473,6 +473,9 @@ public class PropertyManagerDefault implements PropertyManager {
 					}
 				}
 			}
+		} else {
+			// 先頭が_でないプロパティ名は、サービスで自由に設定可。
+			return true;
 		}
 		return false;
 	}

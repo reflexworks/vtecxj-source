@@ -40,6 +40,7 @@ import jp.reflexworks.taggingservice.blogic.PropertyBlogic;
 import jp.reflexworks.taggingservice.blogic.PushNotificationBlogic;
 import jp.reflexworks.taggingservice.blogic.RDBBlogic;
 import jp.reflexworks.taggingservice.blogic.SDKBlogic;
+import jp.reflexworks.taggingservice.blogic.SecretBlogic;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.blogic.SessionBlogic;
 import jp.reflexworks.taggingservice.blogic.SignatureBlogic;
@@ -4795,6 +4796,35 @@ public class TaggingContext implements ReflexContext {
 	throws IOException, TaggingException {
 		BigQueryBlogic blogic = new BigQueryBlogic();
 		return blogic.bulkPutBdbq(feed, parentUri, tableNames, this, async);
+	}
+
+	/**
+	 * サービスのアクセスカウンタを取得.
+	 * @return アクセスカウンタ
+	 */
+	public long getAccessCount()
+	throws IOException, TaggingException {
+		ServiceBlogic serviceBlogic = new ServiceBlogic();
+		return serviceBlogic.getAccessCount(this);
+	}
+
+	/**
+	 * サービスのストレージ使用量を取得.
+	 * @return ストレージ使用量(byte)
+	 */
+	public long getStorageUsage()
+	throws IOException, TaggingException {
+		ContentBlogic contentBlogic = new ContentBlogic();
+		return contentBlogic.getStorageUsage(this);
+	}
+
+	/**
+	 * SecretManagerの再読み込み.
+	 */
+	public void reloadSecret()
+	throws IOException, TaggingException {
+		SecretBlogic secretBlogic = new SecretBlogic();
+		secretBlogic.reloadSecret(this);
 	}
 
 }

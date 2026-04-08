@@ -513,4 +513,12 @@ public class MessageManagerDefault implements MessageManager {
 		return sb.toString();
 	}
 
+	/**
+	 * SecretManager再読み込みのメッセージを取得.
+	 * @return メッセージ
+	 */
+	public String getMsgReloadSecret() {
+		return MessageConst.MSG_RELOAD_SECRET;
+	}
+
 }

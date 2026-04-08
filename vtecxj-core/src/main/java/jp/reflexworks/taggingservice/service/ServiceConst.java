@@ -16,7 +16,7 @@ public interface ServiceConst {
 	public static final String PROP_ENABLE_BAAS = "_enable.baas";
 
 	/** stagingサービスの最大アクセス数 */
-	public static final long MAX_ACCESS_COUNT_DEFAULT = 5000;
+	public static final long MAX_ACCESS_COUNT_DEFAULT = 50000;
 
 	/** 
 	 * システム管理サービスのユーザ登録時に登録するフォルダ.

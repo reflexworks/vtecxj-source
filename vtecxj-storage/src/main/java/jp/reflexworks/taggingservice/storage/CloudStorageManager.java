@@ -1123,22 +1123,37 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	private void checkStorageTotalsize(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
-		// サービスステータス取得
-		ServiceBlogic serviceBlogic = new ServiceBlogic();
-		String serviceStatus = serviceBlogic.getServiceStatus(serviceName, requestInfo, connectionInfo);
-		if (Constants.SERVICE_STATUS_PRODUCTION.equals(serviceStatus)) {
-			// productionサービスはチェックしない。
-			return;
-		}
+		if (TaggingServiceUtil.isBaaS()) {
+			// 最大容量設定を取得
+			long maxSize = 0;
+			// サービスステータス取得
+			ServiceBlogic serviceBlogic = new ServiceBlogic();
+			String serviceStatus = serviceBlogic.getServiceStatus(serviceName, requestInfo, connectionInfo);
+			if (Constants.SERVICE_STATUS_PRODUCTION.equals(serviceStatus)) {
+				maxSize = TaggingEnvUtil.getSystemPropLong(CloudStorageConst.STORAGE_MAX_TOTALSIZE_PRODUCTION,
+						CloudStorageConst.STORAGE_MAX_TOTALSIZE_PRODUCTION_DEFAULT);
+			} else {
+				maxSize = TaggingEnvUtil.getSystemPropLong(CloudStorageConst.STORAGE_MAX_TOTALSIZE_STAGING,
+						CloudStorageConst.STORAGE_MAX_TOTALSIZE_STAGING_DEFAULT);
+			}
+			if (isEnableAccessLog()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+						"[checkStorageTotalsize] maxSize = " + maxSize);
+			}
+			if (maxSize < 0) {
+				// 最大容量がマイナスであればチェックしない
+				if (isEnableAccessLog()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+							"[checkStorageTotalsize] no check.");
+				}
+				return;
+			}
 
-		// 容量取得
-		String uri = TaggingServiceUtil.getStorageTotalsizeUri(serviceName);
-		SystemContext systemContext = new SystemContext(serviceName, requestInfo, connectionInfo);
-		Long size = systemContext.getCacheLong(uri);
-		long maxSize = TaggingEnvUtil.getSystemPropLong(CloudStorageConst.STORAGE_MAX_TOTALSIZE,
-				CloudStorageConst.STORAGE_MAX_TOTALSIZE_DEFAULT);
-		if (size != null && size > maxSize) {
-			throw new PaymentRequiredException("The storage total size exceeded.");
+			// 容量取得
+			long size = getStorageUsage(serviceName, requestInfo, connectionInfo);
+			if (size > maxSize) {
+				throw new PaymentRequiredException("The storage total size exceeded.");
+			}
 		}
 	}
 
@@ -1444,6 +1459,26 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 			FeedBase updFeed = TaggingEntryUtil.createFeed(systemService, updEntry);
 			systemContext.removeAlias(updFeed);
 		}
+	}
+
+	/**
+	 * サービスのストレージ使用量を取得.
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return ストレージ使用量(byte)
+	 */
+	@Override
+	public long getStorageUsage(String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		String uri = TaggingServiceUtil.getStorageTotalsizeUri(serviceName);
+		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(), 
+				requestInfo, connectionInfo);
+		Long size = systemContext.getCacheLong(uri);
+		if (size == null) {
+			return 0;
+		}
+		return size;
 	}
 
 }
