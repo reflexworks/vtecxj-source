@@ -263,5 +263,10 @@ public interface Constants extends AtomConst {
 	public static final String TRUE = "true";
 	/** false文字列 */
 	public static final String FALSE = "false";
+	
+	/** 自社グループ */
+	public static final String URI_$VTECX = URI_SERVICE_GROUP_PREFIX + "vtecx";
+	/** 自社グループ */
+	public static final String URI_GROUP_VTECX = URI_GROUP + URI_SERVICE_GROUP_PREFIX + "vtecx";
 
 }

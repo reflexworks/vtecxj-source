@@ -75,3 +75,11 @@ doc/
 /logs
 /logs/
 
+# VSCode
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/
+

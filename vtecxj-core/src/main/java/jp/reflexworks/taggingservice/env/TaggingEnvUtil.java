@@ -28,6 +28,7 @@ import jp.reflexworks.taggingservice.plugin.ContentManager;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
+import jp.reflexworks.taggingservice.plugin.InUseSecretManager;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
@@ -36,6 +37,7 @@ import jp.reflexworks.taggingservice.plugin.MessageManager;
 import jp.reflexworks.taggingservice.plugin.MonitorManager;
 import jp.reflexworks.taggingservice.plugin.NamespaceManager;
 import jp.reflexworks.taggingservice.plugin.OAuthManager;
+import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.PdfManager;
 import jp.reflexworks.taggingservice.plugin.PropertyManager;
 import jp.reflexworks.taggingservice.plugin.PushNotificationManager;
@@ -726,6 +728,15 @@ public final class TaggingEnvUtil {
 	}
 
 	/**
+	 * 課金管理プラグインを取得.
+	 * @return payment manager
+	 */
+	public static PaymentManager getPaymentManager() {
+		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
+		return env.getPaymentManager();
+	}
+
+	/**
 	 * SettingService継承クラスを取得.
 	 * @return SettingService継承クラス
 	 */
@@ -750,6 +761,15 @@ public final class TaggingEnvUtil {
 	public static List<ExecuteAtCreateService> getExecuteAtCreateServiceList() {
 		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
 		return env.getExecuteAtCreateServiceList();
+	}
+
+	/**
+	 * InUseSecretManager継承クラスを取得.
+	 * @return InUseSecretManager継承クラス
+	 */
+	public static List<InUseSecretManager> getInUseSecretManagerList() {
+		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
+		return env.getInUseSecretManagerList();
 	}
 
 	/**

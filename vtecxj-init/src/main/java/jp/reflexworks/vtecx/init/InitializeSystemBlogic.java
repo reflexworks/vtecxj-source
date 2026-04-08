@@ -811,6 +811,11 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		entry.rights = uid;
 		entries.add(entry);
 
+		// /_group/$vtecx
+		entry = TaggingEntryUtil.createEntry(serviceName);
+		entry.setMyUri(Constants.URI_GROUP_VTECX);
+		entries.add(entry);
+
 		return entries;
 	}
 

@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.servlet.HttpStatus;
+import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.taggingservice.api.ReflexContentInfo;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
@@ -352,6 +353,22 @@ public class TaggingServlet extends ReflexServletBase {
 				long storageusage = reflexContext.getStorageUsage();
 				retObj = MessageUtil.createMessageFeed(StringUtils.toString(storageusage, 0), serviceName);
 
+			} else if (param.getOption(RequestParam.PARAM_BILLINGPORTAL) != null) {
+				// 課金の請求ポータル(顧客ごとの画面)
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_billingportal");
+				}
+				ServiceBlogic serviceBlogic = new ServiceBlogic();
+				String url = serviceBlogic.billingPortal(reflexContext);
+				if (StringUtils.isBlank(url)) {
+					// ポータル画面なし
+					status = HttpStatus.SC_NO_CONTENT;
+				} else {
+					// ステータス303で課金の請求ポータル画面にリダイレクト
+					status = HttpStatus.SC_SEE_OTHER;
+					resp.setHeader(ReflexServletConst.HEADER_LOCATION, url);
+				}
+				
 			} else if (param.getOption(RequestParam.PARAM_PAGINATION) != null) {
 				// ページング
 				if (logger.isInfoEnabled()) {
@@ -629,6 +646,8 @@ public class TaggingServlet extends ReflexServletBase {
 
 			if (retObj != null) {
 				doResponse(req, resp, retObj, status);
+			} else {
+				resp.setStatus(status);
 			}
 
 		} catch (Throwable e) {
@@ -1087,10 +1106,16 @@ public class TaggingServlet extends ReflexServletBase {
 				}
 				String targetServiceName = param.getOption(RequestParam.PARAM_SERVICETOPRODUCTION);
 				ServiceBlogic serviceBlogic = new ServiceBlogic();
-				serviceBlogic.serviceToProduction(targetServiceName, reflexContext);
-				retObj = createMessageFeed(msgManager.getMsgProductionService(targetServiceName, serviceName), serviceName);
-				// ステータスはAccepted.
-				status = HttpStatus.SC_ACCEPTED;
+				String url = serviceBlogic.serviceToProduction(targetServiceName, reflexContext);
+				if (StringUtils.isBlank(url)) {
+					retObj = createMessageFeed(msgManager.getMsgProductionService(targetServiceName, serviceName), serviceName);
+					// ステータスはAccepted.
+					status = HttpStatus.SC_ACCEPTED;
+				} else {
+					// ステータス303で支払い登録画面にリダイレクト
+					status = HttpStatus.SC_SEE_OTHER;
+					resp.setHeader(ReflexServletConst.HEADER_LOCATION, url);
+				}
 
 			} else if (param.getOption(RequestParam.PARAM_SERVICETOSTAGING) != null) {
 				// サービスステータスを開発に更新
@@ -1146,6 +1171,14 @@ public class TaggingServlet extends ReflexServletBase {
 				UserBlogic userBlogic = new UserBlogic();
 				retObj = userBlogic.mergeOAuthUser(req, resp, feed, reflexContext);
 
+			} else if (param.getOption(RequestParam.PARAM_RELOADSECRET) != null) {
+				// SecretManager再読み込み
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_reloadsecret");
+				}
+				reflexContext.reloadSecret();
+				retObj = createMessageFeed(msgManager.getMsgReloadSecret(), serviceName);
+
 			} else {
 				// 更新
 				if (logger.isInfoEnabled()) {
@@ -1158,6 +1191,8 @@ public class TaggingServlet extends ReflexServletBase {
 
 			if (retObj != null) {
 				doResponse(req, resp, retObj, status);
+			} else {
+				resp.setStatus(status);
 			}
 
 		} catch (Throwable e) {
@@ -1410,6 +1445,8 @@ public class TaggingServlet extends ReflexServletBase {
 
 			if (retObj != null) {
 				doResponse(req, resp, retObj, status);
+			} else {
+				resp.setStatus(status);
 			}
 
 		} catch (Throwable e) {

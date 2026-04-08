@@ -73,3 +73,11 @@ Desktop.ini
 # vte.cx build
 build.txt
 /build
+
+# VSCode
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/

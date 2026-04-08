@@ -69,3 +69,11 @@ Desktop.ini
 
 /out
 /lib
+
+# VSCode
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/

@@ -1467,4 +1467,10 @@ public class SystemContext implements ReflexContext {
 		return reflexContext.getStorageUsage();
 	}
 
+	@Override
+	public void reloadSecret()
+	throws IOException, TaggingException {
+		reflexContext.reloadSecret();
+	}
+
 }

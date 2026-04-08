@@ -66,3 +66,11 @@ Desktop.ini
 # Maven
 /target
 /doc
+
+# VSCode
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/

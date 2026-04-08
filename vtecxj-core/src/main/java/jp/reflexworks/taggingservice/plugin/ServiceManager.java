@@ -246,5 +246,12 @@ public interface ServiceManager extends SettingService {
 	public long getAccessCount(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
+	
+	/**
+	 * エントリーに指定されたサービスステータスを設定する.
+	 * @param entry エントリー
+	 * @param status サービスステータス
+	 */
+	public void setServiceStatus(EntryBase entry, String status);
 
 }

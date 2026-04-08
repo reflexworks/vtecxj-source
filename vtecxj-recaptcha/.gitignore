@@ -71,3 +71,11 @@ Desktop.ini
 # log
 /logs
 /logs/
+
+# VSCode
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/

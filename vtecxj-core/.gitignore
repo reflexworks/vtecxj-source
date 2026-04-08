@@ -73,3 +73,11 @@ Desktop.ini
 
 # temporary
 /doc/~*
+
+# VSCode
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/

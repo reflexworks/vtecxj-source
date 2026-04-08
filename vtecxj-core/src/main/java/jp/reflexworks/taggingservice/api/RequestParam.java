@@ -97,6 +97,10 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_ACCESSCOUNT = "_accesscount";
 	/** URLパラメータ : データ使用量取得 */
 	public static final String PARAM_STORAGEUSAGE = "_storageusage";
+	/** URLパラメータ : SecretManager再読み込み */
+	public static final String PARAM_RELOADSECRET = "_reloadsecret";
+	/** URLパラメータ : 課金の請求ポータル(顧客ごとの画面) */
+	public static final String PARAM_BILLINGPORTAL = "_billingportal";
 
 	/**
 	 * Entry検索かどうか返却します.

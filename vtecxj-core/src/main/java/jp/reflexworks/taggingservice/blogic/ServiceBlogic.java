@@ -23,6 +23,7 @@ import jp.reflexworks.taggingservice.exception.NotInServiceException;
 import jp.reflexworks.taggingservice.exception.PermissionException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
+import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.plugin.UserManager;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
@@ -363,7 +364,7 @@ public class ServiceBlogic {
 	 * サービス公開
 	 * @param targetServiceName 公開サービス
 	 * @param reflexContext ReflexContext
-	 * @return 公開したサービス名
+	 * @return 支払い登録のためのリダイレクトURL。課金がない場合はnull。
 	 */
 	public String serviceToProduction(String targetServiceName, ReflexContext reflexContext)
 	throws IOException, TaggingException {
@@ -403,7 +404,7 @@ public class ServiceBlogic {
 	 * サービス非公開
 	 * @param targetServiceName 公開サービス
 	 * @param reflexContext ReflexContext
-	 * @return 非公開にしたサービス名
+	 * @return null
 	 */
 	public String serviceToStaging(String targetServiceName, ReflexContext reflexContext)
 	throws IOException, TaggingException {
@@ -582,6 +583,37 @@ public class ServiceBlogic {
 		ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
 		return serviceManager.getAccessCount(reflexContext.getServiceName(), 
 				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
+	}
+
+	/**
+	 * 課金のカスタマーポータル画面のリンク発行
+	 * @param reflexContext ReflexContext
+	 * @return 課金のカスタマーポータル画面のURL。課金がない場合はnull。
+	 */
+	public String billingPortal(ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		// 実行サービスがシステム管理サービスでなければエラー
+		String serviceName = reflexContext.getServiceName();
+		if (!TaggingEnvUtil.getSystemService().equals(serviceName)) {
+			throw new IllegalParameterException("Forbidden request to this service.");
+		}
+		// BaaSでない場合処理を抜ける
+		if (!TaggingServiceUtil.isBaaS()) {
+			throw new IllegalParameterException("Invalid request.");
+		}
+		// 認証なしはエラー
+		ReflexAuthentication auth = reflexContext.getAuth();
+		if (auth == null || StringUtils.isBlank(auth.getUid())) {
+			PermissionException pe = new PermissionException();
+			pe.setSubMessage("Authentication is required for productionservice.");
+			throw pe;
+		}
+		
+		PaymentManager paymentManager = TaggingEnvUtil.getPaymentManager();
+		if (paymentManager == null) {
+			return null;
+		}
+		return paymentManager.billingPortal(reflexContext);
 	}
 
 }

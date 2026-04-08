@@ -76,3 +76,10 @@ Desktop.ini
 /out
 /out/
 
+# VSCode
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/

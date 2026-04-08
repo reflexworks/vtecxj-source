@@ -2702,4 +2702,10 @@ public interface ReflexContext extends BaseReflexContext {
 	public long getStorageUsage()
 	throws IOException, TaggingException;
 
+	/**
+	 * SecretManagerの再読み込み.
+	 */
+	public void reloadSecret()
+	throws IOException, TaggingException;
+
 }
