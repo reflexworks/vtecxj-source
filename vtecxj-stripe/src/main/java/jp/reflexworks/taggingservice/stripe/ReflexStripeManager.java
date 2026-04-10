@@ -483,18 +483,21 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 		String successUrl = stripeEnv.getSuccessUrl();
 		String cancelUrl = stripeEnv.getCancelUrl();
 		String priceIdPro = stripeEnv.getPriceIdPro();
-		String message = "サービス " + targetServiceName + " をPro環境にアップグレードします";	// TODO
+		String messageBase = stripeEnv.getCheckoutMessage();
+		String message = messageBase.replaceAll("\\@", targetServiceName);
 
+		SessionCreateParams.LineItem.Builder lineItemBuilder = SessionCreateParams.LineItem.builder()
+				.setPrice(priceIdPro);
+		long quantity = stripeEnv.getQuantity();
+		if (quantity > 0) {
+			lineItemBuilder.setQuantity(quantity);
+		}
+		
 		SessionCreateParams params =
 				SessionCreateParams.builder()
 				.setSuccessUrl(successUrl)
 				.setCancelUrl(cancelUrl)
-				.addLineItem(
-						SessionCreateParams.LineItem.builder()
-						.setPrice(priceIdPro)
-						.setQuantity(1L)
-						.build()
-						)
+				.addLineItem(lineItemBuilder.build())
 				.setMode(SessionCreateParams.Mode.SUBSCRIPTION)
 				.setCustomer(customerId)
 				// -d "saved_payment_method_options[payment_method_save]"="enabled"

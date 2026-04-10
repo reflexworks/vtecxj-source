@@ -29,6 +29,10 @@ public class ReflexStripeEnv {
 	private String cancelUrl;
 	/** カスタマーポータル画面からの戻りURL */
 	private String portalReturnUrl;
+	/** 商品購入時の数量(任意) */
+	private long quantity;
+	/** 商品購入時の表示メッセージ */
+	private String checkoutMessage;
 
 	/** ロガー. */
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -108,12 +112,31 @@ public class ReflexStripeEnv {
 	}
 	
 	/**
+	 * 商品購入時の数量を取得
+	 * @return 商品購入時の数量
+	 */
+	public long getQuantity() {
+		return quantity;
+	}
+
+	/**
+	 * 商品購入時の表示メッセージを取得
+	 * @return 商品購入時の表示メッセージ
+	 */
+	public String getCheckoutMessage() {
+		return checkoutMessage;
+	}
+
+	/**
 	 * 各設定の読み込み、保持
 	 */
 	private void setup() {
 		this.successUrl = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_CHECKOUT_SUCCESSURL, null);
 		this.cancelUrl = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_CHECKOUT_CANCELURL, null);
 		this.portalReturnUrl = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_BILLINGPORTAL_RETURNURL, null);
+		this.quantity = TaggingEnvUtil.getSystemPropLong(ReflexStripeConst.STRIPE_ITEM_QUANTITY, 0);
+		this.checkoutMessage = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_CHECKOUT_MESSAGE, 
+				ReflexStripeConst.STRIPE_CHECKOUT_MESSAGE_DEFAULT);
 		
 		String secretKeyKey = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_SECRETKEY_SECRETKEY, null);
 		String priceIdProKey = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_SECRETKEY_PRICEIDPRO, null);
