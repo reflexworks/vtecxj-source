@@ -28,7 +28,6 @@ import jp.reflexworks.taggingservice.plugin.ContentManager;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
-import jp.reflexworks.taggingservice.plugin.InUseSecretManager;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
@@ -761,15 +760,6 @@ public final class TaggingEnvUtil {
 	public static List<ExecuteAtCreateService> getExecuteAtCreateServiceList() {
 		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
 		return env.getExecuteAtCreateServiceList();
-	}
-
-	/**
-	 * InUseSecretManager継承クラスを取得.
-	 * @return InUseSecretManager継承クラス
-	 */
-	public static List<InUseSecretManager> getInUseSecretManagerList() {
-		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
-		return env.getInUseSecretManagerList();
 	}
 
 	/**

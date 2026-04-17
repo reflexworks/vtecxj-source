@@ -40,7 +40,6 @@ import jp.reflexworks.taggingservice.exception.OptimisticLockingException;
 import jp.reflexworks.taggingservice.exception.StaticDuplicatedException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
-import jp.reflexworks.taggingservice.plugin.InUseSecretManager;
 import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
@@ -53,7 +52,7 @@ import jp.sourceforge.reflex.util.StringUtils;
 /**
  * Stripeによる決済管理クラス.
  */
-public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
+public class ReflexStripeManager implements PaymentManager {
 
 	/** ロガー */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -63,7 +62,7 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 	 */
 	@Override
 	public void init() {
-		// Stripe用static情報をメモリに格納
+		// Stripe.apiKey = secretKey; を実行する。
 		ReflexStripeEnv stripeEnv = new ReflexStripeEnv();
 		try {
 			ReflexStatic.setStatic(ReflexStripeConst.STATIC_NAME_STRIPE, stripeEnv);
@@ -84,19 +83,6 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 	}
 
 	/**
-	 * SecretManagerの再読み込み.
-	 */
-	@Override
-	public void reloadSecret() {
-		try {
-			ReflexStripeEnv stripeEnv = ReflexStripeUtil.getStripeEnv();
-			stripeEnv.reloadSecret();
-		} catch (Throwable e) {
-			logger.warn("[reloadSecret] Error occured. " + e.getMessage(), e);
-		}
-	}
-
-	/**
 	 * 課金処理.
 	 * 支払い手続きのための処理を行い。カード決済のリダイレクトURLを返却する。
 	 * @param targetServiceName 対象サービス名
@@ -114,8 +100,7 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 				requestInfo, connectionInfo);
 		
 		// Stripe設定がなければ課金処理を行わず処理を抜ける。
-		ReflexStripeEnv stripeEnv = ReflexStripeUtil.getStripeEnv();
-		if (!stripeEnv.isEnabledStripe()) {
+		if (!ReflexStripeUtil.isEnabledStripe(requestInfo, connectionInfo)) {
 			if (isEnableAccessLog()) {
 				logger.info("[registerPayment] no settings.");
 			}
@@ -159,7 +144,8 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 		}
 
 		// Stripeにサブスクリプション決済のためのリクエストを行う。
-		String url = createCheckoutSession(targetServiceName, uid, customerId);
+		String url = createCheckoutSession(targetServiceName, uid, customerId, 
+				requestInfo, connectionInfo);
 		return url;
 	}
 
@@ -180,21 +166,22 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 		SystemContext systemContext = new SystemContext(auth,
 				requestInfo, connectionInfo);
 		
-		// Stripe設定がなければ課金処理を行わず処理を抜ける。
-		ReflexStripeEnv stripeEnv = ReflexStripeUtil.getStripeEnv();
-		if (!stripeEnv.isEnabledStripe()) {
+		// Stripe設定がなければ課金処理を行わず、ステータス更新をして処理を抜ける。
+		if (!ReflexStripeUtil.isEnabledStripe(requestInfo, connectionInfo)) {
 			if (isEnableAccessLog()) {
 				logger.info("[cancelPayment] no settings.");
 			}
+			serviceToStaging(serviceEntry, systemContext);
 			return;
 		}
 
-		// サブスクリプション課金対象外の場合、何もせず処理を抜ける。
+		// サブスクリプション課金対象外の場合、ステータス更新をして処理を抜ける。
 		String subscriptionId = getSubscriptionId(serviceEntry);
 		if (StringUtils.isBlank(subscriptionId)) {
 			if (isEnableAccessLog()) {
 				logger.info("[cancelPayment] There is no subscription id. serviceName=" + targetServiceName);
 			}
+			serviceToStaging(serviceEntry, systemContext);
 			return;
 		}
 		
@@ -247,7 +234,16 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 			
 		} catch (StripeException se) {
 			if (isEnableAccessLog()) {
-				logger.info("[cancelPayment] StripeException: " + se.getMessage(), se);
+				StringBuilder sb = new StringBuilder();
+				sb.append("[cancelPayment] ");
+				sb.append(se.getClass().getName());
+				sb.append(": ");
+				sb.append(se.getMessage());
+				if (!isSevere(se)) {
+					logger.info(sb.toString());
+				} else {
+					logger.info(sb.toString(), se);
+				}
 			}
 			TaggingException te = ReflexStripeUtil.convertTaggingException(se);
 			if (te != null) {
@@ -267,10 +263,14 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 	public void deletePayment(String targetServiceName, EntryBase serviceEntry, 
 			ReflexContext reflexContext)
 	throws IOException, TaggingException {
+		ReflexAuthentication auth = reflexContext.getAuth();
+		RequestInfo requestInfo = reflexContext.getRequestInfo();
+		ConnectionInfo connectionInfo = reflexContext.getConnectionInfo();
+		SystemContext systemContext = new SystemContext(auth,
+				requestInfo, connectionInfo);
 
 		// Stripe設定がなければ課金処理を行わず処理を抜ける。
-		ReflexStripeEnv stripeEnv = ReflexStripeUtil.getStripeEnv();
-		if (!stripeEnv.isEnabledStripe()) {
+		if (!ReflexStripeUtil.isEnabledStripe(requestInfo, connectionInfo)) {
 			if (isEnableAccessLog()) {
 				logger.info("[deletePayment] no settings.");
 			}
@@ -294,7 +294,16 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 			
 		} catch (StripeException se) {
 			if (isEnableAccessLog()) {
-				logger.info("[deletePayment] StripeException: " + se.getMessage(), se);
+				StringBuilder sb = new StringBuilder();
+				sb.append("[deletePayment] ");
+				sb.append(se.getClass().getName());
+				sb.append(": ");
+				sb.append(se.getMessage());
+				if (!isSevere(se)) {
+					logger.info(sb.toString());
+				} else {
+					logger.info(sb.toString(), se);
+				}
 			}
 			TaggingException te = ReflexStripeUtil.convertTaggingException(se);
 			if (te != null) {
@@ -312,7 +321,7 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 	public String billingPortal(ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		ReflexAuthentication auth = reflexContext.getAuth();
-		
+
 		// ログインユーザのStripe顧客情報を取得。顧客情報が登録されていない場合はエラー
 		String uid = auth.getUid();
 		String userStripeUri = ReflexStripeUtil.getUserStripeUri(uid);
@@ -331,8 +340,7 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 			return null;
 		}
 
-		ReflexStripeEnv stripeEnv = ReflexStripeUtil.getStripeEnv();
-		String returnUrl = stripeEnv.getPotalReturnUrl();
+		String returnUrl = ReflexStripeUtil.getPotalReturnUrl();
 		try {
 			com.stripe.param.billingportal.SessionCreateParams params =
 					com.stripe.param.billingportal.SessionCreateParams.builder()
@@ -347,7 +355,16 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 
 		} catch (StripeException se) {
 			if (isEnableAccessLog()) {
-				logger.info("[billingPortal] StripeException: " + se.getMessage(), se);
+				StringBuilder sb = new StringBuilder();
+				sb.append("[billingPortal] ");
+				sb.append(se.getClass().getName());
+				sb.append(": ");
+				sb.append(se.getMessage());
+				if (!isSevere(se)) {
+					logger.info(sb.toString());
+				} else {
+					logger.info(sb.toString(), se);
+				}
 			}
 			TaggingException te = ReflexStripeUtil.convertTaggingException(se);
 			if (te != null) {
@@ -405,15 +422,23 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 		try {
 			return Customer.retrieve(customerId);
 		} catch (StripeException se) {
-			// 存在しない場合、InvalidRequestException がスローされる。(code: resource_missing)
-			if (se instanceof InvalidRequestException) {
-				InvalidRequestException ire = (InvalidRequestException)se;
-				if (ReflexStripeConst.STRIPE_CODE_RESOURCE_MISSING.equals(ire.getCode())) {
-					if (isEnableAccessLog()) {
-						logger.info("[getCustomer] InvalidRequestException: " + se.getMessage());
-					}
-					return null;	// データなし
+			// vte.cxに登録された顧客コードが不正な場合は致命的エラーとしない。
+			boolean isSevere = isSevere(se);
+			if (isEnableAccessLog()) {
+				StringBuilder sb = new StringBuilder();
+				sb.append("[getCustomer] ");
+				sb.append(se.getClass().getName());
+				sb.append(": ");
+				sb.append(se.getMessage());
+				if (!isSevere) {
+					logger.info(sb.toString());
+				} else {
+					logger.info(sb.toString(), se);
 				}
+			}
+
+			if (!isSevere) {
+				return null;	// データなし
 			}
 			
 			if (isEnableAccessLog()) {
@@ -460,7 +485,16 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 			
 		} catch (StripeException se) {
 			if (isEnableAccessLog()) {
-				logger.info("[postCustomer] StripeException: " + se.getMessage(), se);
+				StringBuilder sb = new StringBuilder();
+				sb.append("[postCustomer] ");
+				sb.append(se.getClass().getName());
+				sb.append(": ");
+				sb.append(se.getMessage());
+				if (!isSevere(se)) {
+					logger.info(sb.toString());
+				} else {
+					logger.info(sb.toString(), se);
+				}
 			}
 			TaggingException te = ReflexStripeUtil.convertTaggingException(se);
 			if (te != null) {
@@ -475,20 +509,22 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 	 * @param targetService 対象サービス名
 	 * @param uid UID
 	 * @param customerId 顧客ID
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
 	 * @return リダイレクトURL
 	 */
-	private String createCheckoutSession(String targetServiceName, String uid, String customerId) 
+	private String createCheckoutSession(String targetServiceName, String uid, String customerId,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo) 
 	throws IOException, TaggingException {
-		ReflexStripeEnv stripeEnv = ReflexStripeUtil.getStripeEnv();
-		String successUrl = stripeEnv.getSuccessUrl();
-		String cancelUrl = stripeEnv.getCancelUrl();
-		String priceIdPro = stripeEnv.getPriceIdPro();
-		String messageBase = stripeEnv.getCheckoutMessage();
+		String successUrl = ReflexStripeUtil.getSuccessUrl();
+		String cancelUrl = ReflexStripeUtil.getCancelUrl();
+		String priceIdPro = ReflexStripeUtil.getPriceIdPro(requestInfo, connectionInfo);
+		String messageBase = ReflexStripeUtil.getCheckoutMessage();
 		String message = messageBase.replaceAll("\\@", targetServiceName);
 
 		SessionCreateParams.LineItem.Builder lineItemBuilder = SessionCreateParams.LineItem.builder()
 				.setPrice(priceIdPro);
-		long quantity = stripeEnv.getQuantity();
+		long quantity = ReflexStripeUtil.getQuantity();
 		if (quantity > 0) {
 			lineItemBuilder.setQuantity(quantity);
 		}
@@ -536,7 +572,16 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 			return session.getUrl();
 		} catch (StripeException se) {
 			if (isEnableAccessLog()) {
-				logger.info("[createCheckoutSession] StripeException: " + se.getMessage(), se);
+				StringBuilder sb = new StringBuilder();
+				sb.append("[createCheckoutSession] ");
+				sb.append(se.getClass().getName());
+				sb.append(": ");
+				sb.append(se.getMessage());
+				if (!isSevere(se)) {
+					logger.info(sb.toString());
+				} else {
+					logger.info(sb.toString(), se);
+				}
 			}
 			TaggingException te = ReflexStripeUtil.convertTaggingException(se);
 			if (te != null) {
@@ -669,7 +714,6 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 		int waitMillis = ReflexStripeUtil.getStripeUpdateentryRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
 			try {
-	
 				EntryBase serviceEntry = getServiceEntry(serviceName, systemContext);
 				if (serviceEntry == null) {
 					if (isEnableAccessLog()) {
@@ -698,14 +742,8 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 					}
 					serviceEntry.contributor = newContributors;
 				}
-				ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
-				String currentServiceStatus = TaggingServiceUtil.getServiceStatus(serviceEntry);
-				if (Constants.SERVICE_STATUS_PRODUCTION.equals(currentServiceStatus)) {
-					serviceManager.setServiceStatus(serviceEntry, Constants.SERVICE_STATUS_STAGING);
-				} else {
-					// サービス削除の場合、idチェックを行わない。
-					serviceEntry.id = null;
-				}
+				// サービスステータスをStagingに更新
+				editToStaging(serviceEntry);
 				putEntries.add(serviceEntry);
 				
 				// サブスクリプションエントリー更新
@@ -1212,8 +1250,18 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 	          
 		} catch (StripeException se) {
 			if (isEnableAccessLog()) {
-				logger.info("[searchSubscriptions] StripeException: " + se.getMessage(), se);
+				StringBuilder sb2 = new StringBuilder();
+				sb2.append("[searchSubscriptions] ");
+				sb2.append(se.getClass().getName());
+				sb2.append(": ");
+				sb2.append(se.getMessage());
+				if (!isSevere(se)) {
+					logger.info(sb2.toString());
+				} else {
+					logger.info(sb2.toString(), se);
+				}
 			}
+
 			TaggingException te = ReflexStripeUtil.convertTaggingException(se);
 			if (te != null) {
 				throw te;
@@ -1259,15 +1307,22 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 		try {
 			return Subscription.retrieve(subscriptionId);
 		} catch (StripeException se) {
-			// 存在しない場合、InvalidRequestException がスローされる。(code: resource_missing)
-			if (se instanceof InvalidRequestException) {
-				InvalidRequestException ire = (InvalidRequestException)se;
-				if (ReflexStripeConst.STRIPE_CODE_RESOURCE_MISSING.equals(ire.getCode())) {
-					if (isEnableAccessLog()) {
-						logger.info("[getSubscription] InvalidRequestException: " + se.getMessage());
-					}
-					return null;	// データなし
+			boolean isSevere = isSevere(se);
+			if (isEnableAccessLog()) {
+				StringBuilder sb = new StringBuilder();
+				sb.append("[getSubscription] ");
+				sb.append(se.getClass().getName());
+				sb.append(": ");
+				sb.append(se.getMessage());
+				if (!isSevere) {
+					logger.info(sb.toString());
+				} else {
+					logger.info(sb.toString(), se);
 				}
+			}
+
+			if (!isSevere) {
+				return null;	// データなし
 			}
 			
 			if (isEnableAccessLog()) {
@@ -1379,10 +1434,55 @@ public class ReflexStripeManager implements PaymentManager, InUseSecretManager {
 	*/
 	
 	/**
+	 * サービスステータスをstagingに更新.
+	 * 引数のサービスエントリーを直に編集する
+	 * @param serviceEntry サービスエントリー
+	 */
+	private EntryBase serviceToStaging(EntryBase serviceEntry, SystemContext systemContext) 
+	throws IOException, TaggingException {
+		// サービスステータスをStagingに更新
+		editToStaging(serviceEntry);
+		return systemContext.put(serviceEntry);
+	}
+	
+	/**
+	 * サービスステータスをstagingに編集.
+	 * 引数のサービスエントリーを直に編集する
+	 * @param serviceEntry サービスエントリー
+	 */
+	private void editToStaging(EntryBase serviceEntry) {
+		ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
+		String currentServiceStatus = TaggingServiceUtil.getServiceStatus(serviceEntry);
+		if (Constants.SERVICE_STATUS_PRODUCTION.equals(currentServiceStatus)) {
+			serviceManager.setServiceStatus(serviceEntry, Constants.SERVICE_STATUS_STAGING);
+		} else {
+			// サービス削除の場合、idチェックを行わない。
+			serviceEntry.id = null;
+		}
+	}
+	
+	/**
+	 * Stripeからの例外が致命的かどうかチェック
+	 * @param se StripeException
+	 * @return Stripeからの例外が致命的な場合true
+	 */
+	private boolean isSevere(StripeException se) {
+		// 顧客コードが存在しない場合、InvalidRequestException がスローされる。(code: resource_missing)
+		if (se instanceof InvalidRequestException) {
+			InvalidRequestException ire = (InvalidRequestException)se;
+			if (ReflexStripeConst.STRIPE_CODE_RESOURCE_MISSING.equals(ire.getCode())) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	/**
 	 * Stripe処理のアクセスログを出力するかどうかを取得.
 	 * @return Stripe処理のアクセスログを出力する場合true
 	 */
 	private boolean isEnableAccessLog() {
 		return ReflexStripeUtil.isEnableAccessLog();
 	}
+	
 }

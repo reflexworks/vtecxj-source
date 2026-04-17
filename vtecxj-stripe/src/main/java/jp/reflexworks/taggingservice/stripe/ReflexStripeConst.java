@@ -36,6 +36,8 @@ public interface ReflexStripeConst {
 	public static final int STRIPE_UPDATEENTRY_RETRY_WAITMILLIS_DEFAULT = 700;
 	/** プロパティデフォルト値 : 商品購入時の表示メッセージ */
 	public static final String STRIPE_CHECKOUT_MESSAGE_DEFAULT = "サービス @ をPro環境にアップグレードします";
+	/** プロパティデフォルト値 : 商品購入時に数量指定が必要な場合に設定 */
+	public static final int STRIPE_ITEM_QUANTITY_DEFAULT = 1;
 
 	/** メモリ上のstaticオブジェクト格納キー : Stripe用設定値 */
 	public static final String STATIC_NAME_STRIPE = "_stripe";

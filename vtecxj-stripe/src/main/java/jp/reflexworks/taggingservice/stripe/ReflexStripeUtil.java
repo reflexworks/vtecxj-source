@@ -10,9 +10,12 @@ import com.stripe.model.StripeObject;
 
 import jp.reflexworks.atom.entry.Contributor;
 import jp.reflexworks.atom.entry.EntryBase;
+import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
+import jp.reflexworks.taggingservice.api.RequestInfo;
+import jp.reflexworks.taggingservice.blogic.SecretBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.NoExistingEntryException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
@@ -24,13 +27,123 @@ import jp.sourceforge.reflex.util.StringUtils;
 public class ReflexStripeUtil {
 	
 	/**
-	 * Stripe用static情報保持オブジェクトを取得.
-	 * @return Stripe用static情報保持オブジェクト
+	 * Stripeが有効かどうか
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return Stripeを使用できる場合true
 	 */
-	static ReflexStripeEnv getStripeEnv() {
-		return (ReflexStripeEnv)ReflexStatic.getStatic(ReflexStripeConst.STATIC_NAME_STRIPE);
+	static boolean isEnabledStripe(RequestInfo requestInfo, ConnectionInfo connectionInfo) 
+	throws IOException, TaggingException {
+		String secretKey = getSecretKey(requestInfo, connectionInfo);
+		if (StringUtils.isBlank(secretKey) ||
+				StringUtils.isBlank(getPriceIdPro(requestInfo, connectionInfo)) ||
+				StringUtils.isBlank(getWebhookSecretKey(requestInfo, connectionInfo)) ||
+				StringUtils.isBlank(getSuccessUrl()) ||
+				StringUtils.isBlank(getCancelUrl())) {
+			return false;
+		}
+		// secretKeyの更新チェック
+		ReflexStripeEnv stripeEnv = getStripeEnv();
+		if (stripeEnv.changeSecretKey(secretKey)) {
+			stripeEnv.setup();
+		}
+		
+		return true;
+	}
+
+	/**
+	 * シークレットキーを取得
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return シークレットキー
+	 */
+	static String getSecretKey(RequestInfo requestInfo, ConnectionInfo connectionInfo) 
+	throws IOException, TaggingException {
+		String secretKeyKey = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_SECRETKEY_SECRETKEY, null);
+		return getSecretValue(secretKeyKey, requestInfo, connectionInfo);
+	}
+
+	/**
+	 * pro環境サブスクリプションの価格IDを取得
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return pro環境サブスクリプションの価格ID
+	 */
+	static String getPriceIdPro(RequestInfo requestInfo, ConnectionInfo connectionInfo) 
+	throws IOException, TaggingException {
+		String priceIdProKey = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_SECRETKEY_PRICEIDPRO, null);
+		return getSecretValue(priceIdProKey, requestInfo, connectionInfo);
+	}
+
+	/**
+	 * pro環境サブスクリプションの価格IDを取得
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return pro環境サブスクリプションの価格ID
+	 */
+	static String getWebhookSecretKey(RequestInfo requestInfo, ConnectionInfo connectionInfo) 
+	throws IOException, TaggingException {
+		String WebhookSecretKey = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_SECRETKEY_WEBHOOKSECRET, null);
+		return getSecretValue(WebhookSecretKey, requestInfo, connectionInfo);
 	}
 	
+	/**
+	 * シークレット読み込み.
+	 * Redisキャッシュも使用する。同じスレッドで一度読み込んだものは使い回す。
+	 * @param secretKey シークレットキー
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return シークレットの値
+	 */
+	private static String getSecretValue(String secretKey, 
+			RequestInfo requestInfo, ConnectionInfo connectionInfo) 
+	throws IOException, TaggingException {
+		SecretBlogic secretBlogic = new SecretBlogic();
+		return secretBlogic.getSecretKey(secretKey, null, requestInfo, connectionInfo);
+	}
+
+	/**
+	 * 成功時のリダイレクトURLを取得
+	 * @return 成功時のリダイレクトURL
+	 */
+	static String getSuccessUrl() {
+		return TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_CHECKOUT_SUCCESSURL, null);
+	}
+
+	/**
+	 * 失敗時のリダイレクトURLを取得
+	 * @return 失敗時のリダイレクトURL
+	 */
+	static String getCancelUrl() {
+		return TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_CHECKOUT_CANCELURL, null);
+	}
+
+	/**
+	 * カスタマーポータル画面からの戻りURLを取得
+	 * @return カスタマーポータル画面からの戻りURL
+	 */
+	static String getPotalReturnUrl() {
+		return TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_BILLINGPORTAL_RETURNURL, null);
+	}
+	
+	/**
+	 * 商品購入時の数量を取得
+	 * @return 商品購入時の数量
+	 */
+	static long getQuantity() {
+		return TaggingEnvUtil.getSystemPropLong(ReflexStripeConst.STRIPE_ITEM_QUANTITY, 
+				ReflexStripeConst.STRIPE_ITEM_QUANTITY_DEFAULT);
+	}
+
+	/**
+	 * 商品購入時の表示メッセージを取得
+	 * @return 商品購入時の表示メッセージ
+	 */
+	static String getCheckoutMessage() {
+		return TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_CHECKOUT_MESSAGE, 
+				ReflexStripeConst.STRIPE_CHECKOUT_MESSAGE_DEFAULT);
+	}
+
 	/**
 	 * 設定エラー等であればTaggingExceptionに変換する.
 	 * @param se StripeException
@@ -110,15 +223,6 @@ public class ReflexStripeUtil {
 			email = auth.getAccount();
 		}
 		return email;
-	}
-	
-	/**
-	 * Stripe webhook secret key を取得
-	 * @return Stripe webhook secret key
-	 */
-	static String getWebhookSecretKey() {
-		ReflexStripeEnv stripeEnv = getStripeEnv();
-		return stripeEnv.getWebhookSecretKey();
 	}
 	
 	/**
@@ -244,6 +348,14 @@ public class ReflexStripeUtil {
 	static int getStripeUpdateentryRetryWaitmillis() {
 		return TaggingEnvUtil.getSystemPropInt(ReflexStripeConst.STRIPE_UPDATEENTRY_RETRY_WAITMILLIS,
 				ReflexStripeConst.STRIPE_UPDATEENTRY_RETRY_WAITMILLIS_DEFAULT);
+	}
+	
+	/**
+	 * Stripe用static情報保持オブジェクトを取得.
+	 * @return Stripe用static情報保持オブジェクト
+	 */
+	static ReflexStripeEnv getStripeEnv() {
+		return (ReflexStripeEnv)ReflexStatic.getStatic(ReflexStripeConst.STATIC_NAME_STRIPE);
 	}
 
 	/**
