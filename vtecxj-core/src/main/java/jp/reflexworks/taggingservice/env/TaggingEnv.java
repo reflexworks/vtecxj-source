@@ -34,7 +34,6 @@ import jp.reflexworks.taggingservice.plugin.ContentManager;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
-import jp.reflexworks.taggingservice.plugin.InUseSecretManager;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
@@ -158,10 +157,6 @@ public class TaggingEnv implements ReflexEnv {
 	/** サービス登録時に処理が必要なManagerリスト */
 	private final List<Class<? extends ExecuteAtCreateService>> executeAtCreateServiceList =
 			new ArrayList<Class<? extends ExecuteAtCreateService>>();
-
-	/** SecretManagerを使用しているManagerリスト */
-	private final List<Class<? extends InUseSecretManager>> inUseSecretManagerList =
-			new ArrayList<Class<? extends InUseSecretManager>>();
 
 	/** 起動中かどうか */
 	private boolean isRunning;
@@ -599,9 +594,6 @@ public class TaggingEnv implements ReflexEnv {
 			}
 			if (ExecuteAtCreateService.class.isAssignableFrom(cls)) {
 				executeAtCreateServiceList.add(cls);
-			}
-			if (InUseSecretManager.class.isAssignableFrom(cls)) {
-				inUseSecretManagerList.add(cls);
 			}
 		}
 	}
@@ -1112,23 +1104,6 @@ public class TaggingEnv implements ReflexEnv {
 		try {
 			for (Class<? extends ExecuteAtCreateService> cls : executeAtCreateServiceList) {
 				ExecuteAtCreateService manager = (ExecuteAtCreateService)PluginUtil.newInstance(cls);
-				list.add(manager);
-			}
-		} catch (PluginException e) {
-			throw new IllegalStateException(e);
-		}
-		return list;
-	}
-
-	/**
-	 * SecretManager使用管理クラスリストを取得.
-	 * @return SecretManager使用管理クラスリスト
-	 */
-	public List<InUseSecretManager> getInUseSecretManagerList() {
-		List<InUseSecretManager> list = new ArrayList<>();
-		try {
-			for (Class<? extends InUseSecretManager> cls : inUseSecretManagerList) {
-				InUseSecretManager manager = (InUseSecretManager)PluginUtil.newInstance(cls);
 				list.add(manager);
 			}
 		} catch (PluginException e) {

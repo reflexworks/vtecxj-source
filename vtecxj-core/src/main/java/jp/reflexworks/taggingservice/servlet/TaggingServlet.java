@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.servlet.HttpStatus;
-import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.taggingservice.api.ReflexContentInfo;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
@@ -364,9 +363,10 @@ public class TaggingServlet extends ReflexServletBase {
 					// ポータル画面なし
 					status = HttpStatus.SC_NO_CONTENT;
 				} else {
-					// ステータス303で課金の請求ポータル画面にリダイレクト
-					status = HttpStatus.SC_SEE_OTHER;
-					resp.setHeader(ReflexServletConst.HEADER_LOCATION, url);
+					// ステータス303で課金の請求ポータル画面にリダイレクト →クロスオリジンのためステータス200で返す
+					//status = HttpStatus.SC_SEE_OTHER;
+					//resp.setHeader(ReflexServletConst.HEADER_LOCATION, url);
+					retObj = MessageUtil.createMessageFeed(url, serviceName);
 				}
 				
 			} else if (param.getOption(RequestParam.PARAM_PAGINATION) != null) {
@@ -1112,9 +1112,10 @@ public class TaggingServlet extends ReflexServletBase {
 					// ステータスはAccepted.
 					status = HttpStatus.SC_ACCEPTED;
 				} else {
-					// ステータス303で支払い登録画面にリダイレクト
-					status = HttpStatus.SC_SEE_OTHER;
-					resp.setHeader(ReflexServletConst.HEADER_LOCATION, url);
+					// ステータス303で支払い登録画面にリダイレクト →クロスオリジンのためステータス200で返す
+					//status = HttpStatus.SC_SEE_OTHER;
+					//resp.setHeader(ReflexServletConst.HEADER_LOCATION, url);
+					retObj = MessageUtil.createMessageFeed(url, serviceName);
 				}
 
 			} else if (param.getOption(RequestParam.PARAM_SERVICETOSTAGING) != null) {

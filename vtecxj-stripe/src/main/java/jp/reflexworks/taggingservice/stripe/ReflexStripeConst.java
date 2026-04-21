@@ -25,11 +25,19 @@ public interface ReflexStripeConst {
 	public static final String STRIPE_UPDATEENTRY_RETRY_WAITMILLIS = "stripe.updateentry.retry.waitmillis";
 	/** 設定 : Stripe処理のアクセスログを出力するかどうか */
 	public static final String STRIPE_ENABLE_ACCESSLOG = "stripe.enable.accesslog";
+	/** 設定 : 商品購入時に数量指定が必要な場合に設定 */
+	public static final String STRIPE_ITEM_QUANTITY = "stripe.item.quantity";
+	/** 設定 : 商品購入時の表示メッセージ */
+	public static final String STRIPE_CHECKOUT_MESSAGE = "stripe.checkout.message";
 
 	/** プロパティデフォルト値 : エラー時の総リトライ回数 */
 	public static final int STRIPE_UPDATEENTRY_RETRY_COUNT_DEFAULT = 2;
 	/** プロパティデフォルト値 : エラーリトライ時の待ち時間(ミリ秒) */
 	public static final int STRIPE_UPDATEENTRY_RETRY_WAITMILLIS_DEFAULT = 700;
+	/** プロパティデフォルト値 : 商品購入時の表示メッセージ */
+	public static final String STRIPE_CHECKOUT_MESSAGE_DEFAULT = "サービス @ をPro環境にアップグレードします";
+	/** プロパティデフォルト値 : 商品購入時に数量指定が必要な場合に設定 */
+	public static final int STRIPE_ITEM_QUANTITY_DEFAULT = 1;
 
 	/** メモリ上のstaticオブジェクト格納キー : Stripe用設定値 */
 	public static final String STATIC_NAME_STRIPE = "_stripe";

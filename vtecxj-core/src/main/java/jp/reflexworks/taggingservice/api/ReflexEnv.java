@@ -19,7 +19,6 @@ import jp.reflexworks.taggingservice.plugin.ContentManager;
 import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
-import jp.reflexworks.taggingservice.plugin.InUseSecretManager;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
@@ -219,12 +218,6 @@ public interface ReflexEnv extends BaseReflexEnv {
 	 * @return サービス登録時の処理を実装する管理クラスリスト
 	 */
 	public List<ExecuteAtCreateService> getExecuteAtCreateServiceList();
-
-	/**
-	 * SecretManager使用管理クラスリストを取得.
-	 * @return SecretManager使用管理クラスリスト
-	 */
-	public List<InUseSecretManager> getInUseSecretManagerList();
 
 	/**
 	 * Datastore managerを取得.

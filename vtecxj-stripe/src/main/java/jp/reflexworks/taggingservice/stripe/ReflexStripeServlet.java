@@ -51,7 +51,7 @@ public class ReflexStripeServlet extends ReflexServlet {
 
 			String payloadStr = FileUtil.readString(req.getInputStream());
 			String sigHeader = req.getHeader(ReflexStripeConst.HEADER_STRIPE_SIGNATURE);
-			String webhookSecret = ReflexStripeUtil.getWebhookSecretKey();
+			String webhookSecret = ReflexStripeUtil.getWebhookSecretKey(requestInfo, connectionInfo);
 
 			Event event = Webhook.constructEvent(payloadStr, sigHeader, webhookSecret);
 
@@ -92,16 +92,6 @@ public class ReflexStripeServlet extends ReflexServlet {
 				// 支払い成功
 				ReflexStripeManager stripeManager = new ReflexStripeManager();
 				stripeManager.paid(event, requestInfo, connectionInfo);
-				
-				/*
-			} else if ("customer.subscription.updated".equals(eventType)) {
-				if (logger.isInfoEnabled()) {
-					logger.info("[doPost] customer.subscription.updated.");
-				}
-				// サブスクリプション更新 (支払いが再試行期間を過ぎ、サブスクリプションがキャンセルされた場合を抽出して処理する)
-				ReflexStripeManager stripeManager = new ReflexStripeManager();
-				stripeManager.updateSubscription(event, requestInfo, connectionInfo);
-				*/
 			}
 
 		} catch (SignatureVerificationException e) {

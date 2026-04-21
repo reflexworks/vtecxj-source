@@ -44,4 +44,6 @@ echo '[bdb_backup] BDB_DIR='$BDB_DIR' -> STORAGE_URL='$STORAGE_URL
 #$GCLOUD_DIR/gcloud auth activate-service-account $SERVICE_ACCOUNT --key-file $JSON_KEY --project $PROJECT_ID --quiet
 
 # バックアップ
-$GCLOUD_DIR/gsutil -m -q cp -r $BDB_DIR $STORAGE_URL
+if [ -d "$BDB_DIR" ]; then
+    $GCLOUD_DIR/gsutil -m -q cp -r "$BDB_DIR" "$STORAGE_URL"
+fi
