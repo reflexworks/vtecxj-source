@@ -23,6 +23,7 @@ import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.plugin.JobManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.taskqueue.ReflexCallable;
@@ -109,11 +110,22 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 			// アクセス数カウント
 			ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
 			serviceManager.incrementAccessCounter(serviceName, requestInfo, connectionInfo);
-
-			// バッチジョブ実行
-			JsContext jscontext = new JsContext(reflexContext, req, resp, BatchJobConst.METHOD);
-			Future<Object> future = JsExec.submit(jscontext, req, resp, jsFunction,
-					BatchJobConst.METHOD, 0, null, reflexContext);
+			
+			// /_html/batchjob 配下にバッチジョブが登録されている場合、Cloud Run Jobで実行する
+			String cloudRunJobUri = getCloudRunJobUri();
+			EntryBase cloudrunjobEntry = reflexContext.getEntry(cloudRunJobUri);
+			Future future = null;
+			if (cloudrunjobEntry != null) {
+				// Cloud Run Jobでバッチジョブ実行
+				JobManager jobManager = TaggingEnvUtil.getJobManager();
+				future = jobManager.runJob(jsFunction, reflexContext);
+				
+			} else {
+				// サーバサイドJSでバッチジョブ実行
+				JsContext jscontext = new JsContext(reflexContext, req, resp, BatchJobConst.METHOD);
+				future = JsExec.submit(jscontext, req, resp, jsFunction,
+						BatchJobConst.METHOD, 0, null, reflexContext);
+			}
 
 			// 結果を受け取る
 			int timeout = BatchJobUtil.getJsTimeout(serviceName, requestInfo, connectionInfo);
@@ -215,5 +227,17 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 		return BatchJobUtil.getLoggerPrefix(methodName, serviceName);
 	}
 
-
+	/**
+	 * Cloud Run Jobで実行するバッチジョブのキーを取得
+	 * @return Cloud Run Jobで実行するバッチジョブのキー
+	 */
+	private String getCloudRunJobUri() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(BatchJobConst.URI_CLOUDRUNJOB);
+		sb.append("/");
+		sb.append(jsFunction);
+		sb.append(".js");
+		return sb.toString();
+	}
+	
 }

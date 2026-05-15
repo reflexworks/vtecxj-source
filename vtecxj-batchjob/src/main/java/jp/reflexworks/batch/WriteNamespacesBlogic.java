@@ -149,11 +149,11 @@ public class WriteNamespacesBlogic implements ReflexBlogic<ReflexContext, Boolea
 
 		String[] argsServiceFeed = new String[]{requestUriService, "false"};
 		if (logger.isTraceEnabled()) {
-			logger.debug(APP_NAME + "getFeed (service) start");
+			logger.info(APP_NAME + "getFeed (service) start");
 		}
 		FeedBase serviceFeed = getFeedBlogic.exec(reflexContext, argsServiceFeed);
 		if (logger.isTraceEnabled()) {
-			logger.debug(APP_NAME + "getFeed (service) end");
+			logger.info(APP_NAME + "getFeed (service) end");
 		}
 
 		if (serviceFeed == null || serviceFeed.entry == null || serviceFeed.entry.isEmpty()) {
@@ -166,11 +166,11 @@ public class WriteNamespacesBlogic implements ReflexBlogic<ReflexContext, Boolea
 		String requestUriNamespace = URI_NAMESPACE + "?l=*";
 		String[] argsNamespaceFeed = new String[]{requestUriNamespace, "false"};
 		if (logger.isTraceEnabled()) {
-			logger.debug(APP_NAME + "getFeed (namespace) start");
+			logger.info(APP_NAME + "getFeed (namespace) start");
 		}
 		FeedBase namespaceFeed = getFeedBlogic.exec(reflexContext, argsNamespaceFeed);
 		if (logger.isTraceEnabled()) {
-			logger.debug(APP_NAME + "getFeed (namespace) end");
+			logger.info(APP_NAME + "getFeed (namespace) end");
 		}
 
 		if (namespaceFeed == null || namespaceFeed.entry == null || namespaceFeed.entry.isEmpty()) {

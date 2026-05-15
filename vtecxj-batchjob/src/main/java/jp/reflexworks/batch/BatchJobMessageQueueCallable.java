@@ -37,8 +37,8 @@ public class BatchJobMessageQueueCallable extends ReflexCallable<Boolean> {
 	public Boolean call()
 	throws IOException, TaggingException {
 		long startTime = 0;
-		if (logger.isTraceEnabled()) {
-			logger.debug("[call check message queue] start. serviceName=" + serviceName);
+		if (isEnabledAccessLog()) {
+			logger.info("[call check message queue] start. serviceName=" + serviceName);
 			startTime = new Date().getTime();
 		}
 
@@ -47,17 +47,25 @@ public class BatchJobMessageQueueCallable extends ReflexCallable<Boolean> {
 		MessageQueueBlogic blogic = new MessageQueueBlogic();
 		blogic.checkMessageQueue(systemContext);
 
-		if (logger.isTraceEnabled()) {
+		if (isEnabledAccessLog()) {
 			long finishTime = new Date().getTime();
 			long time = finishTime - startTime;
 			StringBuilder sb = new StringBuilder();
 			sb.append("[call check message queue] end - ");
 			sb.append(time);
 			sb.append("ms.");
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 
 		return true;
+	}
+	
+	/**
+	 * アクセスログを出力する場合true
+	 * @return 
+	 */
+	private boolean isEnabledAccessLog() {
+		return BatchJobUtil.isEnableAccessLog();
 	}
 
 }

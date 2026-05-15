@@ -35,6 +35,7 @@ import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
+import jp.reflexworks.taggingservice.plugin.JobManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
 import jp.reflexworks.taggingservice.plugin.MemorySortManager;
@@ -141,6 +142,8 @@ public class TaggingEnv implements ReflexEnv {
 	private Class<? extends SecretManager> secretManagerClass;
 	/** Payment manager */
 	private Class<? extends PaymentManager> paymentManagerClass;
+	/** Job manager */
+	private Class<? extends JobManager> jobManagerClass;
 
 	/** クローズ処理が必要なManagerリスト */
 	private final List<Class<? extends ClosingForShutdown>> closingForShutdownList =
@@ -499,6 +502,10 @@ public class TaggingEnv implements ReflexEnv {
 		// 決済管理プラグイン
 		paymentManagerClass = (Class<? extends PaymentManager>)initPluginProc(
 				TaggingEnvConst.PLUGIN_PAYMENTMANAGER, null, false);
+
+		// ジョブ実行管理プラグイン
+		jobManagerClass = (Class<? extends JobManager>)initPluginProc(
+				TaggingEnvConst.PLUGIN_JOBMANAGER, null, false);
 	}
 
 	/**
@@ -1627,6 +1634,21 @@ public class TaggingEnv implements ReflexEnv {
 		}
 		try {
 			return (PaymentManager)PluginUtil.newInstance(paymentManagerClass);
+		} catch (PluginException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	/**
+	 * ジョブ実行管理プラグインを取得.
+	 * @return job manager
+	 */
+	public JobManager getJobManager() {
+		if (jobManagerClass == null) {
+			return null;
+		}
+		try {
+			return (JobManager)PluginUtil.newInstance(jobManagerClass);
 		} catch (PluginException e) {
 			throw new IllegalStateException(e);
 		}

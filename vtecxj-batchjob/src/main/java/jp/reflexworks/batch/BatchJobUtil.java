@@ -30,6 +30,7 @@ import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
+import jp.reflexworks.taggingservice.env.ReflexEnvUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
@@ -1366,6 +1367,15 @@ public class BatchJobUtil {
 		} while (!StringUtils.isBlank(cursorStr));
 
 		return services;
+	}
+
+	/**
+	 * バッチジョブのアクセスログを出力するかどうかを取得.
+	 * @return バッチジョブへのアクセスログを出力する場合true
+	 */
+	public static boolean isEnableAccessLog() {
+		return ReflexEnvUtil.getSystemPropBoolean(
+				BatchJobConst.PROP_BATCHJOB_ENABLE_ACCESSLOG, false);
 	}
 
 }

@@ -160,6 +160,8 @@ public interface TaggingEnvConst extends ReflexEnvConst {
 	public static final String PLUGIN_SECRETMANAGER = "_plugin.secretmanager";
 	/** 決済管理プラグインクラス名 */
 	public static final String PLUGIN_PAYMENTMANAGER = "_plugin.paymentmanager";
+	/** ジョブ実行管理プラグインクラス名 */
+	public static final String PLUGIN_JOBMANAGER = "_plugin.jobmanager";
 
 	// ----- 定数値、デフォルト値 -----
 

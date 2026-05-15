@@ -82,8 +82,8 @@ public class CloudStorageUtil {
 	}
 
 	/**
-	 * ストレージダウンロード失敗時リトライ総数を取得.
-	 * @return ストレージダウンロード失敗時リトライ総数
+	 * ストレージダウンロード失敗時リトライ時のスリープ時間(ミリ秒)を取得.
+	 * @return ストレージダウンロード失敗時リトライのスリープ時間(ミリ秒)
 	 */
 	public static int getStorageDownloadRetryWaitmillis() {
 		return TaggingEnvUtil.getSystemPropInt(CloudStorageConst.STORAGE_DOWNLOAD_RETRY_WAITMILLIS,

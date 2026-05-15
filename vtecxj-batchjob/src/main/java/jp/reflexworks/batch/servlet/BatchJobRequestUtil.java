@@ -11,7 +11,6 @@ import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
-import jp.reflexworks.taggingservice.plugin.ServiceManager;
 
 /**
  * バッチジョブ実行用リクエスト生成のためのユーティリティ
@@ -51,14 +50,7 @@ public class BatchJobRequestUtil {
 	 * @return サーバ名
 	 */
 	public static String getServerName(String serviceName) {
-		ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
-		String serverAndContextpath = serviceManager.getServiceServerContextpath(serviceName);
-		int idx = serverAndContextpath.indexOf("/");
-		if (idx > 0) {
-			return serverAndContextpath.substring(0, idx);
-		} else {
-			return serverAndContextpath;
-		}
+		return TaggingEnvUtil.getSystemProp(BatchJobConst.PROP_BATCHJOB_SERVERNAME, null);
 	}
 
 	/**

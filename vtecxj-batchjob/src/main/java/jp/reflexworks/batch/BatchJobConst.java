@@ -8,9 +8,6 @@ import jp.reflexworks.taggingservice.util.Constants;
  */
 public interface BatchJobConst {
 
-	/** プロパティファイル名 */
-	public static final String PROPERTY_FILE_NAME = "vtecxbatchjob.properties";
-
 	/** ジョブステータス : ジョブ登録済み・実行待ち */
 	public static final String JOB_STATUS_WAITING = "waiting";
 	/** ジョブステータス : 実行中 */
@@ -41,6 +38,10 @@ public interface BatchJobConst {
 	public static final String PROP_URL_BATCHJOB = "_url.batchjob";
 	/** 設定 : バッチジョブサーバへのリクエストタイムアウト時間(ミリ秒) */
 	public static final String PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS = "_batchjobexec.request.timeout.millis";
+	/** 設定 : バッチジョブサーバのホスト名 */
+	public static final String PROP_BATCHJOB_SERVERNAME = "_batchjob.servername";
+	/** 設定 : バッチジョブサーバのホスト名 */
+	public static final String PROP_BATCHJOB_ENABLE_ACCESSLOG = "_batchjob..enable.accesslog";
 
 	/** バッチジョブの実行間隔(分) デフォルト値 */
 	public static final int BATCHJOB_EXEC_INTERVAL_MINUTE_DEFAULT = 5;
@@ -55,6 +56,8 @@ public interface BatchJobConst {
 
 	/** URI : ジョブ管理キー親階層 */
 	public static final String URI_BATCHJOB = "/_batchjob";
+	/** URI : Cloud Run Jobで実行されるバッチジョブの親階層 */
+	public static final String URI_CLOUDRUNJOB = Constants.URI_HTML + "/batchjob";
 
 	/** ログタイトル */
 	public static final String LOG_TITLE = "BatchJob";

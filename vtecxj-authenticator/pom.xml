@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-authenticator</artifactId>
-  <version>10.0.0</version>
+  <version>10.0.1</version>
   <packaging>jar</packaging>
 
   <description>vte.cx Authenticator</description>
@@ -18,7 +18,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-core-version>10.0.0</vtecxj-core-version>
+    <vtecxj-core-version>10.0.1</vtecxj-core-version>
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
   </properties>

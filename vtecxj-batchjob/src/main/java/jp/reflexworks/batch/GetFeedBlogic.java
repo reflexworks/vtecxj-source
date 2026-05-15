@@ -48,7 +48,7 @@ public class GetFeedBlogic implements ReflexBlogic<ReflexContext, FeedBase> {
 		try {
 			String requestUri = args[0];
 			if (logger.isTraceEnabled()) {
-				logger.debug("[Request URI] = " + requestUri);
+				logger.info("[Request URI] = " + requestUri);
 			}
 			if (useCache != null) {
 				feed = systemContext.getFeed(requestUri, useCache);
@@ -59,14 +59,14 @@ public class GetFeedBlogic implements ReflexBlogic<ReflexContext, FeedBase> {
 			if (feed != null && feed.entry != null) {
 				FeedTemplateMapper mapper = systemContext.getResourceMapper();
 				if (logger.isTraceEnabled()) {
-					logger.trace("\n" + mapper.toXML(feed));
+					logger.info("\n" + mapper.toXML(feed));
 				}
 				if (logger.isTraceEnabled()) {
-					logger.debug("feed.entry.size() = " + feed.entry.size());
+					logger.info("feed.entry.size() = " + feed.entry.size());
 				}
 			} else {
 				if (logger.isTraceEnabled()) {
-					logger.debug("feed is null.");
+					logger.info("feed is null.");
 				}
 			}
 
