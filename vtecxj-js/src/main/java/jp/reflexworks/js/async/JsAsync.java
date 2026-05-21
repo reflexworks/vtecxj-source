@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 import jakarta.servlet.http.Cookie;
+
 import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.servlet.util.UrlUtil;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
@@ -95,7 +96,7 @@ public class JsAsync {
 			// AccessTokenを設定
 			String accesstoken = reflexContext.getAccessToken();
 			headers.put(ReflexServletConst.HEADER_AUTHORIZATION,
-					ReflexServletConst.HEADER_AUTHORIZATION_TOKEN + accesstoken);
+					ReflexServletConst.HEADER_AUTHORIZATION_BEARER + accesstoken);
 
 		} else if (!StringUtils.isBlank(auth.getSessionId())) {
 			// SIDを設定

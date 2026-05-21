@@ -101,6 +101,8 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_RELOADSECRET = "_reloadsecret";
 	/** URLパラメータ : 課金の請求ポータル(顧客ごとの画面) */
 	public static final String PARAM_BILLINGPORTAL = "_billingportal";
+	/** URLパラメータ : セッション生成 */
+	public static final String PARAM_CREATESESSION = "_createsession";
 
 	/**
 	 * Entry検索かどうか返却します.

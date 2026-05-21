@@ -521,4 +521,12 @@ public class MessageManagerDefault implements MessageManager {
 		return MessageConst.MSG_RELOAD_SECRET;
 	}
 
+	/**
+	 * アクセストークン認証でセッション生成のメッセージを取得.
+	 * @return メッセージ
+	 */
+	public String getMsgCreateSession(String string) {
+		return MessageConst.MSG_CREATE_SESSION;
+	}
+
 }

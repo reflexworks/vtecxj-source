@@ -167,7 +167,7 @@ public class BDBClientMigrateUtil {
 			// AccessTokenを設定
 			String accesstoken = reflexContext.getAccessToken();
 			headers.put(ReflexServletConst.HEADER_AUTHORIZATION,
-					ReflexServletConst.HEADER_AUTHORIZATION_TOKEN + accesstoken);
+					ReflexServletConst.HEADER_AUTHORIZATION_BEARER + accesstoken);
 
 		} else if (!StringUtils.isBlank(auth.getSessionId())) {
 			// SIDを設定

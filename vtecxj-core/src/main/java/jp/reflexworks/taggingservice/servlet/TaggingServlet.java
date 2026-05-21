@@ -22,6 +22,7 @@ import jp.reflexworks.taggingservice.api.ReflexServletBase;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.blogic.AllocateIdsBlogic;
+import jp.reflexworks.taggingservice.blogic.AuthenticationBlogic;
 import jp.reflexworks.taggingservice.blogic.DatastoreBlogic;
 import jp.reflexworks.taggingservice.blogic.IncrementBlogic;
 import jp.reflexworks.taggingservice.blogic.LogBlogic;
@@ -632,6 +633,15 @@ public class TaggingServlet extends ReflexServletBase {
 				}
 				UserBlogic userBlogic = new UserBlogic();
 				retObj = userBlogic.createTotp(req, reflexContext);
+
+			} else if (param.getOption(RequestParam.PARAM_CREATESESSION) != null) {
+				// セッション生成
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_createsession");
+				}
+				AuthenticationBlogic authenticationBlogic = new AuthenticationBlogic();
+				authenticationBlogic.createSession(req, resp);
+				retObj = createMessageFeed(msgManager.getMsgCreateSession(serviceName), serviceName);
 
 			} else {
 				// 登録処理

@@ -294,5 +294,17 @@ public class MemorySortAuthenticationManager implements AuthenticationManager {
 			String linkToken, String authType, List<String> groups, String serviceName) {
 		return new Authentication(account, uid, sessionId, linkToken, authType, groups, serviceName);
 	}
-
+	
+	/**
+	 * アクセストークン認証でセッション生成
+	 * @param req リクエスト
+	 * @param resp レスポンス
+	 * @return SID
+	 */
+	@Override
+	public String createSession(ReflexRequest req, ReflexResponse resp)
+	throws IOException, TaggingException {
+		// Do nothin,
+		return null;
+	}
 }
