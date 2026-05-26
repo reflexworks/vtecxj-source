@@ -92,6 +92,19 @@ public class TaggingServiceUtil {
 	}
 
 	/**
+	 * 今日分のバッチジョブ実行時間キーを取得.
+	 * /_service/{サービス名}/batchjob_exectime
+	 * @param serviceName サービス名
+	 * @return 今日分のバッチジョブ実行時間キー
+	 */
+	public static String getBatchjobExecSecUri(String serviceName) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(getServiceUri(serviceName));
+		sb.append(ServiceConst.URI_LAYER_BATCHJOB_EXECTIME);
+		return sb.toString();
+	}
+
+	/**
 	 * サービスEntry URIからサービス名を取得.
 	 *  /_service/{サービス名} からサービス名の部分を抽出。
 	 * @param serviceUri サービスエントリーURI

@@ -586,6 +586,22 @@ public class ServiceBlogic {
 	}
 
 	/**
+	 * バッチジョブ実行時間(秒)を取得.
+	 * @param reflexContext ReflexContext
+	 * @return バッチジョブ実行時間(秒)
+	 */
+	public long getBatchjobExectime(ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		// サービス管理者かどうか
+		AclBlogic aclBlogic = new AclBlogic();
+		aclBlogic.checkAuthedGroup(reflexContext.getAuth(), Constants.URI_GROUP_ADMIN);
+		// バッチジョブ実行時間取得
+		ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
+		return serviceManager.getBatchjobExecSec(reflexContext.getServiceName(), 
+				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
+	}
+
+	/**
 	 * 課金のカスタマーポータル画面のリンク発行
 	 * @param reflexContext ReflexContext
 	 * @return 課金のカスタマーポータル画面のURL。課金がない場合はnull。

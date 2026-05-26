@@ -2703,6 +2703,13 @@ public interface ReflexContext extends BaseReflexContext {
 	throws IOException, TaggingException;
 
 	/**
+	 * バッチジョブ実行時間(秒)を取得.
+	 * @return バッチジョブ実行時間(秒)
+	 */
+	public long getBatchjobExectime()
+	throws IOException, TaggingException;
+
+	/**
 	 * SecretManagerの再読み込み.
 	 */
 	public void reloadSecret()

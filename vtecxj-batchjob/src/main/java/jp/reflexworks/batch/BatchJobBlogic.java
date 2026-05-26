@@ -212,6 +212,9 @@ public class BatchJobBlogic {
 			// キー: /_batchjob
 			String batchJobTopFolderUri = getBatchJobTopFolderUri();
 			postFolder(batchJobTopFolderUri, systemContext);
+			// エイリアス: /_batchjob_alias
+			String batchJobTopFolderAlias = getBatchJobTopFolderAlias();
+			postFolder(batchJobTopFolderAlias, systemContext);
 
 			List<BatchJobFuture> futures = new ArrayList<>();
 			for (Map.Entry<String, String> mapEntry : batchJobs.entrySet()) {
@@ -381,7 +384,7 @@ public class BatchJobBlogic {
 			try {
 				// バッチジョブ排他
 				EntryBase tmpBatchJobTimeEntry = createBatchJobTimeEntry(
-						podName, batchJobTimeUri, serviceName);
+						podName, batchJobTimeUri, jobName, jobDateStr, serviceName);
 				currentExecUri = batchJobTimeUri;
 				batchJobTimeEntry = systemContext.post(tmpBatchJobTimeEntry);
 			} catch (EntryDuplicatedException e) {
@@ -563,6 +566,7 @@ public class BatchJobBlogic {
 
 	/**
 	 * バッチジョブ管理URI(ジョブ実行時刻まで)を取得
+	 *   /_batchjob/{ジョブ名}/{ジョブ実行時刻(yyyyMMddHHmm)}
 	 * @param jobName ジョブ名
 	 * @param jobDateStr ジョブ実行時刻文字列
 	 * @return バッチジョブ管理URI(ジョブ実行時刻まで)
@@ -572,6 +576,35 @@ public class BatchJobBlogic {
 		sb.append(getBatchJobFolderUri(jobName));
 		sb.append("/");
 		sb.append(jobDateStr);
+		return sb.toString();
+	}
+
+	/**
+	 * バッチジョブ管理エイリアス親URIを取得
+	 * @return バッチジョブ管理エイリアス親URI
+	 */
+	private String getBatchJobTopFolderAlias() {
+		return BatchJobConst.URI_BATCHJOB_ALIAS;
+	}
+
+	/**
+	 * バッチジョブ管理エイリアスURI(ジョブ実行時刻まで)を取得
+	 *   /_batchjob_alias/{999999999999-ジョブ実行時刻(yyyyMMddHHmm)}_{ジョブ名}
+	 * @param jobName ジョブ名
+	 * @param jobDateStr ジョブ実行時刻文字列
+	 * @return バッチジョブ管理エイリアスURI(ジョブ実行時刻まで)
+	 */
+	private String getBatchJobTimeAlias(String jobName, String jobDateStr) {
+		long descLong = 999999999999L;
+		long jobDataLong = StringUtils.parseLong(jobDateStr);
+		long timeLong = descLong - jobDataLong;
+		String timeStr = Long.toString(timeLong);
+		StringBuilder sb = new StringBuilder();
+		sb.append(getBatchJobTopFolderAlias());
+		sb.append("/");
+		sb.append(timeStr);
+		sb.append("_");
+		sb.append(jobName);
 		return sb.toString();
 	}
 
@@ -606,17 +639,22 @@ public class BatchJobBlogic {
 	 * バッチジョブ管理エントリー生成.
 	 * @param podName POD名
 	 * @param uri URI
+	 * @param jobName ジョブ名
+	 * @param jobDateStr ジョブ実行日時
 	 * @param serviceName サービス名
 	 * @return バッチジョブ管理エントリー
 	 */
-	private EntryBase createBatchJobTimeEntry(String podName, String uri,
-			String serviceName) {
+	private EntryBase createBatchJobTimeEntry(String podName, String uri, 
+			String jobName, String jobDateStr, String serviceName) {
 		// キー: /_batchjob/{ジョブ名}/{ジョブ実行時刻(yyyyMMddHHmm)}
+		// エイリアス: /_batchjob_alias/{999999999999-ジョブ実行時刻(yyyyMMddHHmm)}_{ジョブ名}
 		// 値
 		//    titleにrunning(ジョブ実行ステータス: 実行中)
 		//    subtitleにPod名(環境変数HOSTNAMEで取得可)
 		EntryBase batchJobTimeEntry = TaggingEntryUtil.createEntry(serviceName);
 		batchJobTimeEntry.setMyUri(uri);
+		String alias = getBatchJobTimeAlias(jobName, jobDateStr);
+		batchJobTimeEntry.addAlternate(alias);
 		batchJobTimeEntry.title = BatchJobConst.JOB_STATUS_WAITING;
 		batchJobTimeEntry.subtitle = podName;
 		return batchJobTimeEntry;
@@ -647,7 +685,7 @@ public class BatchJobBlogic {
 	
 	/**
 	 * アクセスログを出力する場合true
-	 * @return 
+	 * @return アクセスログを出力する場合true
 	 */
 	private boolean isEnabledAccessLog() {
 		return BatchJobUtil.isEnableAccessLog();

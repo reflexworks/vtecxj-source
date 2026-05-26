@@ -140,6 +140,11 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 				systemContext.setCacheLong(storageTotalsizeUri, storageTotalsize);
 			}
 
+			// ・バッチジョブ実行時間
+			//  Redisのバッチジョブをクリア
+			String batchjobExecSecUri = TaggingServiceUtil.getBatchjobExecSecUri(serviceName);
+			systemContext.setCacheLong(batchjobExecSecUri, 0);
+
 		} catch (IOException | TaggingException | RuntimeException | Error e) {
 			// サービス単位でエラーをワーニング出力し、処理を続ける。
 			StringBuilder sb = new StringBuilder();

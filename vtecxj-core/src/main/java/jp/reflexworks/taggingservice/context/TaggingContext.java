@@ -4819,6 +4819,16 @@ public class TaggingContext implements ReflexContext {
 	}
 
 	/**
+	 * バッチジョブ実行時間(秒)を取得.
+	 * @return バッチジョブ実行時間(秒)
+	 */
+	public long getBatchjobExectime()
+	throws IOException, TaggingException {
+		ServiceBlogic serviceBlogic = new ServiceBlogic();
+		return serviceBlogic.getBatchjobExectime(this);
+	}
+
+	/**
 	 * SecretManagerの再読み込み.
 	 */
 	public void reloadSecret()

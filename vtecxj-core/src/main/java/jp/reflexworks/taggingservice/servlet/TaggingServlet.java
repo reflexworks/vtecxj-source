@@ -353,6 +353,14 @@ public class TaggingServlet extends ReflexServletBase {
 				long storageusage = reflexContext.getStorageUsage();
 				retObj = MessageUtil.createMessageFeed(StringUtils.toString(storageusage, 0), serviceName);
 
+			} else if (param.getOption(RequestParam.PARAM_BATCHJOBEXECTIME) != null) {
+				// バッチジョブ実行時間取得
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_batchjobexectime");
+				}
+				long exectime = reflexContext.getBatchjobExectime();
+				retObj = MessageUtil.createMessageFeed(StringUtils.toString(exectime, 0), serviceName);
+
 			} else if (param.getOption(RequestParam.PARAM_BILLINGPORTAL) != null) {
 				// 課金の請求ポータル(顧客ごとの画面)
 				if (logger.isInfoEnabled()) {

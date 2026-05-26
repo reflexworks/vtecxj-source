@@ -1,6 +1,7 @@
 package jp.reflexworks.batch.test;
 
 import java.io.ByteArrayInputStream;
+import java.util.concurrent.ExecutionException;
 
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.longrunning.OperationFuture;
@@ -16,6 +17,7 @@ import com.google.cloud.run.v2.RunJobRequest.Overrides.ContainerOverride;
 import com.google.protobuf.Duration;
 
 import jp.reflexworks.taggingservice.cloudrunjob.CloudRunJobConst;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.FileUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -35,6 +37,7 @@ public class CloudRunJobMain {
 	 *   [8] サービスアカウントJSONファイルパス
 	 */
 	public static void main(String[] args) {
+		OperationFuture<Execution, Execution> future = null;
 		try {
 			if (args == null) {
 				throw new IllegalArgumentException("Arguments are required.");
@@ -42,7 +45,7 @@ public class CloudRunJobMain {
 			if (args.length < 8) {
 				throw new IllegalArgumentException("Insufficient arguments.");
 			}
-			
+
 			String projectId = args[0];
 			String region = args[1];
 			String jobName = args[2];
@@ -77,7 +80,7 @@ public class CloudRunJobMain {
 			sb.append(", credentialJsonPath=");
 			sb.append(credentialJsonPath);
 			System.out.println(sb.toString());
-			
+
 			GoogleCredentials credentials = null;
 			if (credentialJsonPath != null) {
 				byte[] secret = FileUtil.readFile(credentialJsonPath);
@@ -89,9 +92,8 @@ public class CloudRunJobMain {
 			if (credentials != null) {
 				builder = builder.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
 			}
-			
+
 			JobsSettings settings = builder.build();
-	
 			try (JobsClient jobsClient = JobsClient.create(settings)) {
 				String name = JobName.of(projectId, region, jobName).toString();
 
@@ -136,23 +138,55 @@ public class CloudRunJobMain {
 								.build()
 								)
 						.build();
-				
-				OperationFuture<Execution, Execution> future = jobsClient.runJobAsync(request);
-	
+
+				future = jobsClient.runJobAsync(request);
+
 				// ここでは Job 完了までは待たない
 				System.out.println("Cloud Run Job execution requested.");
 				System.out.println("operationName=" + future.getName());
-	
+				System.out.println("JobName.of=" + name);
+
 				// 動作確認で完了まで待ちたい場合だけ、以下を有効化
 				Execution execution = future.get();
-				System.out.println("executionName=" + execution.getName());
+				System.out.println("execution.getName()=" + execution.getName());
+				System.out.println("execution.getJob()=" + execution.getJob());
+				System.out.println("execution.getUid()=" + execution.getUid());
+				System.out.println("実行ID(execution)=" + TaggingEntryUtil.getSelfidUri(execution.getName()));
+				
+				Execution metadata = future.peekMetadata().get();
+				System.out.println("metadata.getName()=" + metadata.getName());
+				System.out.println("実行ID(metadata)=" + TaggingEntryUtil.getSelfidUri(metadata.getName()));
+
 			}
-			
-		} catch (Throwable e) {
+
+		} catch (Throwable te) {
+
+			String executionId = null;
+
+			try {
+				if (future != null) {
+					Execution metadata = future.peekMetadata().get();
+					if (metadata != null && !metadata.getName().isEmpty()) {
+						executionId = TaggingEntryUtil.getSelfidUri(metadata.getName());
+					}
+				}
+			} catch (Exception ignore) {
+				// metadata が取れない場合は executionId は null のまま
+				System.out.println("Exception in Exception. " + ignore.getClass().getName() + ": " + ignore.getMessage());
+				
+			}
+
+			Throwable e = te;
+			if (te instanceof ExecutionException) {
+				e = te.getCause();
+			}
+
+			System.out.println("Error occured. " + e.getClass().getName() + ": " + e.getMessage());
+			System.out.println("executionId=" + executionId);
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * vte.cx URL を取得
 	 * @param serviceName サービス名

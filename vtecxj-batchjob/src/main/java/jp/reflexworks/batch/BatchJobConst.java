@@ -40,8 +40,8 @@ public interface BatchJobConst {
 	public static final String PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS = "_batchjobexec.request.timeout.millis";
 	/** 設定 : バッチジョブサーバのホスト名 */
 	public static final String PROP_BATCHJOB_SERVERNAME = "_batchjob.servername";
-	/** 設定 : バッチジョブサーバのホスト名 */
-	public static final String PROP_BATCHJOB_ENABLE_ACCESSLOG = "_batchjob..enable.accesslog";
+	/** 設定 : アクセスログ出力フラグ */
+	public static final String PROP_BATCHJOB_ENABLE_ACCESSLOG = "_batchjob.enable.accesslog";
 
 	/** バッチジョブの実行間隔(分) デフォルト値 */
 	public static final int BATCHJOB_EXEC_INTERVAL_MINUTE_DEFAULT = 5;
@@ -56,6 +56,8 @@ public interface BatchJobConst {
 
 	/** URI : ジョブ管理キー親階層 */
 	public static final String URI_BATCHJOB = "/_batchjob";
+	/** URI : ジョブ管理エイリアス親階層 */
+	public static final String URI_BATCHJOB_ALIAS = "/_batchjob_alias";
 	/** URI : Cloud Run Jobで実行されるバッチジョブの親階層 */
 	public static final String URI_CLOUDRUNJOB = Constants.URI_HTML + "/batchjob";
 

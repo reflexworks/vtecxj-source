@@ -1468,6 +1468,12 @@ public class SystemContext implements ReflexContext {
 	}
 
 	@Override
+	public long getBatchjobExectime()
+	throws IOException, TaggingException {
+		return reflexContext.getBatchjobExectime();
+	}
+
+	@Override
 	public void reloadSecret()
 	throws IOException, TaggingException {
 		reflexContext.reloadSecret();

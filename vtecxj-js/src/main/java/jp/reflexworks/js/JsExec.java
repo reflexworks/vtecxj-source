@@ -274,6 +274,8 @@ public class JsExec {
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("var console = {};console.log = function(s) { var f = ReflexContext.settingValue('console.log'); if (f&&f==='true') ReflexContext.log(s)};console.error=function(s) { var f=ReflexContext.settingValue('console.error'); if (f&&f==='true') ReflexContext.log(s)};console.warn=function(s) { var f = ReflexContext.settingValue('console.warn');if (f&&f==='true') ReflexContext.log(s)};");
+		sb.append("if (typeof module === 'undefined') { var module = { exports: {} }; }");
+		sb.append("if (typeof exports === 'undefined') { var exports = module.exports; }");
 		String main = contentjs(func, reflexContext);
 		if (isEnableAccessLog()) {
 			StringBuilder dbg = new StringBuilder();

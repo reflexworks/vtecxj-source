@@ -8,9 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.longrunning.OperationFuture;
 import com.google.api.gax.rpc.ApiException;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.run.v2.EnvVar;
+import com.google.cloud.run.v2.Execution;
 import com.google.cloud.run.v2.JobName;
 import com.google.cloud.run.v2.JobsClient;
 import com.google.cloud.run.v2.JobsSettings;
@@ -19,6 +21,7 @@ import com.google.cloud.run.v2.RunJobRequest.Overrides;
 import com.google.cloud.run.v2.RunJobRequest.Overrides.ContainerOverride;
 import com.google.protobuf.Duration;
 
+import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.js.JsExec;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexContext;
@@ -30,6 +33,7 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.StaticDuplicatedException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.JobManager;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.FileUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -173,6 +177,30 @@ public class CloudRunJobManager implements JobManager {
 		}
 	}
 	
+	/**
+	 * Cloud Run Jobから発行された情報をバッチジョブ管理テーブルに設定
+	 * @param future Cloud Run Job 実行Future
+	 * @param batchJobTimeEntry バッチジョブ管理テーブル
+	 */
+	@Override
+	public void setJobInfo(Future future, EntryBase batchJobTimeEntry)
+	throws IOException, TaggingException {
+		if (future != null && future instanceof OperationFuture) {
+			OperationFuture<Execution, Execution> operationFuture = 
+					(OperationFuture<Execution, Execution>)future;
+			try {
+				Execution metadata = operationFuture.peekMetadata().get();
+				if (metadata != null && !metadata.getName().isEmpty()) {
+					String executionId = TaggingEntryUtil.getSelfidUri(metadata.getName());
+					if (!StringUtils.isBlank(executionId)) {
+						batchJobTimeEntry.summary = executionId;
+					}
+				}
+			} catch (Throwable ignore) {
+				logger.warn("[setJobInfo] " + ignore.getClass().getName() + ": " + ignore.getMessage());
+			}
+		}
+	}
 
 	/**
 	 * Storage接続インタフェースを取得.
