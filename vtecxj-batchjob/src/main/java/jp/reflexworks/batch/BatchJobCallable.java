@@ -23,6 +23,7 @@ import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.plugin.JobManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.taskqueue.ReflexCallable;
@@ -79,8 +80,8 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 				requestInfo, connectionInfo);
 
 		long startTime = 0;
-		String info = null;
-		if (logger.isInfoEnabled()) {
+		String info = "";
+		if (isEnabledAccessLog()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(" jsFunction=");
 			sb.append(jsFunction);
@@ -100,6 +101,12 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 		boolean isSucceeded = false;
 		String batchJobTimeUri = batchJobTimeEntry.getMyUri();
 		EntryBase tmpBatchJobTimeEntry = null;
+		JobManager jobManager = null;
+		// 開始時刻
+		long startJobTime = 0L;
+		long endJobTime = 0L;
+		Future future = null;
+		ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
 		try {
 			// ステータスをrunningに更新
 			this.batchJobTimeEntry.title = BatchJobConst.JOB_STATUS_RUNNING;
@@ -107,13 +114,27 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 			transfer(tmpBatchJobTimeEntry);
 
 			// アクセス数カウント
-			ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
 			serviceManager.incrementAccessCounter(serviceName, requestInfo, connectionInfo);
+			
+			// サービスステータスがstagingの場合、1日の累計実行時間が最大値を超えていないかチェック
+			serviceManager.checkBatchjobExecTime(serviceName, requestInfo, connectionInfo);
 
-			// バッチジョブ実行
-			JsContext jscontext = new JsContext(reflexContext, req, resp, BatchJobConst.METHOD);
-			Future<Object> future = JsExec.submit(jscontext, req, resp, jsFunction,
-					BatchJobConst.METHOD, 0, null, reflexContext);
+			// /_html/batchjob 配下にバッチジョブが登録されている場合、Cloud Run Jobで実行する
+			String cloudRunJobUri = getCloudRunJobUri();
+			EntryBase cloudrunjobEntry = reflexContext.getEntry(cloudRunJobUri);
+			// 開始時刻
+			startJobTime = new Date().getTime();
+			if (cloudrunjobEntry != null) {
+				// Cloud Run Jobでバッチジョブ実行
+				jobManager = TaggingEnvUtil.getJobManager();
+				future = jobManager.runJob(jsFunction, reflexContext);
+				
+			} else {
+				// サーバサイドJSでバッチジョブ実行
+				JsContext jscontext = new JsContext(reflexContext, req, resp, BatchJobConst.METHOD);
+				future = JsExec.submit(jscontext, req, resp, jsFunction,
+						BatchJobConst.METHOD, 0, null, reflexContext);
+			}
 
 			// 結果を受け取る
 			int timeout = BatchJobUtil.getJsTimeout(serviceName, requestInfo, connectionInfo);
@@ -154,6 +175,8 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 			reflexContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
 
 		} finally {
+			// 終了時刻
+			endJobTime = new Date().getTime();
 			String jobStatus = null;
 			if (isSucceeded) {
 				// 正常に終了した場合、titleにsucceeded(ジョブ実行ステータス: 成功)を設定
@@ -163,6 +186,11 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 				jobStatus = BatchJobConst.JOB_STATUS_FAILED;
 			}
 			batchJobTimeEntry.title = jobStatus;
+			if (jobManager != null) {
+				// Cloud Run Jobの実行IDを設定
+				jobManager.setJobInfo(future, batchJobTimeEntry);
+			}
+
 			try {
 				tmpBatchJobTimeEntry = systemContext.put(batchJobTimeEntry);
 				transfer(tmpBatchJobTimeEntry);
@@ -171,20 +199,25 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 				logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
 				systemContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
 			}
-		}
-
-		if (logger.isInfoEnabled()) {
-			long finishTime = new Date().getTime();
-			long time = finishTime - startTime;
-			StringBuilder sb = new StringBuilder();
-			sb.append(LogUtil.getRequestInfoStr(requestInfo));
-			sb.append("[call] end - ");
-			sb.append(time);
-			sb.append("ms");
-			sb.append(" isSucceeded=");
-			sb.append(isSucceeded);
-			sb.append(info);
-			logger.info(sb.toString());
+			// 実行時間の加算
+			if (isEnabledAccessLog()) {
+				StringBuilder sb = new StringBuilder();
+				sb.append(LogUtil.getRequestInfoStr(requestInfo));
+				sb.append("[call] startJobTime=");
+				sb.append(startJobTime);
+				sb.append(", endJobTime=");
+				sb.append(endJobTime);
+				sb.append(", isSucceeded=");
+				sb.append(isSucceeded);
+				sb.append(" ");
+				sb.append(info);
+				logger.info(sb.toString());
+			}
+			if (startJobTime > 0L) {
+				long execTimeMillisec = endJobTime - startJobTime;
+				serviceManager.incrementBatchjoExecTime(execTimeMillisec, serviceName, 
+						requestInfo, connectionInfo);
+			}
 		}
 
 		return isSucceeded;
@@ -215,5 +248,25 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 		return BatchJobUtil.getLoggerPrefix(methodName, serviceName);
 	}
 
+	/**
+	 * Cloud Run Jobで実行するバッチジョブのキーを取得
+	 * @return Cloud Run Jobで実行するバッチジョブのキー
+	 */
+	private String getCloudRunJobUri() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(BatchJobConst.URI_CLOUDRUNJOB);
+		sb.append("/");
+		sb.append(jsFunction);
+		sb.append(".js");
+		return sb.toString();
+	}
+	
+	/**
+	 * アクセスログを出力する場合true
+	 * @return アクセスログを出力する場合true
+	 */
+	private boolean isEnabledAccessLog() {
+		return BatchJobUtil.isEnableAccessLog();
+	}
 
 }

@@ -36,9 +36,16 @@ import jp.sourceforge.reflex.util.StringUtils;
  * サービスごとに行う処理
  */
 public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
+	
+	/** URI : /_batchjob/ */
+	private static final String URI_BATCHJOB_SLASH = Constants.URI_BATCHJOB + "/";
+	/** URIの文字列長 : /_batchjob/ */
+	private static final int URI_BATCHJOB_SLASH_LEN = URI_BATCHJOB_SLASH.length();
 
 	/** ログ残存日時 */
 	private String logKeepDate;
+	/** バッチジョブ履歴残存日時 */
+	private String batchjobKeepDate;
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -46,9 +53,11 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 	/**
 	 * コンストラクタ
 	 * @param logKeepDate ログ残存日時
+	 * @param batchjobKeepDate バッチジョブ履歴残存日時
 	 */
-	public MoveLogToBigQueryCallable(String logKeepDate) {
+	public MoveLogToBigQueryCallable(String logKeepDate, String batchjobKeepDate) {
 		this.logKeepDate = logKeepDate;
+		this.batchjobKeepDate = batchjobKeepDate;
 	}
 
 	/**
@@ -58,8 +67,16 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 	public Boolean call() throws IOException, TaggingException {
 		RequestInfo requestInfo = getRequestInfo();
 		String serviceName = getServiceName();
-		if (logger.isTraceEnabled()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[MoveLogToBigQueryCallable] start. serviceName=" + serviceName);
+		if (isEnableAccessLogBdbbatch()) {
+			StringBuilder sb = new StringBuilder();
+			sb.append(LogUtil.getRequestInfoStr(requestInfo));
+			sb.append("[MoveLogToBigQueryCallable] start. serviceName=");
+			sb.append(serviceName);
+			sb.append(", logKeepDate=");
+			sb.append(logKeepDate);
+			sb.append(", batchjobKeepDate");
+			sb.append(batchjobKeepDate);
+			logger.info(sb.toString());
 		}
 
 		// ReflexContextを取得 (セッションも含まれる。)
@@ -67,21 +84,36 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 		// SystemContextを生成
 		SystemContext systemContext = new SystemContext(reflexContext.getAuth(),
 				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
-		execEachService(systemContext, logKeepDate, systemContext.getServiceName());
+		execEachService(systemContext, systemContext.getServiceName());
 		return true;
 	}
 
 	/**
 	 * サービスごとの処理.
 	 * @param systemContext SystemContext
-	 * @param logKeepDate ログ残存日時
 	 * @param serviceName サービス名
 	 */
-	private void execEachService(SystemContext systemContext, String logKeepDate,
-			String serviceName) {
+	private void execEachService(SystemContext systemContext, String serviceName) {
 		// 最大取得件数
 		int limit = getLogEntryNumberLimit();
 
+		// ログエントリーの移動
+		moveLog(serviceName, limit, systemContext);
+
+		// ログイン履歴エントリーの移動
+		moveLoginHistory(serviceName, limit, systemContext);
+
+		// バッチジョブ履歴エントリーの移動
+		moveBatchjob(serviceName, limit, systemContext);
+	}
+	
+	/**
+	 * ログエントリーの移動
+	 * @param serviceName サービス名
+	 * @param limit Feed検索最大取得件数
+	 * @param systemContext SystemContext
+	 */
+	private void moveLog(String serviceName, int limit, SystemContext systemContext) {
 		try {
 			// ログエントリーの移動
 			String requestUriBase = getLogRequestUri(logKeepDate, limit);
@@ -90,28 +122,28 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 				cursorStr = null;
 				// BDBからログエントリーを取得。
 				String requestUri = addCursorStr(requestUriBase, cursorStr);
-
-				if (logger.isTraceEnabled()) {
+	
+				if (isEnableAccessLogBdbbatch()) {
 					StringBuilder sb = new StringBuilder();
-					sb.append("(");
+					sb.append("[moveLog] (");
 					sb.append(serviceName);
 					sb.append(")");
 					sb.append("[get log] uri=");
 					sb.append(requestUri);
-					logger.debug(sb.toString());
+					logger.info(sb.toString());
 				}
-
+	
 				FeedBase feed = systemContext.getFeed(requestUri);
-
+	
 				if (TaggingEntryUtil.isExistData(feed)) {
-					if (logger.isTraceEnabled()) {
+					if (isEnableAccessLogBdbbatch()) {
 						StringBuilder sb = new StringBuilder();
-						sb.append("(");
+						sb.append("[moveLog] (");
 						sb.append(serviceName);
 						sb.append(")");
 						sb.append("[get log] entry.size=");
 						sb.append(feed.entry.size());
-						logger.debug(sb.toString());
+						logger.info(sb.toString());
 					}
 					// サービスにBigQueryの指定がある場合、BigQueryに内容を登録する。
 					List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
@@ -125,36 +157,36 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 					} catch (InvalidServiceSettingException se) {
 						// BigQueryの設定が無い場合
 						StringBuilder sb = new StringBuilder();
-						sb.append("[MoveLogToBigQueryCallable] (");
+						sb.append("[moveLog] (");
 						sb.append(serviceName);
 						sb.append(") BigQuery setting is not exist. ");
 						sb.append(se.getMessage());
 						logger.info(sb.toString());
 					}
-
+	
 					// ログエントリーを削除する。
 					systemContext.delete(feed);
-
+	
 					// カーソル取得
 					cursorStr = TaggingEntryUtil.getCursorFromFeed(feed);
-
+	
 				} else {
-					if (logger.isTraceEnabled()) {
+					if (isEnableAccessLogBdbbatch()) {
 						StringBuilder sb = new StringBuilder();
-						sb.append("(");
+						sb.append("[moveLog] (");
 						sb.append(serviceName);
 						sb.append(")");
 						sb.append("[get log] no entry.");
-						logger.debug(sb.toString());
+						logger.info(sb.toString());
 					}
 				}
-
+	
 			} while (!StringUtils.isBlank(cursorStr));
 
 		} catch (Throwable e) {
 			// ログ出力し処理継続
 			StringBuilder sb = new StringBuilder();
-			sb.append("[MoveLogToBigQueryCallable] (");
+			sb.append("[moveLog] (");
 			sb.append(serviceName);
 			sb.append(") Error occured. ");
 			sb.append(e.getClass().getName());
@@ -167,7 +199,15 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 				logger.error(sb.toString(), e);
 			}
 		}
-
+	}
+	
+	/**
+	 * ログイン履歴エントリーの移動
+	 * @param serviceName サービス名
+	 * @param limit Feed検索最大取得件数
+	 * @param systemContext SystemContext
+	 */
+	private void moveLoginHistory(String serviceName, int limit, SystemContext systemContext) {
 		try {
 			// ログイン履歴エントリーの移動
 			String requestUriBase = getLoginHistoryRequestUri(logKeepDate, limit);
@@ -177,26 +217,26 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 				// BDBからログイン履歴エントリーを取得。
 				String requestUri = addCursorStr(requestUriBase, cursorStr);
 
-				if (logger.isTraceEnabled()) {
+				if (isEnableAccessLogBdbbatch()) {
 					StringBuilder sb = new StringBuilder();
-					sb.append("(");
+					sb.append("[moveLoginHistory] (");
 					sb.append(serviceName);
 					sb.append(")");
 					sb.append("[get login_history] uri=");
 					sb.append(requestUri);
-					logger.debug(sb.toString());
+					logger.info(sb.toString());
 				}
 				FeedBase feed = systemContext.getFeed(requestUri);
 
 				if (TaggingEntryUtil.isExistData(feed)) {
-					if (logger.isTraceEnabled()) {
+					if (isEnableAccessLogBdbbatch()) {
 						StringBuilder sb = new StringBuilder();
-						sb.append("(");
+						sb.append("[moveLoginHistory] (");
 						sb.append(serviceName);
 						sb.append(")");
 						sb.append("[get login_history] entry.size=");
 						sb.append(feed.entry.size());
-						logger.debug(sb.toString());
+						logger.info(sb.toString());
 					}
 					// サービスにBigQueryの指定がある場合、BigQueryに内容を登録する。
 					List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
@@ -211,7 +251,7 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 					} catch (InvalidServiceSettingException se) {
 						// BigQueryの設定が無い場合
 						StringBuilder sb = new StringBuilder();
-						sb.append("[MoveLogToBigQueryCallable] (");
+						sb.append("[moveLoginHistory] (");
 						sb.append(serviceName);
 						sb.append(") BigQuery setting is not exist. ");
 						sb.append(se.getMessage());
@@ -225,13 +265,13 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 					cursorStr = TaggingEntryUtil.getCursorFromFeed(feed);
 
 				} else {
-					if (logger.isTraceEnabled()) {
+					if (isEnableAccessLogBdbbatch()) {
 						StringBuilder sb = new StringBuilder();
-						sb.append("(");
+						sb.append("[moveLoginHistory] (");
 						sb.append(serviceName);
 						sb.append(")");
 						sb.append("[get login_history] no entry.");
-						logger.debug(sb.toString());
+						logger.info(sb.toString());
 					}
 				}
 
@@ -240,7 +280,99 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 		} catch (Throwable e) {
 			// ログ出力し処理継続
 			StringBuilder sb = new StringBuilder();
-			sb.append("[MoveLogToBigQueryCallable] (");
+			sb.append("[moveLoginHistory] (");
+			sb.append(serviceName);
+			sb.append(") Error occured. ");
+			sb.append(e.getClass().getName());
+			if (e instanceof IllegalParameterException || 
+					e instanceof InvalidServiceSettingException) {
+				logger.warn(sb.toString());
+			} else {
+				logger.error(sb.toString(), e);
+			}
+		}
+	}
+	
+	/**
+	 * バッチジョブ履歴エントリーの移動
+	 * @param serviceName サービス名
+	 * @param limit Feed検索最大取得件数
+	 * @param systemContext SystemContext
+	 */
+	private void moveBatchjob(String serviceName, int limit, SystemContext systemContext) {
+		try {
+			// バッチジョブ履歴エントリーの移動
+			String requestUriBase = getBatchjobRequestUri(batchjobKeepDate, limit);
+			String cursorStr = null;
+			do {
+				cursorStr = null;
+				// BDBからバッチジョブ履歴エントリーを取得。
+				String requestUri = addCursorStr(requestUriBase, cursorStr);
+
+				if (isEnableAccessLogBdbbatch()) {
+					StringBuilder sb = new StringBuilder();
+					sb.append("[moveBatchjob] (");
+					sb.append(serviceName);
+					sb.append(")");
+					sb.append("[get batchjob] uri=");
+					sb.append(requestUri);
+					logger.info(sb.toString());
+				}
+				FeedBase feed = systemContext.getFeed(requestUri);
+
+				if (TaggingEntryUtil.isExistData(feed)) {
+					if (isEnableAccessLogBdbbatch()) {
+						StringBuilder sb = new StringBuilder();
+						sb.append("[moveBatchjob] (");
+						sb.append(serviceName);
+						sb.append(")");
+						sb.append("[get batchjob] entry.size=");
+						sb.append(feed.entry.size());
+						logger.info(sb.toString());
+					}
+					// サービスにBigQueryの指定がある場合、BigQueryに内容を登録する。
+					List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+					for (EntryBase entry : feed.entry) {
+						Map<String, Object> rowMap = convertBqBatchjob(entry);
+						list.add(rowMap);
+					}
+					try {
+						systemContext.postBq(
+								BatchBDBConst.BQ_TABLENAME_BATCHJOB,
+								list, false);
+					} catch (InvalidServiceSettingException se) {
+						// BigQueryの設定が無い場合
+						StringBuilder sb = new StringBuilder();
+						sb.append("[moveBatchjob] (");
+						sb.append(serviceName);
+						sb.append(") BigQuery setting is not exist. ");
+						sb.append(se.getMessage());
+						logger.info(sb.toString());
+					}
+
+					// バッチジョブ履歴エントリーを削除する。
+					systemContext.delete(feed);
+
+					// カーソル取得
+					cursorStr = TaggingEntryUtil.getCursorFromFeed(feed);
+
+				} else {
+					if (isEnableAccessLogBdbbatch()) {
+						StringBuilder sb = new StringBuilder();
+						sb.append("[moveBatchjob] (");
+						sb.append(serviceName);
+						sb.append(")");
+						sb.append("[get batchjob] no entry.");
+						logger.info(sb.toString());
+					}
+				}
+
+			} while (!StringUtils.isBlank(cursorStr));
+
+		} catch (Throwable e) {
+			// ログ出力し処理継続
+			StringBuilder sb = new StringBuilder();
+			sb.append("[moveBatchjob] (");
 			sb.append(serviceName);
 			sb.append(") Error occured. ");
 			sb.append(e.getClass().getName());
@@ -297,6 +429,25 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 		sb.append(limit);
 		sb.append("&updated-lt-");
 		sb.append(logKeepDate);
+		return sb.toString();
+	}
+
+	/**
+	 * バッチジョブ履歴検索URIを取得
+	 *   /_batchjob_alias?f&l={最大取得件数}&summary-lt-{バッチジョブ履歴削除日時(yyyyMMddHHmm)}
+	 * @param batchjobKeepDate バッチジョブ履歴残存日時
+	 * @param limit 最大取得件数
+	 * @return バッチジョブ履歴検索URI
+	 */
+	private String getBatchjobRequestUri(String batchjobKeepDate, int limit) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(Constants.URI_BATCHJOB_ALIAS);
+		sb.append("?");
+		sb.append(RequestParam.PARAM_LIMIT);
+		sb.append("=");
+		sb.append(limit);
+		sb.append("&summary-lt-");
+		sb.append(batchjobKeepDate);
 		return sb.toString();
 	}
 
@@ -386,6 +537,51 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 	}
 
 	/**
+	 * バッチジョブ履歴エントリーの内容をBigQuery用に変換
+	 * @param entry バッチジョブ履歴エントリー
+	 * @return BigQuery用ログ
+	 */
+	private Map<String, Object> convertBqBatchjob(EntryBase entry)
+	throws ParseException, java.text.ParseException {
+		String[] tmp = dividePodCloudrunjob(entry.subtitle);
+		String pod = tmp[0];
+		String jobId = tmp[1];
+		Map<String, Object> rowMap = new LinkedHashMap<String, Object>();
+		rowMap.put(BatchBDBConst.BQ_LOG_KEY, entry.getMyUri());
+		rowMap.put(BatchBDBConst.BQ_BATCHJOB_STATUS, entry.title);
+		rowMap.put(BatchBDBConst.BQ_BATCHJOB_SCRIPT, entry.rights);
+		rowMap.put(BatchBDBConst.BQ_BATCHJOB_START, entry.summary);
+		if (!StringUtils.isBlank(pod)) {
+			rowMap.put(BatchBDBConst.BQ_BATCHJOB_POD, pod);
+		}
+		if (!StringUtils.isBlank(jobId)) {
+			rowMap.put(BatchBDBConst.BQ_BATCHJOB_CLOUDRUNJOB, jobId);
+		}
+		rowMap.put(BatchBDBConst.BQ_LOG_UPDATED, convertDate(entry.updated));
+		return rowMap;
+	}
+	
+	/**
+	 * subtitleからPod名とCloudRunJob実行IDを分離する
+	 * @param subtitle {Pod名}[,{CloudRunJob実行ID}]
+	 * @return [0]Pod名、[1]CloudRunJob実行ID
+	 */
+	private String[] dividePodCloudrunjob(String subtitle) {
+		String pod = "";
+		String jobId = "";
+		if (!StringUtils.isBlank(subtitle)) {
+			int idx = subtitle.indexOf(",");
+			if (idx > 0) {
+				pod = subtitle.substring(0, idx);
+				jobId = subtitle.substring(idx + 1);
+			} else {
+				pod = subtitle;
+			}
+		}
+		return new String[]{pod, jobId};
+	}
+
+	/**
 	 * 日時文字列をDate型に変換する.
 	 * @param dateStr 日時文字列
 	 * @return Date型オブジェクト
@@ -393,6 +589,30 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 	private Date convertDate(String dateStr)
 	throws java.text.ParseException {
 		return DateUtil.getDate(dateStr, BatchBDBConst.TIMEZONE);
+	}
+	
+	/**
+	 * キー: /_batchjob/{ジョブ名}/{ジョブ実行時刻(yyyyMMddHHmm)} からジョブ名を抽出
+	 * @param uri キー
+	 * @return ジョブ名
+	 */
+	private String getScript(String uri) {
+		if (uri.startsWith(URI_BATCHJOB_SLASH)) {
+			return uri.substring(URI_BATCHJOB_SLASH_LEN, uri.indexOf("/", URI_BATCHJOB_SLASH_LEN + 1));
+		}
+		return null;
+	}
+	
+	/**
+	 * キー: /_batchjob/{ジョブ名}/{ジョブ実行時刻(yyyyMMddHHmm)} からジョブ実行時刻を抽出
+	 * @param uri キー
+	 * @return ジョブ実行時刻(yyyyMMddHHmm)
+	 */
+	private String getStart(String uri) {
+		if (uri.startsWith(URI_BATCHJOB_SLASH)) {
+			return uri.substring(uri.lastIndexOf("/") + 1);
+		}
+		return null;
 	}
 
 	/**
@@ -411,6 +631,14 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 		} else {
 			return message;
 		}
+	}
+
+	/**
+	 * BDBバッチのアクセスログを出力するかどうかを取得.
+	 * @return BDBバッチへのアクセスログを出力する場合true
+	 */
+	private boolean isEnableAccessLogBdbbatch() {
+		return VtecxBatchUtil.isEnableAccessLogBdbbatch();
 	}
 
 }

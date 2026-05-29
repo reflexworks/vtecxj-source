@@ -336,4 +336,10 @@ public interface MessageManager extends ReflexPlugin {
 	 */
 	public String getMsgReloadSecret();
 
+	/**
+	 * アクセストークン認証でセッション生成のメッセージを取得.
+	 * @return メッセージ
+	 */
+	public String getMsgCreateSession(String string);
+
 }

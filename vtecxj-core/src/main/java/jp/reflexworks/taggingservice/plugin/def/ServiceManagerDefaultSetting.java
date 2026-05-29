@@ -152,7 +152,8 @@ public class ServiceManagerDefaultSetting {
 		}
 
 		// URLサービス取得パターンを生成
-		if (reflexServerContextpath.indexOf(ServiceManagerDefaultConst.MARK_SERVICE) > -1) {
+		if (Constants.SERVERTYPE_AP.equals(serverType) && 
+				reflexServerContextpath.indexOf(ServiceManagerDefaultConst.MARK_SERVICE) > -1) {
 			String tmpReflexServerContextpath = reflexServerContextpath.replaceAll("\\:", "\\\\:");
 			tmpReflexServerContextpath = tmpReflexServerContextpath.replaceAll("\\/", "\\\\/");
 			tmpReflexServerContextpath = tmpReflexServerContextpath.replaceAll("\\.", "\\\\.");

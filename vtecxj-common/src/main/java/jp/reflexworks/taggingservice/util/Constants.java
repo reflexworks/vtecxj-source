@@ -81,10 +81,8 @@ public interface Constants extends AtomConst {
 	public static final String URI_SYSTEM_MANAGER = "/@";
 	/** 管理エントリーのキーの接頭辞 */
 	public static final String URI_SYSTEM_PREFIX = "/_";
-	/** URI : log (value) */
-	public static final String URI_LOG_VAL = "_log";
 	/** URI : log */
-	public static final String URI_LOG = "/" + URI_LOG_VAL;
+	public static final String URI_LOG = "/_log";
 	/** ユーザ初期エントリー設定 : ユーザ番号に置き換える記号 */
 	public static final String ADDUSERINFO_UID = SettingConst.SETTING_USERINIT_UID;
 
@@ -141,6 +139,10 @@ public interface Constants extends AtomConst {
 	public static final String URI_ASSIGNABLE = "/assignable";
 	/** URI : 割り当て可能server */
 	public static final String URI_BDB_ASSIGNABLE = URI_BDB + URI_ASSIGNABLE;
+	/** URI : ジョブ管理キー親階層 */
+	public static final String URI_BATCHJOB = "/_batchjob";
+	/** URI : ジョブ管理エイリアス親階層 */
+	public static final String URI_BATCHJOB_ALIAS = "/_batchjob_alias";
 
 	/** Cookie : upload */
 	public static final String COOKIE_UPLOAD = "upload";

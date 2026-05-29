@@ -4,10 +4,11 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import jakarta.servlet.ServletContextEvent;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.servlet.ServletContextEvent;
 import jp.reflexworks.taggingservice.api.ReflexListener;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
 
@@ -28,7 +29,7 @@ public class BatchJobListener extends ReflexListener {
 	public void contextInitialized(ServletContextEvent sce) {
 		super.contextInitialized(sce);
 		if (logger.isDebugEnabled()) {
-			logger.debug("[contextInitialized] start");
+			logger.info("[contextInitialized] start");
 		}
 
 		try {
@@ -37,7 +38,7 @@ public class BatchJobListener extends ReflexListener {
 			ReflexStatic.setStatic(BatchJobConst.STATIC_BATCHJOB_FUTURE_OF_JOB, futuresMap);
 
 			if (logger.isDebugEnabled()) {
-				logger.debug("[contextInitialized] end");
+				logger.info("[contextInitialized] end");
 			}
 
 		} catch (Throwable e) {

@@ -766,5 +766,35 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 			String linkToken, String authType, List<String> groups, String serviceName) {
 		return new Authentication(account, uid, sessionId, linkToken, authType, groups, serviceName);
 	}
+	
+	/**
+	 * アクセストークン認証でセッション生成
+	 * @param req リクエスト
+	 * @param resp レスポンス
+	 * @return SID
+	 */
+	@Override
+	public String createSession(ReflexRequest req, ReflexResponse resp)
+	throws IOException, TaggingException {
+		// アクセストークン認証の場合のみ実行可
+		ReflexAuthentication auth = req.getAuth();
+		String serviceName = req.getServiceName();
+		RequestInfo requestInfo = req.getRequestInfo();
+		ConnectionInfo connectionInfo = req.getConnectionInfo();
+		if (!Constants.AUTH_TYPE_ACCESSTOKEN.equals(auth.getAuthType())) {
+			AuthenticationException ae = new AuthenticationException();
+			ae.setSubMessage("AuthType is not accesstoken.");
+			throw ae;
+		}
+
+		// セッション生成
+		SessionBlogic sessionBlogic = new SessionBlogic();
+		String sid = sessionBlogic.createSession(auth, serviceName,
+				requestInfo, connectionInfo);
+		// セッションをCookieに設定
+		int maxAge = sessionBlogic.getSessionExpire(serviceName);
+		setCookie(req, resp, ReflexServletConst.COOKIE_SID, sid, maxAge);
+		return sid;
+	}
 
 }

@@ -20,6 +20,7 @@ import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
+import jp.reflexworks.taggingservice.plugin.JobManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
 import jp.reflexworks.taggingservice.plugin.MemorySortManager;
@@ -416,6 +417,12 @@ public interface ReflexEnv extends BaseReflexEnv {
 	 * @return 課金管理プラグイン
 	 */
 	public PaymentManager getPaymentManager();
+
+	/**
+	 * ジョブ実行管理プラグインを取得.
+	 * @return ジョブ実行管理プラグイン
+	 */
+	public JobManager getJobManager();
 
 	/**
 	 * サーバ稼働中かどうか.

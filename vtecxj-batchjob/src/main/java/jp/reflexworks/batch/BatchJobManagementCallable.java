@@ -36,8 +36,8 @@ public class BatchJobManagementCallable extends ReflexCallable<Boolean> {
 	public Boolean call()
 	throws IOException, TaggingException {
 		long startTime = 0;
-		if (logger.isTraceEnabled()) {
-			logger.debug("[call] start. podName=" + podName);
+		if (isEnabledAccessLog()) {
+			logger.info("[call] start. podName=" + podName);
 			startTime = new Date().getTime();
 		}
 
@@ -47,17 +47,25 @@ public class BatchJobManagementCallable extends ReflexCallable<Boolean> {
 		BatchJobBlogic blogic = new BatchJobBlogic();
 		blogic.execManagement(podName, reflexContext);
 
-		if (logger.isTraceEnabled()) {
+		if (isEnabledAccessLog()) {
 			long finishTime = new Date().getTime();
 			long time = finishTime - startTime;
 			StringBuilder sb = new StringBuilder();
 			sb.append("[call] end - ");
 			sb.append(time);
 			sb.append("ms.");
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 
 		return true;
+	}
+	
+	/**
+	 * アクセスログを出力する場合true
+	 * @return 
+	 */
+	private boolean isEnabledAccessLog() {
+		return BatchJobUtil.isEnableAccessLog();
 	}
 
 }

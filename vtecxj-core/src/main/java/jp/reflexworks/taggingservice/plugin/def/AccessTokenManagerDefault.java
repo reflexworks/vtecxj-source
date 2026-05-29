@@ -379,9 +379,16 @@ public class AccessTokenManagerDefault implements AccessTokenManager {
 	 * @return アクセストークン
 	 */
 	public String getAccessTokenFromRequest(ReflexRequest req) {
-		return ReflexServletUtil.getHeaderValue(req,
+		String accessToken = ReflexServletUtil.getHeaderValue(req,
 				ReflexServletConst.HEADER_AUTHORIZATION,
-				ReflexServletConst.HEADER_AUTHORIZATION_TOKEN);
+				ReflexServletConst.HEADER_AUTHORIZATION_BEARER);
+		if (!StringUtils.isBlank(accessToken)) {
+			return accessToken;
+		} else {
+			return ReflexServletUtil.getHeaderValue(req,
+					ReflexServletConst.HEADER_AUTHORIZATION,
+					ReflexServletConst.HEADER_AUTHORIZATION_TOKEN);
+		}
 	}
 
 	/**

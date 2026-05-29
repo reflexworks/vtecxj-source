@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-redis</artifactId>
-  <version>10.0.0</version>
+  <version>10.0.1</version>
   <packaging>jar</packaging>
 
   <name>vte.cx Redis</name>
@@ -18,7 +18,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-common-version>10.0.0</vtecxj-common-version>
+    <vtecxj-common-version>10.0.1</vtecxj-common-version>
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
   </properties>
@@ -33,7 +33,7 @@
     <dependency>
       <groupId>redis.clients</groupId>
       <artifactId>jedis</artifactId>
-      <version>7.0.0</version>
+      <version>7.5.0</version>
       <exclusions>
         <exclusion>
           <groupId>org.json</groupId>

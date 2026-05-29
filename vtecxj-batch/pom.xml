@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-batch</artifactId>
-  <version>10.0.0</version>
+  <version>10.0.1</version>
   <packaging>jar</packaging>
 
   <description>vte.cx batch</description>
@@ -18,12 +18,12 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-storage-version>10.0.0</vtecxj-storage-version>
-    <vtecxj-bdbclient-version>10.0.0</vtecxj-bdbclient-version>
-    <vtecxj-bigquery-version>10.0.0</vtecxj-bigquery-version>
-    <vtecxj-authenticator-version>10.0.0</vtecxj-authenticator-version>
-    <vtecxj-redis-version>10.0.0</vtecxj-redis-version>
-    <vtecxj-secret-version>10.0.0</vtecxj-secret-version>
+    <vtecxj-storage-version>10.0.1</vtecxj-storage-version>
+    <vtecxj-bdbclient-version>10.0.1</vtecxj-bdbclient-version>
+    <vtecxj-bigquery-version>10.0.1</vtecxj-bigquery-version>
+    <vtecxj-authenticator-version>10.0.1</vtecxj-authenticator-version>
+    <vtecxj-redis-version>10.0.1</vtecxj-redis-version>
+    <vtecxj-secret-version>10.0.1</vtecxj-secret-version>
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
   </properties>
@@ -66,6 +66,15 @@
       <groupId>jp.reflexworks</groupId>
       <artifactId>vtecxj-secret</artifactId>
       <version>${vtecxj-secret-version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- 以下はコンパイル時には不要だが、実行環境に必要 -->
+    <!-- メール送信(ディスク使用率アラート) -->
+    <dependency>
+      <groupId>org.eclipse.angus</groupId>
+      <artifactId>angus-mail</artifactId>
+      <version>2.0.5</version>
       <scope>runtime</scope>
     </dependency>
 

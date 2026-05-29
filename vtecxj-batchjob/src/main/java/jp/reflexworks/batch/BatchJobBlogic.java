@@ -77,8 +77,8 @@ public class BatchJobBlogic {
 			throw new IllegalStateException("Please specify system service for the service name.");
 		}
 
-		if (logger.isTraceEnabled()) {
-			logger.debug("[BatchJobBlogic] exec start. podName=" + podName);
+		if (isEnabledAccessLog()) {
+			logger.info("[BatchJobBlogic] exec start. podName=" + podName);
 		}
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
 		ConnectionInfo connectionInfo = reflexContext.getConnectionInfo();
@@ -127,8 +127,8 @@ public class BatchJobBlogic {
 			// Do nothing.
 		}
 
-		if (logger.isTraceEnabled()) {
-			logger.debug("[BatchJobBlogic] exec end.");
+		if (isEnabledAccessLog()) {
+			logger.info("[BatchJobBlogic] exec end.");
 		}
 	}
 
@@ -177,14 +177,23 @@ public class BatchJobBlogic {
 
 			// サービス管理者権限のReflexContextを生成
 			ReflexAuthentication serviceAdminAuth = createServiceAdminAuth(systemContext);
+			if (serviceAdminAuth == null) {
+				// サービス管理者権限なし
+				if (isEnabledAccessLog()) {
+					logger.info(getLoggerPrefix(methodName, serviceName) + 
+							"no service admin. serviceName=" + serviceName);
+				}
+				return null;
+			}
 
 			// /_settings/propertiesのバッチジョブ設定を取得
 			Map<String, String> batchJobs = TaggingEnvUtil.getPropMap(serviceName,
 					BatchJobConst.PROP_BATCHJOB_PREFIX);
 			if (batchJobs == null || batchJobs.isEmpty()) {
 				// バッチジョブ設定なし
-				if (logger.isTraceEnabled()) {
-					logger.debug(getLoggerPrefix(methodName, serviceName) + "no settings.");
+				if (isEnabledAccessLog()) {
+					logger.info(getLoggerPrefix(methodName, serviceName) + 
+							"no settings. serviceName=" + serviceName);
 				}
 				return null;
 			}
@@ -203,6 +212,9 @@ public class BatchJobBlogic {
 			// キー: /_batchjob
 			String batchJobTopFolderUri = getBatchJobTopFolderUri();
 			postFolder(batchJobTopFolderUri, systemContext);
+			// エイリアス: /_batchjob_alias
+			String batchJobTopFolderAlias = getBatchJobTopFolderAlias();
+			postFolder(batchJobTopFolderAlias, systemContext);
 
 			List<BatchJobFuture> futures = new ArrayList<>();
 			for (Map.Entry<String, String> mapEntry : batchJobs.entrySet()) {
@@ -273,8 +285,8 @@ public class BatchJobBlogic {
 				List<String> nextJobDates = BatchJobUtil.getNextJobDates(batchjobSetting,
 						now, nowParts, rangeDateStr);
 				if (nextJobDates == null || nextJobDates.isEmpty()) {
-					if (logger.isTraceEnabled()) {
-						logger.debug(getLoggerPrefix(methodName, serviceName) +
+					if (isEnabledAccessLog()) {
+						logger.info(getLoggerPrefix(methodName, serviceName) +
 								BatchJobUtil.editErrorMessage("The batchjob is not scheduled yet.", propName, propVal));
 					}
 					return null;
@@ -302,9 +314,12 @@ public class BatchJobBlogic {
 			}
 		} catch (IllegalParameterException e) {
 			// 設定エラーの場合、ログに出力して次の設定を読み込み、後続の処理を実行するため例外をスローしない。
-			String msg = BatchJobUtil.editErrorMessage(e);
-			logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
-			systemContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
+			// (2026.5.13)5分おきに同じログが出力されることになるため、ログ出力しない。
+			if (isEnabledAccessLog()) {
+				String msg = BatchJobUtil.editErrorMessage(e);
+				logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
+				//systemContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
+			}
 			return null;
 		}
 	}
@@ -358,9 +373,9 @@ public class BatchJobBlogic {
 			batchJobTimeEntry = systemContext.getEntry(batchJobTimeUri);
 			if (batchJobTimeEntry != null) {
 				// バッチジョブ管理データが存在する場合、他のPodによってバッチジョブが実行されているため実行しない。
-				if (logger.isTraceEnabled()) {
+				if (isEnabledAccessLog()) {
 					String msg = "The batch job has been executed. " + batchJobTimeUri;
-					logger.debug(getLoggerPrefix(methodName, serviceName) + msg);
+					logger.info(getLoggerPrefix(methodName, serviceName) + msg);
 				}
 				batchJobTimeEntry = null;	// finallyでバッチジョブ管理エントリーを更新しない。
 				return null;
@@ -369,14 +384,14 @@ public class BatchJobBlogic {
 			try {
 				// バッチジョブ排他
 				EntryBase tmpBatchJobTimeEntry = createBatchJobTimeEntry(
-						podName, batchJobTimeUri, serviceName);
+						podName, batchJobTimeUri, jobName, jobDateStr, serviceName);
 				currentExecUri = batchJobTimeUri;
 				batchJobTimeEntry = systemContext.post(tmpBatchJobTimeEntry);
 			} catch (EntryDuplicatedException e) {
 				// すでに同じキーのエントリーが存在する場合、他のPodによってバッチジョブが実行されているため、
 				// 該当ジョブは実行しない。
-				if (logger.isDebugEnabled()) {
-					logger.debug(getLoggerPrefix(methodName, serviceName) +
+				if (isEnabledAccessLog()) {
+					logger.info(getLoggerPrefix(methodName, serviceName) +
 							"EntryDuplicatedException: " + e.getMessage());
 				}
 				return null;
@@ -398,7 +413,7 @@ public class BatchJobBlogic {
 
 			// 実行待ち時間を計算
 			int delay = BatchJobUtil.getDiffMilliSec(nowTime, jobDateStr);
-			if (logger.isDebugEnabled()) {
+			if (isEnabledAccessLog()) {
 				StringBuilder sb = new StringBuilder();
 				sb.append(getLoggerPrefix(methodName, serviceName));
 				sb.append("now=");
@@ -407,7 +422,7 @@ public class BatchJobBlogic {
 				sb.append(jobDateStr);
 				sb.append(", delay=");
 				sb.append(delay);
-				logger.debug(sb.toString());
+				logger.info(sb.toString());
 			}
 
 			// バッチジョブ実行TaskQueueを登録
@@ -419,7 +434,11 @@ public class BatchJobBlogic {
 		} catch (Throwable e) {
 			// エラーの場合も後続の処理を実行するため例外をスローしない。
 			String msg = BatchJobUtil.editErrorMessage(currentExecUri, e);
-			if (e instanceof TaggingException || e instanceof IllegalParameterException) {
+			if (e instanceof IllegalParameterException) {
+				if (isEnabledAccessLog()) {
+					logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
+				}
+			} else if (e instanceof TaggingException) {
 				logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
 			} else {
 				logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
@@ -456,6 +475,7 @@ public class BatchJobBlogic {
 	private ReflexAuthentication createServiceAdminAuth(SystemContext systemContext)
 	throws IOException, TaggingException {
 		String serviceName = systemContext.getServiceName();
+		AuthenticationManager authManager = TaggingEnvUtil.getAuthenticationManager();
 		// サービス管理者のUIDを取得
 		FeedBase feed = systemContext.getFeed(Constants.URI_GROUP_ADMIN);
 		if (feed != null && feed.entry != null && !feed.entry.isEmpty()) {
@@ -465,9 +485,6 @@ public class BatchJobBlogic {
 
 			UserManager userManager = TaggingEnvUtil.getUserManager();
 			String account = userManager.getAccountByUid(uid, systemContext);
-			//ReflexAuthentication auth = new Authentication(account, uid, sessionId,
-			//		Constants.AUTH_TYPE_SYSTEM, serviceName);
-			AuthenticationManager authManager = TaggingEnvUtil.getAuthenticationManager();
 			ReflexAuthentication auth = authManager.createAuth(account, uid, sessionId,
 					Constants.AUTH_TYPE_SYSTEM, serviceName);
 			// グループ追加
@@ -549,6 +566,7 @@ public class BatchJobBlogic {
 
 	/**
 	 * バッチジョブ管理URI(ジョブ実行時刻まで)を取得
+	 *   /_batchjob/{ジョブ名}/{ジョブ実行時刻(yyyyMMddHHmm)}
 	 * @param jobName ジョブ名
 	 * @param jobDateStr ジョブ実行時刻文字列
 	 * @return バッチジョブ管理URI(ジョブ実行時刻まで)
@@ -558,6 +576,35 @@ public class BatchJobBlogic {
 		sb.append(getBatchJobFolderUri(jobName));
 		sb.append("/");
 		sb.append(jobDateStr);
+		return sb.toString();
+	}
+
+	/**
+	 * バッチジョブ管理エイリアス親URIを取得
+	 * @return バッチジョブ管理エイリアス親URI
+	 */
+	private String getBatchJobTopFolderAlias() {
+		return BatchJobConst.URI_BATCHJOB_ALIAS;
+	}
+
+	/**
+	 * バッチジョブ管理エイリアスURI(ジョブ実行時刻まで)を取得
+	 *   /_batchjob_alias/{999999999999-ジョブ実行時刻(yyyyMMddHHmm)}_{ジョブ名}
+	 * @param jobName ジョブ名
+	 * @param jobDateStr ジョブ実行時刻文字列
+	 * @return バッチジョブ管理エイリアスURI(ジョブ実行時刻まで)
+	 */
+	private String getBatchJobTimeAlias(String jobName, String jobDateStr) {
+		long descLong = 999999999999L;
+		long jobDataLong = StringUtils.parseLong(jobDateStr);
+		long timeLong = descLong - jobDataLong;
+		String timeStr = Long.toString(timeLong);
+		StringBuilder sb = new StringBuilder();
+		sb.append(getBatchJobTopFolderAlias());
+		sb.append("/");
+		sb.append(timeStr);
+		sb.append("_");
+		sb.append(jobName);
 		return sb.toString();
 	}
 
@@ -580,8 +627,8 @@ public class BatchJobBlogic {
 
 			} catch (EntryDuplicatedException e) {
 				// 登録の重複は問題なし
-				if (logger.isDebugEnabled()) {
-					logger.debug(getLoggerPrefix(methodName, serviceName) +
+				if (isEnabledAccessLog()) {
+					logger.info(getLoggerPrefix(methodName, serviceName) +
 							"EntryDuplicatedException: " + e.getMessage());
 				}
 			}
@@ -592,19 +639,26 @@ public class BatchJobBlogic {
 	 * バッチジョブ管理エントリー生成.
 	 * @param podName POD名
 	 * @param uri URI
+	 * @param jobName ジョブ名
+	 * @param jobDateStr ジョブ実行日時
 	 * @param serviceName サービス名
 	 * @return バッチジョブ管理エントリー
 	 */
-	private EntryBase createBatchJobTimeEntry(String podName, String uri,
-			String serviceName) {
+	private EntryBase createBatchJobTimeEntry(String podName, String uri, 
+			String jobName, String jobDateStr, String serviceName) {
 		// キー: /_batchjob/{ジョブ名}/{ジョブ実行時刻(yyyyMMddHHmm)}
+		// エイリアス: /_batchjob_alias/{999999999999-ジョブ実行時刻(yyyyMMddHHmm)}_{ジョブ名}
 		// 値
 		//    titleにrunning(ジョブ実行ステータス: 実行中)
 		//    subtitleにPod名(環境変数HOSTNAMEで取得可)
 		EntryBase batchJobTimeEntry = TaggingEntryUtil.createEntry(serviceName);
 		batchJobTimeEntry.setMyUri(uri);
+		String alias = getBatchJobTimeAlias(jobName, jobDateStr);
+		batchJobTimeEntry.addAlternate(alias);
 		batchJobTimeEntry.title = BatchJobConst.JOB_STATUS_WAITING;
 		batchJobTimeEntry.subtitle = podName;
+		batchJobTimeEntry.summary = jobDateStr;
+		batchJobTimeEntry.rights = jobName;
 		return batchJobTimeEntry;
 	}
 
@@ -629,6 +683,14 @@ public class BatchJobBlogic {
 	private void checkRedis(ReflexContext reflexContext) throws IOException, TaggingException {
 		// エラーが発生しなければ、Redisが問題なく使用できるということなのでOK
 		reflexContext.getCacheString("/_batchjobdummy");
+	}
+	
+	/**
+	 * アクセスログを出力する場合true
+	 * @return アクセスログを出力する場合true
+	 */
+	private boolean isEnabledAccessLog() {
+		return BatchJobUtil.isEnableAccessLog();
 	}
 
 }

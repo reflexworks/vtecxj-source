@@ -47,28 +47,28 @@ public class JsExec {
 	 * 設定 : サーバサイドJS実行タイムアウト時間(秒).
 	 *       サービスごとの設定が無い場合、こちらの値を使用する。
 	 */
-	private static final String JAVASCRIPT_EXECTIMEOUT = JsServiceSettingConst.JAVASCRIPT_EXECTIMEOUT;
+	public static final String JAVASCRIPT_EXECTIMEOUT = JsServiceSettingConst.JAVASCRIPT_EXECTIMEOUT;
 	/** 設定 : バッチジョブのサーバサイドJS実行タイムアウト時間(秒) */
 	public static final String JAVASCRIPT_BATCHJOBTIMEOUT = JsServiceSettingConst.JAVASCRIPT_BATCHJOBTIMEOUT;
 	/** 設定 : サーバサイドJSキャッシュサイズ(個数) */
-	private static final String JAVASCRIPT_CACHESIZE = "_javascript.cachesize";
+	public static final String JAVASCRIPT_CACHESIZE = "_javascript.cachesize";
 	/** 設定 : ExecutorServiceのデフォルトのプールサイズ */
-	private static final String JSEXEC_POOLSIZE = "_jsexec.poolsize";
+	public static final String JSEXEC_POOLSIZE = "_jsexec.poolsize";
 	/** 設定 : シャットダウン時の強制終了待ち時間(秒) */
-	private static final String JSEXEC_AWAITTERMINATION_SEC = "_jsexec.awaittermination.sec";
+	public static final String JSEXEC_AWAITTERMINATION_SEC = "_jsexec.awaittermination.sec";
 	/** 設定 : サーバサイドJSアクセスログを出力するかどうか */
-	private static final String JAVASCRIPT_ENABLE_ACCESSLOG = "_javascript.enable.accesslog";
+	public static final String JAVASCRIPT_ENABLE_ACCESSLOG = "_javascript.enable.accesslog";
 
 	/** サーバサイドJS実行タイムアウト時間(秒) デフォルト値 */
-	private static final int JAVASCRIPT_EXECTIMEOUT_DEFAULT = 300;
+	public static final int JAVASCRIPT_EXECTIMEOUT_DEFAULT = 300;
 	/** バッチジョブのサーバサイドJS実行タイムアウト時間(秒) デフォルト値 */
-	private static final int JAVASCRIPT_BATCHJOBTIMEOUT_DEFAULT = 600;
+	public static final int JAVASCRIPT_BATCHJOBTIMEOUT_DEFAULT = 600;
 	/** ExecutorServiceのデフォルトのプールサイズ デフォルト値 */
-	private static final int JSEXEC_POOLSIZE_DEFAULT = 10;
+	public static final int JSEXEC_POOLSIZE_DEFAULT = 10;
 	/** シャットダウン時の強制終了待ち時間(秒) デフォルト値 */
-	private static final int JSEXEC_AWAITTERMINATION_SEC_DEFAULT = 60;
+	public static final int JSEXEC_AWAITTERMINATION_SEC_DEFAULT = 60;
 	/** サーバタイプ : バッチジョブ */
-	private static final String SERVERTYPE_BATCHJOB = Constants.SERVERTYPE_BATCHJOB;
+	public static final String SERVERTYPE_BATCHJOB = Constants.SERVERTYPE_BATCHJOB;
 
 	/** サーバサイドJS非同期実行クラス */
 	private static ScheduledExecutorService exec = Executors.newScheduledThreadPool(
@@ -274,6 +274,8 @@ public class JsExec {
 
 		StringBuilder sb = new StringBuilder();
 		sb.append("var console = {};console.log = function(s) { var f = ReflexContext.settingValue('console.log'); if (f&&f==='true') ReflexContext.log(s)};console.error=function(s) { var f=ReflexContext.settingValue('console.error'); if (f&&f==='true') ReflexContext.log(s)};console.warn=function(s) { var f = ReflexContext.settingValue('console.warn');if (f&&f==='true') ReflexContext.log(s)};");
+		sb.append("if (typeof module === 'undefined') { var module = { exports: {} }; }");
+		sb.append("if (typeof exports === 'undefined') { var exports = module.exports; }");
 		String main = contentjs(func, reflexContext);
 		if (isEnableAccessLog()) {
 			StringBuilder dbg = new StringBuilder();

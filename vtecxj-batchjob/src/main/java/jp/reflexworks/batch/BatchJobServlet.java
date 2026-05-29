@@ -47,7 +47,7 @@ public class BatchJobServlet extends HttpServlet {
 	@Override
 	public void init() {
 		if (logger.isTraceEnabled()) {
-			logger.debug("[init] start.");
+			logger.info("[init] start.");
 		}
 		JsExec.init();
 	}
@@ -75,7 +75,7 @@ public class BatchJobServlet extends HttpServlet {
 	public void doPost(HttpServletRequest httpReq, HttpServletResponse httpResp)
 	throws IOException {
 		if (logger.isTraceEnabled()) {
-			logger.debug("[doPost] start");
+			logger.info("[doPost] start");
 		}
 
 		// バッチジョブ管理処理をTaskQueueに登録してレスポンスする。
@@ -130,7 +130,7 @@ public class BatchJobServlet extends HttpServlet {
 	public void doPut(HttpServletRequest httpReq, HttpServletResponse httpResp)
 	throws IOException {
 		if (logger.isTraceEnabled()) {
-			logger.debug("[doPut] start");
+			logger.info("[doPut] start");
 		}
 
 		// サービス名取得
@@ -163,8 +163,8 @@ public class BatchJobServlet extends HttpServlet {
 			batchJobBlogic.initService(serviceName, requestInfo, connectionInfo);
 			
 			if (httpReq.getParameter(RequestParam.PARAM_CHECK_MQ) != null) {
-				if (logger.isTraceEnabled()) {
-					logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "_check_mq");
+				if (isEnabledAccessLog()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_mq");
 				}
 				// メッセージキュー未送信チェック
 				MessageQueueBlogic blogic = new MessageQueueBlogic();
@@ -175,8 +175,8 @@ public class BatchJobServlet extends HttpServlet {
 				writeResponseData(httpResp, "Check message queue completed: " + serviceName);
 				
 			} else if (httpReq.getParameter(RequestParam.PARAM_CHECK_BDBQ) != null) {
-				if (logger.isTraceEnabled()) {
-					logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "_check_bdbq");
+				if (isEnabledAccessLog()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_bdbq");
 				}
 				// BDBQリトライチェック
 				BigQueryBlogic blogic = new BigQueryBlogic();
@@ -228,7 +228,7 @@ public class BatchJobServlet extends HttpServlet {
 	 */
 	@Override
 	public void destroy() {
-		if (logger.isInfoEnabled()) {
+		if (isEnabledAccessLog()) {
 			logger.info("[destroy] start.");
 		}
 		super.destroy();
@@ -236,7 +236,7 @@ public class BatchJobServlet extends HttpServlet {
 		BatchJobUtil.deleteWaiting();
 		// TaggingServiceのシャットダウン処理
 		TaggingEnvUtil.destroy();
-		if (logger.isInfoEnabled()) {
+		if (isEnabledAccessLog()) {
 			logger.info("[destroy] end.");
 		}
 	}
@@ -253,6 +253,14 @@ public class BatchJobServlet extends HttpServlet {
 			writer.write(text);
 			writer.write(Constants.NEWLINE);
 		}
+	}
+	
+	/**
+	 * アクセスログを出力する場合true
+	 * @return 
+	 */
+	private boolean isEnabledAccessLog() {
+		return BatchJobUtil.isEnableAccessLog();
 	}
 
 }

@@ -29,6 +29,7 @@ import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.EMailManager;
 import jp.reflexworks.taggingservice.plugin.ExecuteAtCreateService;
 import jp.reflexworks.taggingservice.plugin.IncrementManager;
+import jp.reflexworks.taggingservice.plugin.JobManager;
 import jp.reflexworks.taggingservice.plugin.LogManager;
 import jp.reflexworks.taggingservice.plugin.LoginLogoutManager;
 import jp.reflexworks.taggingservice.plugin.MemorySortManager;
@@ -733,6 +734,15 @@ public final class TaggingEnvUtil {
 	public static PaymentManager getPaymentManager() {
 		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
 		return env.getPaymentManager();
+	}
+
+	/**
+	 * ジョブ実行管理プラグインを取得.
+	 * @return job manager
+	 */
+	public static JobManager getJobManager() {
+		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
+		return env.getJobManager();
 	}
 
 	/**

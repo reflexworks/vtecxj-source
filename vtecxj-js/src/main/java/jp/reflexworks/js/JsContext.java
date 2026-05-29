@@ -713,14 +713,14 @@ public class JsContext {
 		reflexContext.pagination(uri, num, targetServiceName, targetServiceKey);
 	}
 
-	public String getPage(String uri, String num) throws IOException, TaggingException {
-		FeedBase feed = reflexContext.getPage(uri, num);
+	public String getPage(String uri, int num) throws IOException, TaggingException {
+		FeedBase feed = reflexContext.getPage(uri, Integer.toString(num));
 		return templateMapper.toJSON(feed);
 	}
 
-	public String getPage(String uri, String num, String targetServiceName, String targetServiceKey)
+	public String getPage(String uri, int num, String targetServiceName, String targetServiceKey)
 			throws IOException, TaggingException {
-		FeedBase feed = reflexContext.getPage(uri, num, targetServiceName, targetServiceKey);
+		FeedBase feed = reflexContext.getPage(uri, Integer.toString(num), targetServiceName, targetServiceKey);
 		return templateMapper.toJSON(feed);
 	}
 

@@ -121,5 +121,14 @@ public interface AuthenticationManager extends ReflexPlugin {
 	 */
 	public void setGroups(ReflexAuthentication auth, SystemContext systemContext)
 	throws IOException, TaggingException;
+	
+	/**
+	 * アクセストークン認証でセッション生成
+	 * @param req リクエスト
+	 * @param resp レスポンス
+	 * @return SID
+	 */
+	public String createSession(ReflexRequest req, ReflexResponse resp)
+	throws IOException, TaggingException;
 
 }

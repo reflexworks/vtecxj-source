@@ -527,7 +527,25 @@ public class SessionBlogic {
 		AuthenticationManager authManager = TaggingEnvUtil.getAuthenticationManager();
 		ReflexAuthentication tmpAuth = authManager.createAuth(account, uid, null,
 				Constants.AUTH_TYPE_SYSTEM, serviceName);
+		
+		// セッション生成
+		String sid = createSession(tmpAuth, serviceName, requestInfo, connectionInfo);
 
+		// 認証情報オブジェクトを生成
+		return authManager.createAuth(account, uid, sid, authType, serviceName);
+	}
+
+	/**
+	 * セッションを生成.
+	 * @param auth 認証情報
+	 * @param serviceName サービス名
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return セッションID
+	 */
+	public String createSession(ReflexAuthentication auth, String serviceName,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
 		// セッション有効時間
 		int sec = getSessionExpire(serviceName);
 
@@ -536,10 +554,8 @@ public class SessionBlogic {
 
 		// セッション生成
 		SessionManager sessionManager = TaggingEnvUtil.getSessionManager();
-		String sid = sessionManager.createSession(tmpAuth, sec, serviceName,
+		return sessionManager.createSession(auth, sec, serviceName,
 				namespace, requestInfo, connectionInfo);
-
-		return authManager.createAuth(account, uid, sid, authType, serviceName);
 	}
 
 	/**
