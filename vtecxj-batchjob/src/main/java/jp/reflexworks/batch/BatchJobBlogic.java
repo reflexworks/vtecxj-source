@@ -657,6 +657,8 @@ public class BatchJobBlogic {
 		batchJobTimeEntry.addAlternate(alias);
 		batchJobTimeEntry.title = BatchJobConst.JOB_STATUS_WAITING;
 		batchJobTimeEntry.subtitle = podName;
+		batchJobTimeEntry.summary = jobDateStr;
+		batchJobTimeEntry.rights = jobName;
 		return batchJobTimeEntry;
 	}
 

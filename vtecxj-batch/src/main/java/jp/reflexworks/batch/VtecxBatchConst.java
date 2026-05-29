@@ -24,4 +24,7 @@ public class VtecxBatchConst {
 	/** アクセスカウンタ集計日算出のための、現在時刻からの経過時間(時) デフォルト値 */
 	public static final int ACCESSCOUNT_INTERVAL_HOUR_DEFAULT = 12;
 
+	/** 設定 : BDBバッチのデバッグログを出力する場合true */
+	public static final String BDBBATCH_ENABLE_ACCESSLOG = "_bdbbatch.enable.accesslog";
+
 }

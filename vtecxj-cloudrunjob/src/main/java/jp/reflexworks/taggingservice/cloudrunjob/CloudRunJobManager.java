@@ -193,7 +193,11 @@ public class CloudRunJobManager implements JobManager {
 				if (metadata != null && !metadata.getName().isEmpty()) {
 					String executionId = TaggingEntryUtil.getSelfidUri(metadata.getName());
 					if (!StringUtils.isBlank(executionId)) {
-						batchJobTimeEntry.summary = executionId;
+						StringBuilder sb = new StringBuilder();
+						sb.append(batchJobTimeEntry.subtitle);
+						sb.append(",");
+						sb.append(executionId);
+						batchJobTimeEntry.subtitle = sb.toString();
 					}
 				}
 			} catch (Throwable ignore) {

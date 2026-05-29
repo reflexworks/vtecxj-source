@@ -186,7 +186,7 @@ public class ServiceManagerDefault implements ServiceManager {
 					"[isEnabled] " + e.getMessage(), e);
 		}
 
-		if (logger.isDebugEnabled()) {
+		if (isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
 			sb.append("[isEnabled] return false. serviceName=");
@@ -689,7 +689,7 @@ public class ServiceManagerDefault implements ServiceManager {
 		// 新サービスに登録されたサービス管理ユーザのUIDを取得
 		EntryBase newTopEntry = retFeed.entry.get(0);
 		String newUid = userManager.getUidByUri(newTopEntry.getMyUri());
-		if (logger.isDebugEnabled()) {
+		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[createservice] newUid = " + newUid);
 		}
@@ -734,7 +734,7 @@ public class ServiceManagerDefault implements ServiceManager {
 		
 		// バッチジョブ実行時間
 		entry = TaggingEntryUtil.createEntry(systemService);
-		entry.setMyUri(TaggingServiceUtil.getBatchjobExecSecUri(newServiceName));
+		entry.setMyUri(TaggingServiceUtil.getBatchjobExectimeUri(newServiceName));
 		entry.contributor = createACLReadonlyContributors(uid);
 		putFeed.addEntry(entry);
 
@@ -751,7 +751,7 @@ public class ServiceManagerDefault implements ServiceManager {
 	private void createservicePlugin(String newServiceName, String serviceStatus,
 			ReflexAuthentication auth, SystemContext reflexContext)
 	throws IOException, TaggingException {
-		if (logger.isDebugEnabled()) {
+		if (isEnableAccessLog()) {
 			logger.info("[createservicePlugin] start.");
 		}
 		// ExecuteAtCreateService インターフェースを実行
@@ -759,7 +759,7 @@ public class ServiceManagerDefault implements ServiceManager {
 				TaggingEnvUtil.getExecuteAtCreateServiceList();
 		if (executeAtCreateServiceList != null) {
 			for (ExecuteAtCreateService executeAtCreateService : executeAtCreateServiceList) {
-				if (logger.isDebugEnabled()) {
+				if (isEnableAccessLog()) {
 					logger.info("[createservicePlugin] doCreateService. " + executeAtCreateService.getClass().getName());
 				}
 				executeAtCreateService.doCreateService(newServiceName, serviceStatus, auth, reflexContext);
@@ -1610,12 +1610,12 @@ public class ServiceManagerDefault implements ServiceManager {
 		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
 				requestInfo, connectionInfo);
 		String uri = TaggingServiceUtil.getAccessCountTodayUri(serviceName);
-		if (logger.isTraceEnabled()) {
+		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[incrementAccessCounter] uri: " + uri + " start.");
 		}
 		long count = systemContext.incrementCache(uri, 1);
-		if (logger.isTraceEnabled()) {
+		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[incrementAccessCounter] uri: " + uri + " , count: " + count);
 		}
 		// 本日分アクセスカウンタの有効期限を設定
@@ -1634,7 +1634,7 @@ public class ServiceManagerDefault implements ServiceManager {
 		}
 		long maxCount = TaggingEnvUtil.getSystemPropLong(ServiceConst.PROP_MAX_ACCESS_COUNT,
 				ServiceConst.MAX_ACCESS_COUNT_DEFAULT);
-		if (logger.isTraceEnabled()) {
+		if (isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append("[incrementAccessCounter] uri: ");
 			sb.append(uri);
@@ -1663,12 +1663,12 @@ public class ServiceManagerDefault implements ServiceManager {
 		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
 				requestInfo, connectionInfo);
 		String uri = TaggingServiceUtil.getAccessCountTodayUri(serviceName);
-		if (logger.isTraceEnabled()) {
+		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 					"[getAccessCount] uri: " + uri + " start.");
 		}
 		Long count = systemContext.getCacheLong(uri);
-		if (logger.isTraceEnabled()) {
+		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getAccessCount] uri: " + uri + " , count: " + count);
 		}
 		if (count == null) {
@@ -1682,37 +1682,38 @@ public class ServiceManagerDefault implements ServiceManager {
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
-	 * @return 今日のバッチジョブ合計実行時間(秒)
+	 * @return 今日のバッチジョブ合計実行時間(ミリ秒)
 	 */
-	public long getBatchjobExecSec(String serviceName, RequestInfo requestInfo,
+	public long getBatchjobExecTime(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		// システム管理サービスにてバッチジョブ実行時間を取得
 		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
 				requestInfo, connectionInfo);
-		String uri = TaggingServiceUtil.getBatchjobExecSecUri(serviceName);
-		if (logger.isTraceEnabled()) {
+		String uri = TaggingServiceUtil.getBatchjobExectimeUri(serviceName);
+		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
-					"[getBatchjobExecSec] uri: " + uri + " start.");
+					"[getBatchjobExectime] uri: " + uri + " start.");
 		}
-		Long execSec = systemContext.getCacheLong(uri);
-		if (logger.isTraceEnabled()) {
-			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getBatchjobExecSec] uri: " + uri + " , execSec: " + execSec);
+		Long execMillisec = systemContext.getCacheLong(uri);
+		if (isEnableAccessLog()) {
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + 
+					"[getBatchjobExectime] uri: " + uri + " , execMillisec: " + execMillisec);
 		}
-		if (execSec == null) {
+		if (execMillisec == null) {
 			return 0;
 		}
-		return execSec;
+		return execMillisec;
 	}
 
 	/**
 	 * サービスのバッチジョブ実行時間をインクリメント.
-	 * @param execSec バッチジョブ実行時間(秒)
+	 * @param execMillisec バッチジョブ実行時間(ミリ秒)
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	public void incrementBatchjoExecSec(long execSec, String serviceName, 
+	public void incrementBatchjoExecTime(long execMillisec, String serviceName, 
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		// BaaSでない場合処理を抜ける
@@ -1722,14 +1723,15 @@ public class ServiceManagerDefault implements ServiceManager {
 		// システム管理サービスにてバッチジョブ実行時間をインクリメント
 		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
 				requestInfo, connectionInfo);
-		String uri = TaggingServiceUtil.getBatchjobExecSecUri(serviceName);
-		if (logger.isTraceEnabled()) {
+		String uri = TaggingServiceUtil.getBatchjobExectimeUri(serviceName);
+		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
-					"[incrementBatchjoExecSec] uri: " + uri + " start.");
+					"[incrementBatchjoExecTime] uri: " + uri + " start. execMillisec=" + execMillisec);
 		}
-		long resultSec = systemContext.incrementCache(uri, execSec);
-		if (logger.isTraceEnabled()) {
-			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[incrementBatchjoExecSec] uri: " + uri + " , resultSec: " + resultSec);
+		long resultSec = systemContext.incrementCache(uri, execMillisec);
+		if (isEnableAccessLog()) {
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + 
+					"[incrementBatchjoExecTime] uri: " + uri + " end. resultSec: " + resultSec);
 		}
 		// 本日分バッチジョブ実行時間の有効期限を設定
 		int expireHour = TaggingEnvUtil.getSystemPropInt(
@@ -1748,7 +1750,7 @@ public class ServiceManagerDefault implements ServiceManager {
 	 * @throws PaymentException stagingサービスで、1日のバッチジョブ実行時間が制限を超えている場合
 	 */
 	@Override
-	public void checkBatchjobExecSec(String serviceName, RequestInfo requestInfo,
+	public void checkBatchjobExecTime(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		// バッチジョブ実行時間制限チェック
@@ -1758,20 +1760,22 @@ public class ServiceManagerDefault implements ServiceManager {
 			// productionサービスはアクセス数制限を行わない。
 			return;
 		}
-		long maxExecSec = TaggingEnvUtil.getSystemPropLong(ServiceConst.PROP_MAX_BATCHJOB_EXECUTIONTIME_MIN,
-				ServiceConst.MAX_BATCHJOB_EXECUTIONTIME_MIN_DEFAULT) * 60;
+		// 分をミリ秒に変換
+		long maxExecMillisec = TaggingEnvUtil.getSystemPropLong(
+				ServiceConst.PROP_MAX_BATCHJOB_EXECUTIONTIME_MIN,
+				ServiceConst.MAX_BATCHJOB_EXECUTIONTIME_MIN_DEFAULT) * 60000;
 		// バッチジョブ実行時間を取得
-		long batchjobExecSec = getBatchjobExecSec(serviceName, requestInfo, connectionInfo);
+		long batchjobExecMillisec = getBatchjobExecTime(serviceName, requestInfo, connectionInfo);
 		
-		if (logger.isTraceEnabled()) {
+		if (isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
-			sb.append("[checkBatchjobExecSec] maxExecSec: ");
-			sb.append(maxExecSec);
-			sb.append(", batchjobExecSec: ");
-			sb.append(batchjobExecSec);
+			sb.append("[checkBatchjobExecTime] maxExecMillisec: ");
+			sb.append(maxExecMillisec);
+			sb.append(", batchjobExecMillisec: ");
+			sb.append(batchjobExecMillisec);
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) + sb.toString());
 		}
-		if (batchjobExecSec > maxExecSec) {
+		if (batchjobExecMillisec > maxExecMillisec) {
 			throw new PaymentRequiredException(ServiceConst.MSG_OVER_BATCHJOB_EXECTIME);
 		}
 	}
@@ -1804,7 +1808,7 @@ public class ServiceManagerDefault implements ServiceManager {
 			// サービスエントリー更新時間がStatic情報設定の後であれば要更新。
 			if (updatedDate.after(accessTime)) {
 				getFromBDB = true;
-				if (logger.isTraceEnabled()) {
+				if (isEnableAccessLog()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
 					sb.append("[isNeedToUpdateStaticInfo] true. updatedDate=");

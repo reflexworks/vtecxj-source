@@ -80,7 +80,7 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 				requestInfo, connectionInfo);
 
 		long startTime = 0;
-		String info = null;
+		String info = "";
 		if (isEnabledAccessLog()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(" jsFunction=");
@@ -117,7 +117,7 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 			serviceManager.incrementAccessCounter(serviceName, requestInfo, connectionInfo);
 			
 			// サービスステータスがstagingの場合、1日の累計実行時間が最大値を超えていないかチェック
-			serviceManager.checkBatchjobExecSec(serviceName, requestInfo, connectionInfo);
+			serviceManager.checkBatchjobExecTime(serviceName, requestInfo, connectionInfo);
 
 			// /_html/batchjob 配下にバッチジョブが登録されている場合、Cloud Run Jobで実行する
 			String cloudRunJobUri = getCloudRunJobUri();
@@ -200,25 +200,24 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 				systemContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
 			}
 			// 実行時間の加算
-			if (startJobTime > 0) {
-				long execTimeSec = (endJobTime - startJobTime) / 1000;
-				serviceManager.incrementBatchjoExecSec(execTimeSec, serviceName, 
+			if (isEnabledAccessLog()) {
+				StringBuilder sb = new StringBuilder();
+				sb.append(LogUtil.getRequestInfoStr(requestInfo));
+				sb.append("[call] startJobTime=");
+				sb.append(startJobTime);
+				sb.append(", endJobTime=");
+				sb.append(endJobTime);
+				sb.append(", isSucceeded=");
+				sb.append(isSucceeded);
+				sb.append(" ");
+				sb.append(info);
+				logger.info(sb.toString());
+			}
+			if (startJobTime > 0L) {
+				long execTimeMillisec = endJobTime - startJobTime;
+				serviceManager.incrementBatchjoExecTime(execTimeMillisec, serviceName, 
 						requestInfo, connectionInfo);
 			}
-		}
-
-		if (logger.isInfoEnabled()) {
-			long finishTime = new Date().getTime();
-			long time = finishTime - startTime;
-			StringBuilder sb = new StringBuilder();
-			sb.append(LogUtil.getRequestInfoStr(requestInfo));
-			sb.append("[call] end - ");
-			sb.append(time);
-			sb.append("ms");
-			sb.append(" isSucceeded=");
-			sb.append(isSucceeded);
-			sb.append(info);
-			logger.info(sb.toString());
 		}
 
 		return isSucceeded;

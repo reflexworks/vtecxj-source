@@ -22,6 +22,7 @@ import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.servlet.util.UrlUtil;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.bdbclient.BDBResponseInfo;
+import jp.reflexworks.taggingservice.env.ReflexEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -244,6 +245,15 @@ public class VtecxBatchUtil {
 		VtecxBatchRequestCallable callable = new VtecxBatchRequestCallable(urlStr, method, namespace);
 		return callable.addTask(systemContext.getAuth(), systemContext.getRequestInfo(),
 				systemContext.getConnectionInfo());
+	}
+
+	/**
+	 * BDBバッチのアクセスログを出力するかどうかを取得.
+	 * @return BDBバッチへのアクセスログを出力する場合true
+	 */
+	public static boolean isEnableAccessLogBdbbatch() {
+		return ReflexEnvUtil.getSystemPropBoolean(
+				VtecxBatchConst.BDBBATCH_ENABLE_ACCESSLOG, false);
 	}
 
 }

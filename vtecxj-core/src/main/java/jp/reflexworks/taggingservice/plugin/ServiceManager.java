@@ -259,20 +259,20 @@ public interface ServiceManager extends SettingService {
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
-	 * @return 今日のバッチジョブ合計実行時間(秒)
+	 * @return 今日のバッチジョブ合計実行時間
 	 */
-	public long getBatchjobExecSec(String serviceName, RequestInfo requestInfo,
+	public long getBatchjobExecTime(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
 
 	/**
 	 * サービスのバッチジョブ実行時間をインクリメント.
-	 * @param execSec バッチジョブ実行時間(秒)
+	 * @param execTime バッチジョブ実行時間
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	public void incrementBatchjoExecSec(long execSec, String serviceName, 
+	public void incrementBatchjoExecTime(long execTime, String serviceName, 
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
 
@@ -284,7 +284,7 @@ public interface ServiceManager extends SettingService {
 	 * @param connectionInfo コネクション情報
 	 * @throws PaymentException stagingサービスで、1日のバッチジョブ実行時間が制限を超えている場合
 	 */
-	public void checkBatchjobExecSec(String serviceName, RequestInfo requestInfo,
+	public void checkBatchjobExecTime(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
 

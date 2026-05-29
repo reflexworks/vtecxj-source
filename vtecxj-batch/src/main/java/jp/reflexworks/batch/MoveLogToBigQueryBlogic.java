@@ -12,11 +12,11 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexBlogic;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.RequestInfo;
-import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
@@ -92,7 +92,9 @@ public class MoveLogToBigQueryBlogic implements ReflexBlogic<ReflexContext, Bool
 		}
 
 		// 現在日時を取得し、現在日時の1日前(ログ残存期間)を計算する。これをログ削除日時とする。
-		String logKeepDate = getLogKeepDate();
+		Date now = new Date();
+		String logKeepDate = getLogKeepDate(now);
+		String batchjobKeepDate = getBatchjobKeepDate(now);
 		List<Future<Boolean>> futures = new ArrayList<Future<Boolean>>();
 		for (String serviceName : validNamespaces.keySet()) {
 			RequestInfo requestInfo = systemContext.getRequestInfo();
@@ -108,7 +110,7 @@ public class MoveLogToBigQueryBlogic implements ReflexBlogic<ReflexContext, Bool
 					systemContext.getAccount(), systemContext.getUid(),
 					serviceName);
 			MoveLogToBigQueryCallable callable = new MoveLogToBigQueryCallable(
-					logKeepDate);
+					logKeepDate, batchjobKeepDate);
 
 			Future<Boolean> future = (Future<Boolean>)TaskQueueUtil.addTask(
 					callable, 0, sysAuth, requestInfo, connectionInfo);
@@ -133,12 +135,12 @@ public class MoveLogToBigQueryBlogic implements ReflexBlogic<ReflexContext, Bool
 
 	/**
 	 * ログ残存日時を取得
+	 * @param now 現在日時
 	 * @return ログ残存日時
 	 */
-	private String getLogKeepDate() {
+	private String getLogKeepDate(Date now) {
 		// ログ残存期間(日)
 		int logKeepDay = getLogKeepDay();
-		Date now = new Date();
 		// ログ残存日時
 		Date logKeepDate = DateUtil.addTime(now, 0, 0, 0 - logKeepDay, 0, 0, 0, 0);
 		TimeZone timeZone = TimeZone.getTimeZone(BatchBDBConst.TIMEZONE_ID);	// タイムゾーンを+09:00にする
@@ -152,6 +154,29 @@ public class MoveLogToBigQueryBlogic implements ReflexBlogic<ReflexContext, Bool
 	private int getLogKeepDay() {
 		return TaggingEnvUtil.getSystemPropInt(BatchBDBConst.LOG_KEEP_DAY,
 				BatchBDBConst.LOG_KEEP_DAY_DEFAULT);
+	}
+
+	/**
+	 * バッチジョブ履歴残存日時を取得
+	 * @param now 現在日時
+	 * @return バッチジョブ履歴残存日時
+	 */
+	private String getBatchjobKeepDate(Date now) {
+		// バッチジョブ残存期間(日)
+		int batchjobKeepDay = getBatchjobKeepDay();
+		// バッチジョブ残存日時
+		Date batchjobKeepDate = DateUtil.addTime(now, 0, 0, 0 - batchjobKeepDay, 0, 0, 0, 0);
+		TimeZone timeZone = TimeZone.getTimeZone(BatchBDBConst.TIMEZONE_ID);	// タイムゾーンを+09:00にする
+		return DateUtil.getDateTimeFormat(batchjobKeepDate, "yyyyMMddHHmm", timeZone.getID());
+	}
+
+	/**
+	 * バッチジョブ履歴を残す期間(日)を取得.
+	 * @return バッチジョブ履歴を残す期間(日)
+	 */
+	private int getBatchjobKeepDay() {
+		return TaggingEnvUtil.getSystemPropInt(BatchBDBConst.BATCHJOB_KEEP_DAY,
+				BatchBDBConst.BATCHJOB_KEEP_DAY_DEFAULT);
 	}
 
 }

@@ -597,7 +597,7 @@ public class ServiceBlogic {
 		aclBlogic.checkAuthedGroup(reflexContext.getAuth(), Constants.URI_GROUP_ADMIN);
 		// バッチジョブ実行時間取得
 		ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
-		return serviceManager.getBatchjobExecSec(reflexContext.getServiceName(), 
+		return serviceManager.getBatchjobExecTime(reflexContext.getServiceName(), 
 				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
 	}
 

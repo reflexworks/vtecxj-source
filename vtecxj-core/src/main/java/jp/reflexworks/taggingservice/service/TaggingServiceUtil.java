@@ -97,7 +97,7 @@ public class TaggingServiceUtil {
 	 * @param serviceName サービス名
 	 * @return 今日分のバッチジョブ実行時間キー
 	 */
-	public static String getBatchjobExecSecUri(String serviceName) {
+	public static String getBatchjobExectimeUri(String serviceName) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(getServiceUri(serviceName));
 		sb.append(ServiceConst.URI_LAYER_BATCHJOB_EXECTIME);

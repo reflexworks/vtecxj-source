@@ -11,6 +11,8 @@ public interface BatchBDBConst {
 	public static final String BATCH_BDB_EXPIRE_SEC = "_batch.bdb.expire.sec";
 	/** 設定 : ログ残存期間(日) */
 	public static final String LOG_KEEP_DAY = "_log.keep.day";
+	/** 設定 : バッチジョブ履歴残存期間(日) */
+	public static final String BATCHJOB_KEEP_DAY = "_batchjob.keep.day";
 	/** 設定 : ログ最大取得件数 */
 	public static final String LOG_ENTRY_NUMBER_LIMIT = "_log.entry.number.limit";
 	/** 設定 : アラートメール送信ディスク使用率 */
@@ -20,6 +22,8 @@ public interface BatchBDBConst {
 	static final int BATCH_BDB_EXPIRE_SEC_DEFAULT = 10800;
 	/** 設定デフォルト : ログ残存期間(日) */
 	public static final int LOG_KEEP_DAY_DEFAULT = 1;
+	/** 設定デフォルト : バッチジョブ履歴残存期間(日) */
+	public static final int BATCHJOB_KEEP_DAY_DEFAULT = 31;
 	/** 設定デフォルト : ログ最大取得件数 */
 	public static final int LOG_ENTRY_NUMBER_LIMIT_DEFAULT = 1000;
 	/** 設定デフォルト : アラートメール送信ディスク使用率 */
@@ -51,6 +55,8 @@ public interface BatchBDBConst {
 	public static final String BQ_TABLENAME_LOG = "_log";
 	/** BigQuery ログイン履歴テーブル名 */
 	public static final String BQ_TABLENAME_LOGIN_HISTORY = "_login_history";
+	/** BigQuery バッチジョブ履歴テーブル名 */
+	public static final String BQ_TABLENAME_BATCHJOB = "_batchjob";
 
 	/** BigQuery ログエントリーテーブル項目 : key */
 	public static final String BQ_LOG_KEY = "key";
@@ -64,35 +70,28 @@ public interface BatchBDBConst {
 	public static final String BQ_LOG_UPDATED = "updated";
 	/** BigQuery ログエントリーテーブル項目 : information */
 	public static final String BQ_LOG_INFORMATION = "information";
-	/** BigQuery ログエントリーテーブル項目 : type */
+	/** BigQuery ログイン履歴エントリーテーブル項目 : type */
 	public static final String BQ_LOGINHISTORY_TYPE = "type";
-	/** BigQuery ログエントリーテーブル項目 : ip */
+	/** BigQuery ログイン履歴エントリーテーブル項目 : ip */
 	public static final String BQ_LOGINHISTORY_IP = "ip";
-	/** BigQuery ログエントリーテーブル項目 : uid */
+	/** BigQuery ログイン履歴エントリーテーブル項目 : uid */
 	public static final String BQ_LOGINHISTORY_UID = "uid";
-	/** BigQuery ログエントリーテーブル項目 : account */
+	/** BigQuery ログイン履歴エントリーテーブル項目 : account */
 	public static final String BQ_LOGINHISTORY_ACCOUNT = "account";
-	/** BigQuery ログエントリーテーブル項目 : useragent */
+	/** BigQuery ログイン履歴エントリーテーブル項目 : useragent */
 	public static final String BQ_LOGINHISTORY_USERAGENT = "useragent";
-	/** BigQuery ログエントリーテーブル項目 : cause */
+	/** BigQuery ログイン履歴エントリーテーブル項目 : cause */
 	public static final String BQ_LOGINHISTORY_CAUSE = "cause";
-
-	/** BigQuery ログイン履歴テーブル項目 : key */
-	public static final String BQ_LOGIN_HISTORY_KEY = "key";
-	/** BigQuery ログイン履歴テーブル項目 : updated */
-	public static final String BQ_LOGIN_HISTORY_UPDATED = "updated";
-	/** BigQuery ログイン履歴テーブル項目 : type */
-	public static final String BQ_LOGIN_HISTORY_TYPE = "type";
-	/** BigQuery ログイン履歴テーブル項目 : ip */
-	public static final String BQ_LOGIN_HISTORY_IP = "ip";
-	/** BigQuery ログイン履歴テーブル項目 : uid */
-	public static final String BQ_LOGIN_HISTORY_UID = "uid";
-	/** BigQuery ログイン履歴テーブル項目 : account */
-	public static final String BQ_LOGIN_HISTORY_ACCOUNT = "account";
-	/** BigQuery ログイン履歴テーブル項目 : useragent */
-	public static final String BQ_LOGIN_HISTORY_USERAGENT = "useragent";
-	/** BigQuery ログイン履歴テーブル項目 : cause */
-	public static final String BQ_LOGIN_HISTORY_CAUSE = "cause";
+	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : status */
+	public static final String BQ_BATCHJOB_STATUS = "status";
+	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : pod */
+	public static final String BQ_BATCHJOB_POD = "pod";
+	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : script */
+	public static final String BQ_BATCHJOB_SCRIPT = "script";
+	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : start */
+	public static final String BQ_BATCHJOB_START = "start";
+	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : cloudrunjob */
+	public static final String BQ_BATCHJOB_CLOUDRUNJOB = "cloudrunjob";
 	
 	/** ディスク使用量アラートメール メッセージ置き換え文字列 : ディスク使用率 */
 	public static final String REPLACE_REGEX_DISKUSAGE = "\\$\\{DISKUSAGE\\}";
