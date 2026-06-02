@@ -1323,6 +1323,12 @@ public class SystemContext implements ReflexContext {
 	}
 
 	@Override
+	public FeedBase putPdf(String uri, String htmlTemplate)
+	throws IOException, TaggingException {
+		return reflexContext.putPdf(uri, htmlTemplate);
+	}
+
+	@Override
 	public void setMessageQueueStatus(boolean flag, String channel)
 	throws IOException, TaggingException {
 		reflexContext.setMessageQueueStatus(flag, channel);

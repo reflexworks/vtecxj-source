@@ -572,6 +572,27 @@ public class ProviderServlet extends ReflexServletBase {
 				String range = IncrementBlogic.getRange(feed);
 				retObj = reflexContext.rangeids(param.getUri(), range);
 
+			} else if (param.getOption(RequestParam.PARAM_PDF) != null) {
+				// PDF生成
+				byte[] htmlTempalteData = req.getPayload();
+				String htmlTemplateStr = ProviderUtil.getString(htmlTempalteData);
+				if (param.getOption(RequestParam.PARAM_CONTENT) != null) {
+					if (logger.isInfoEnabled()) {
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_pdf _content");
+					}
+					// PDF生成+コンテンツ登録
+					retObj = reflexContext.putPdf(param.getUri(), htmlTemplateStr);
+
+				} else {
+					if (logger.isInfoEnabled()) {
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_pdf");
+					}
+					// PDF生成、レスポンス
+					byte[] data = reflexContext.toPdf(htmlTemplateStr);
+					contentInfo = ProviderUtil.getPdfContentInfo(data, 
+							param.getOption(RequestParam.PARAM_PDF));
+				}
+
 			} else if (param.getOption(RequestParam.PARAM_CONTENT) != null) {
 				// コンテンツ登録
 				if (param.getOption(RequestParam.PARAM_BYSIZE) != null) {
@@ -869,13 +890,6 @@ public class ProviderServlet extends ReflexServletBase {
 					FeedBase feed = req.getFeed();
 					retObj = reflexContext.activateUser(feed);
 				}
-
-			} else if (param.getOption(RequestParam.PARAM_PDF) != null) {
-				// PDF生成
-				byte[] htmlTempalteData = req.getPayload();
-				byte[] data = reflexContext.toPdf(ProviderUtil.getString(htmlTempalteData));
-				contentInfo = ProviderUtil.getPdfContentInfo(data, 
-						param.getOption(RequestParam.PARAM_PDF));
 
 			} else if (param.getOption(ProviderConst.PARAM_QUERY_RDB) != null) {
 				// RDB QuerySQL実行

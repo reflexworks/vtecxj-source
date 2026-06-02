@@ -8,7 +8,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.MessageDigest;
@@ -33,9 +34,33 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature;
+import org.openpdf.text.Chunk;
+import org.openpdf.text.Document;
+import org.openpdf.text.Element;
+import org.openpdf.text.Font;
+import org.openpdf.text.Image;
+import org.openpdf.text.PageSize;
+import org.openpdf.text.Phrase;
+import org.openpdf.text.Rectangle;
+import org.openpdf.text.RectangleReadOnly;
+import org.openpdf.text.exceptions.BadPasswordException;
+import org.openpdf.text.pdf.Barcode;
+import org.openpdf.text.pdf.Barcode128;
+import org.openpdf.text.pdf.Barcode39;
+import org.openpdf.text.pdf.BarcodeEAN;
+import org.openpdf.text.pdf.BaseFont;
+import org.openpdf.text.pdf.PdfAction;
+import org.openpdf.text.pdf.PdfContentByte;
+import org.openpdf.text.pdf.PdfPCell;
+import org.openpdf.text.pdf.PdfPTable;
+import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.PdfSignatureAppearance;
+import org.openpdf.text.pdf.PdfStamper;
+import org.openpdf.text.pdf.PdfWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,29 +70,6 @@ import com.google.zxing.WriterException;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
-import com.lowagie.text.Chunk;
-import com.lowagie.text.Document;
-import com.lowagie.text.Element;
-import com.lowagie.text.Font;
-import com.lowagie.text.Image;
-import com.lowagie.text.PageSize;
-import com.lowagie.text.Phrase;
-import com.lowagie.text.Rectangle;
-import com.lowagie.text.RectangleReadOnly;
-import com.lowagie.text.exceptions.BadPasswordException;
-import com.lowagie.text.pdf.Barcode;
-import com.lowagie.text.pdf.Barcode128;
-import com.lowagie.text.pdf.Barcode39;
-import com.lowagie.text.pdf.BarcodeEAN;
-import com.lowagie.text.pdf.BaseFont;
-import com.lowagie.text.pdf.PdfAction;
-import com.lowagie.text.pdf.PdfContentByte;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfReader;
-import com.lowagie.text.pdf.PdfSignatureAppearance;
-import com.lowagie.text.pdf.PdfStamper;
-import com.lowagie.text.pdf.PdfWriter;
 
 import jp.reflexworks.pdf.exception.IllegalPdfParameterException;
 import jp.reflexworks.pdf.signature.TSAClient;
@@ -118,6 +120,7 @@ public class ReflexPdfManager implements PdfManager {
 		XMLEventReader reader = null;
 		Document document = null;
 		PdfWriter writer = null;
+		String pdfVersion = null;
 		
 		try (BufferedInputStream bin = new BufferedInputStream(
 				new ByteArrayInputStream(htmlTemplate.getBytes(ReflexPdfConst.ENCODING)))) {
@@ -216,7 +219,8 @@ public class ReflexPdfManager implements PdfManager {
 								writer = PdfWriter.getInstance(document, bout);
 
 								// PDFバージョン
-								editVersion(writer, metaMap);
+								pdfVersion = getPdfVersion(metaMap);
+								editVersion(writer, pdfVersion);
 								
 								// titleや作者名などを設定
 								editDocument(document, metaMap);
@@ -563,7 +567,7 @@ public class ReflexPdfManager implements PdfManager {
 			
 			// 署名
 			for (Map<String, String> signatureMap : signatureMapList) {
-				pdfData = signature(pdfData, signatureMap, metaMap, reflexContext);
+				pdfData = signature(pdfData, signatureMap, metaMap, pdfVersion, reflexContext);
 			}
 			
 			// タイムスタンプ
@@ -862,10 +866,10 @@ public class ReflexPdfManager implements PdfManager {
 	 * @param writer PdfWriter
 	 * @param metaMap meta情報
 	 */
-	private void editVersion(PdfWriter writer, Map<String, String> metaMap) 
+	private String getPdfVersion(Map<String, String> metaMap) 
 	throws IllegalPdfParameterException {
 		String versionStr = metaMap.get("version");
-		Character version = null;
+		String version = null;
 		if (StringUtils.isBlank(versionStr)) {
 			version = ReflexPdfConst.PDF_VERSION_DEFAULT;
 		} else {
@@ -874,6 +878,16 @@ public class ReflexPdfManager implements PdfManager {
 		if (version == null) {
 			throw new IllegalPdfParameterException("PDF version is invalid. " + versionStr);
 		}
+		return version;
+	}
+
+	/**
+	 * PDFのバージョンを指定.
+	 * @param writer PdfWriter
+	 * @param version PDFバージョン
+	 */
+	private void editVersion(PdfWriter writer, String version) 
+	throws IllegalPdfParameterException {
 		writer.setPdfVersion(version);
 	}
 
@@ -1570,7 +1584,7 @@ public class ReflexPdfManager implements PdfManager {
 	 * @return 署名を付加したPDFファイルデータ
 	 */
 	private byte[] signature(byte[] inPdf, Map<String, String> map, 
-			Map<String, String> metaMap, ReflexContext reflexContext) 
+			Map<String, String> metaMap, String pdfVersion, ReflexContext reflexContext) 
 	throws IOException, TaggingException {
 		String signatureUri = map.get("signature");
 		if (StringUtils.isBlank(signatureUri)) {
@@ -1601,7 +1615,7 @@ public class ReflexPdfManager implements PdfManager {
 				reader = new PdfReader(inPdf);
 			}
 			
-			stp = PdfStamper.createSignature(reader, bout, '\0', 
+			stp = PdfStamper.createSignature(reader, bout, pdfVersion, 
 					new File(getTempFilename()), true);
 			
 			PdfSignatureAppearance sap = stp.getSignatureAppearance();
@@ -1703,9 +1717,9 @@ public class ReflexPdfManager implements PdfManager {
 		String ownerPassword = metaMap.get("ownerpassword");
 		try {
 			MessageDigest digest = MessageDigest.getInstance(ReflexPdfConst.HASH_ALGORITHM);
-			TSAClient tsaClient = new TSAClient(new URL(url), tsUsername, tsPassword, digest);
+			TSAClient tsaClient = new TSAClient(new URI(url).toURL(), tsUsername, tsPassword, digest);
 			return timestamp(inPdf, ownerPassword, tsaClient);
-		} catch (MalformedURLException e) {
+		} catch (MalformedURLException | URISyntaxException e) {
 			throw new IllegalPdfParameterException(e.getMessage());
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(e);
@@ -1727,7 +1741,7 @@ public class ReflexPdfManager implements PdfManager {
 		signature.setSignDate(Calendar.getInstance());
 		
 		ByteArrayOutputStream bout = new ByteArrayOutputStream();
-		try (PDDocument pdf = PDDocument.load(inPdf, ownerPassword)) {
+		try (PDDocument pdf = Loader.loadPDF(inPdf, ownerPassword)) {
 			TimestampSignatureImpl sig = new TimestampSignatureImpl(tsaClient);
 			pdf.addSignature(signature, sig);
 			pdf.saveIncremental(bout);

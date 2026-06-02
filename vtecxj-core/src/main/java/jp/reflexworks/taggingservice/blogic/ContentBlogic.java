@@ -572,7 +572,7 @@ public class ContentBlogic implements ReflexServletConst {
 	 * @param isBySize 画像ファイルのサイズ展開を行う場合true
 	 * @param reflexContext ReflexContext
 	 */
-	private EntryBase upload(String uri, byte[] data, Map<String, String> headers,
+	EntryBase upload(String uri, byte[] data, Map<String, String> headers,
 			boolean isBySize, ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		// Content-Typeの編集
@@ -648,7 +648,7 @@ public class ContentBlogic implements ReflexServletConst {
 	 * @param part Part
 	 * @return ヘッダ情報
 	 */
-	private Map<String, String> getHeaders(ReflexRequest req) {
+	Map<String, String> getHeaders(ReflexRequest req) {
 		Map<String, String> headers = null;
 		Enumeration<String> enu = req.getHeaderNames();
 		if (enu != null && enu.hasMoreElements()) {
