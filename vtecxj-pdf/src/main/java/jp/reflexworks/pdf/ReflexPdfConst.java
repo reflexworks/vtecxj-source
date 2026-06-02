@@ -3,7 +3,7 @@ package jp.reflexworks.pdf;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.lowagie.text.pdf.PdfWriter;
+import org.openpdf.text.pdf.PdfWriter;
 
 import jp.reflexworks.atom.api.AtomConst;
 
@@ -36,7 +36,7 @@ public class ReflexPdfConst {
 	public static final String CREATOR_DEFAULT = "Reflex PDF";
 	
 	/** PDF version */
-	public static final Map<String, Character> PDF_VERSIONS = new ConcurrentHashMap<>();
+	public static final Map<String, String> PDF_VERSIONS = new ConcurrentHashMap<>();
 	static {
 		PDF_VERSIONS.put("1.2", PdfWriter.VERSION_1_2);
 		PDF_VERSIONS.put("1.3", PdfWriter.VERSION_1_3);
@@ -44,9 +44,10 @@ public class ReflexPdfConst {
 		PDF_VERSIONS.put("1.5", PdfWriter.VERSION_1_5);
 		PDF_VERSIONS.put("1.6", PdfWriter.VERSION_1_6);
 		PDF_VERSIONS.put("1.7", PdfWriter.VERSION_1_7);
+		PDF_VERSIONS.put("2.0", PdfWriter.VERSION_2_0);
 	}
 	/** PDF version default */
-	public static final char PDF_VERSION_DEFAULT = PDF_VERSIONS.get("1.7");
+	public static final String PDF_VERSION_DEFAULT = PDF_VERSIONS.get("2.0");
 
 	/** 用紙の向き : 縦長 */
 	public static final String PORTRAIT = "portrait";

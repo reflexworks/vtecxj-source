@@ -2,6 +2,8 @@ package jp.reflexworks.pdf;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 
@@ -29,7 +31,12 @@ public class ReflexPdfUtil {
 		}
 		byte[] content = null;
 		if (uri.startsWith("http:") || uri.startsWith("https:")) {
-			URL url = new URL(uri);
+			URL url = null;
+			try {
+				url = new URI(uri).toURL();
+			} catch (URISyntaxException e) {
+				throw new IllegalPdfParameterException(e.getMessage());
+			}
 			URLConnection conn = url.openConnection();
 			try (InputStream is = conn.getInputStream()) {
 				if (is != null) {

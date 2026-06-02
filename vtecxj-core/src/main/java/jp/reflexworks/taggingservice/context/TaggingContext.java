@@ -4521,6 +4521,25 @@ public class TaggingContext implements ReflexContext {
 	}
 
 	/**
+	 * PDF生成+コンテント登録.
+	 * @param uri キー
+	 * @param htmlTemplate HTML形式テンプレート
+	 * @return ファイル名
+	 */
+	public FeedBase putPdf(String uri, String htmlTemplate)
+	throws IOException, TaggingException {
+		try {
+			PdfBlogic pdfBlogic = new PdfBlogic();
+			return pdfBlogic.putPdf(uri, htmlTemplate, this);
+		} catch (IOException | TaggingException | RuntimeException | Error e) {
+			String msg = getErrorMessage("putPdf", e);
+			requestInfo.setReflexContextMessage(msg);
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + msg);
+			throw e;
+		}
+	}
+
+	/**
 	 * メッセージキュー使用ON/OFF設定
 	 * @param flag メッセージキューを使用する場合true
 	 * @param channel チャネル

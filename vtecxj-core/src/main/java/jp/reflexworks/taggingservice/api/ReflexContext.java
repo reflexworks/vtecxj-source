@@ -2477,6 +2477,15 @@ public interface ReflexContext extends BaseReflexContext {
 	throws IOException, TaggingException;
 
 	/**
+	 * PDF生成+コンテント登録.
+	 * @param uri キー
+	 * @param htmlTemplate HTML形式テンプレート
+	 * @return ファイル名
+	 */
+	public FeedBase putPdf(String uri, String htmlTemplate)
+	throws IOException, TaggingException;
+
+	/**
 	 * メッセージキュー使用ON/OFF設定
 	 * @param flag メッセージキューを使用する場合true
 	 * @param channel チャネル
