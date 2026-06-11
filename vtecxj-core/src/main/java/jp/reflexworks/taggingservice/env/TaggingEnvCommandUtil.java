@@ -30,9 +30,6 @@ public class TaggingEnvCommandUtil {
 
 		String[] command = {cmdPath}; // 起動コマンドを指定する
 
-		Runtime runtime = Runtime.getRuntime(); // ランタイムオブジェクトを取得する
-		BufferedReader br = null;
-		InputStream in = null;
 		try {
 			// ログ用接頭辞
 			String logprefix = null;
@@ -51,10 +48,16 @@ public class TaggingEnvCommandUtil {
 				logprefix = prefixsb.toString();
 			}
 
-			Process process = runtime.exec(command); // 指定したコマンドを実行する
+			Process process = new ProcessBuilder(command).start(); // 指定したコマンドを実行する
+			StreamReader stdout = new StreamReader(process.getInputStream());
+			StreamReader stderr = new StreamReader(process.getErrorStream());
+			stdout.start();
+			stderr.start();
 
 			// リターンコード
 			int returnCode = process.waitFor();
+			stdout.join();
+			stderr.join();
 			if (isEnableAccesslog()) {
 				StringBuilder logsbc = new StringBuilder();
 				logsbc.append(logprefix);
@@ -64,29 +67,13 @@ public class TaggingEnvCommandUtil {
 			}
 
 			// 標準出力
-			in = process.getInputStream();
-			StringBuilder sb = new StringBuilder();
-			br = new BufferedReader(new InputStreamReader(in));
-			String line;
-			while ((line = br.readLine()) != null) {
-				sb.append(line + Constants.NEWLINE);
-			}
-			String str = sb.toString();
+			String str = stdout.getResult();
 			if (isEnableAccesslog()) {
 				logger.debug(logprefix + " [out] " + str);
 			}
 
-			br.close();
-			in.close();
-
 			// エラー出力
-			in = process.getErrorStream();
-			StringBuilder err = new StringBuilder();
-			br = new BufferedReader(new InputStreamReader(in));
-			while ((line = br.readLine()) != null) {
-				err.append(line + Constants.NEWLINE);
-			}
-			String errStr = err.toString();
+			String errStr = stderr.getResult();
 			if (!StringUtils.isBlank(errStr)) {
 				if (isEnableAccesslog()) {
 					// エラー出力
@@ -110,23 +97,11 @@ public class TaggingEnvCommandUtil {
 				throw new IllegalStateException(errsb.toString());
 			}
 
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			logger.warn("[initExecCommand] Error occurred.", e);
 		} catch (Throwable e) {
 			logger.warn("[initExecCommand] Error occurred.", e);
-		} finally {
-			if (br != null) {
-				try {
-					br.close();
-				} catch (IOException e) {
-					logger.warn("[initExecCommand] Error occurred (close).", e);
-				}
-			}
-			if (in != null) {
-				try {
-					in.close();
-				} catch (IOException e) {
-					logger.warn("[initExecCommand] Error occurred (close).", e);
-				}
-			}
 		}
 	}
 	
@@ -136,6 +111,51 @@ public class TaggingEnvCommandUtil {
 	 */
 	private static boolean isEnableAccesslog() {
 		return TaggingEnvUtil.isEnableAccesslog() && logger.isDebugEnabled();
+	}
+
+	/**
+	 * プロセス出力を読み取るスレッド.
+	 */
+	private static class StreamReader extends Thread {
+
+		/** 入力ストリーム. */
+		private final InputStream in;
+		/** 読み取り結果. */
+		private final StringBuilder result = new StringBuilder();
+		/** 読み取り例外. */
+		private IOException exception;
+
+		/**
+		 * コンストラクタ.
+		 * @param in 入力ストリーム
+		 */
+		StreamReader(InputStream in) {
+			this.in = in;
+		}
+
+		@Override
+		public void run() {
+			try (BufferedReader br = new BufferedReader(new InputStreamReader(in, Constants.ENCODING))) {
+				String line;
+				while ((line = br.readLine()) != null) {
+					result.append(line);
+					result.append(Constants.NEWLINE);
+				}
+			} catch (IOException e) {
+				exception = e;
+			}
+		}
+
+		/**
+		 * 読み取り結果を取得.
+		 * @return 読み取り結果
+		 */
+		String getResult() throws IOException {
+			if (exception != null) {
+				throw exception;
+			}
+			return result.toString();
+		}
 	}
 
 }

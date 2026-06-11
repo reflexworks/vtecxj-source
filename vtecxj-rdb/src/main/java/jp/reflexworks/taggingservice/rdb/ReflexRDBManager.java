@@ -248,13 +248,80 @@ public class ReflexRDBManager implements RDBManager {
 	}
 	
 	/**
+	 * PreparedStatementを使用してRDBに更新SQLを実行する.
+	 * @param sql SQL (プレースホルダ ? を使用)
+	 * @param params バインドパラメータ
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return (1) SQLデータ操作言語(DML)文の場合は行数、(2)何も返さないSQL文の場合は0
+	 */
+	@Override
+	public int execPreparedSql(String sql, Object[] params, ReflexAuthentication auth,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		String serviceName = auth.getServiceName();
+		RDBConnection conn = ReflexRDBUtil.getRDBConnection(serviceName, requestInfo, connectionInfo);
+		RDBPreparedStatement pstmt = conn.prepareStatement(sql);
+		try {
+			if (params != null) {
+				for (int i = 0; i < params.length; i++) {
+					pstmt.setObject(i + 1, params[i]);
+				}
+			}
+			return pstmt.executeUpdate();
+		} finally {
+			pstmt.close();
+		}
+	}
+
+	/**
+	 * PreparedStatementを使用してRDBに検索SQLを実行し結果を取得する.
+	 * @param sql SQL (プレースホルダ ? を使用)
+	 * @param params バインドパラメータ
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 検索結果(キー:select項目名、値:検索結果、のリスト)
+	 */
+	@Override
+	public List<Map<String, Object>> queryPreparedSql(String sql, Object[] params,
+			ReflexAuthentication auth, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		String serviceName = auth.getServiceName();
+		RDBConnection conn = ReflexRDBUtil.getRDBConnection(serviceName, requestInfo, connectionInfo);
+		RDBPreparedStatement pstmt = conn.prepareStatement(sql);
+		try {
+			if (params != null) {
+				for (int i = 0; i < params.length; i++) {
+					pstmt.setObject(i + 1, params[i]);
+				}
+			}
+			RDBResultSet rset = pstmt.executeQuery();
+			RDBResultSetMetaData rsmeta = rset.getMetaData();
+			int columnCnt = rsmeta.getColumnCount();
+			List<Map<String, Object>> result = new ArrayList<>();
+			while (rset.next()) {
+				Map<String, Object> row = new LinkedHashMap<>();
+				for (int i = 1; i <= columnCnt; i++) {
+					row.put(rsmeta.getColumnName(i), rset.getObject(i));
+				}
+				result.add(row);
+			}
+			return result;
+		} finally {
+			pstmt.close();
+		}
+	}
+
+	/**
 	 * 検索結果をテーブル型に合わせて取得する.
 	 * @param rset ResultSet
 	 * @param rsmeta RDBResultSetMetaData
 	 * @param i 処理中の列数
 	 * @return 指定された行・列の検索結果
 	 */
-	private Object getResultSetObject(RDBResultSet rset, RDBResultSetMetaData rsmeta, int i) 
+	private Object getResultSetObject(RDBResultSet rset, RDBResultSetMetaData rsmeta, int i)
 	throws IOException, TaggingException {
 		return rset.getObject(i);
 	}

@@ -21,10 +21,12 @@ import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.api.SettingConst;
+import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.context.ReflexContextUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
+import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -51,12 +53,15 @@ public class ErrorPageUtil implements ReflexServletConst, AtomConst {
 		}
 
 		// Cookieにステータスとメッセージをセットする。
+		boolean isHttpOnly = isHttpOnly(req);
+		boolean isSecure = isSecure(req);
 		int maxAge = TaggingEnvUtil.getSystemPropInt(TaggingEnvConst.ERRORCOOKIE_MAXAGE,
 				TaggingEnvConst.ERRORCOOKIE_MAXAGE_DEFAULT);
 		CookieUtil.setCookie(resp, COOKIE_ERROR_STATUS, String.valueOf(responseCode),
-				maxAge);
+				maxAge, isHttpOnly, isSecure);
 		if (!StringUtils.isBlank(message)) {
-			CookieUtil.setCookie(resp, COOKIE_ERROR_MESSAGE, urlEncode(message), maxAge);
+			CookieUtil.setCookie(resp, COOKIE_ERROR_MESSAGE, urlEncode(message), 
+					maxAge, isHttpOnly, isSecure);
 		}
 
 		// リダイレクトURL
@@ -210,6 +215,33 @@ public class ErrorPageUtil implements ReflexServletConst, AtomConst {
 	 */
 	private static boolean isIntactHtmlUrl() {
 		return TaggingEnvUtil.getSystemPropBoolean(TaggingEnvConst.IS_INTACT_HTMLURL, false);
+	}
+
+	/**
+	 * HttpOnly属性を取得.
+	 * @param req リクエスト
+	 * @return HttpOnlyの値
+	 */
+	private static boolean isHttpOnly(ReflexRequest req) {
+		// 定義はdisableなので、否定値を返す。
+		return !TaggingEnvUtil.getSystemPropBoolean(
+				TaggingEnvConst.DISABLE_SESSION_HTTPONLY, false);
+	}
+
+	/**
+	 * Secure属性を取得.
+	 * @param req リクエスト
+	 * @return Secureの値
+	 */
+	private static boolean isSecure(ReflexRequest req) {
+		ServiceBlogic serviceBlogic = new ServiceBlogic();
+		try {
+			return serviceBlogic.isSecure(req);
+		} catch (IOException | TaggingException e) {
+			logger.warn(LogUtil.getRequestInfoStr(req.getRequestInfo()) +
+					"[isSecure] error occurd.", e);
+			return true;
+		}
 	}
 
 }

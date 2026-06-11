@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +22,11 @@ import jp.sourceforge.reflex.util.StringUtils;
  * データ移行時のバックアップ処理.
  */
 public class ReflexBDBBackupUtil {
+
+	/** Storage URLに使用できる文字パターン */
+	public static final String PATTERN_STR_STORAGE_URL = "(gs://|https://storage\\.googleapis\\.com/)[a-zA-Z0-9_\\-\\./%]+";
+	/** Storage URLに使用できる文字パターンオブジェクト */
+	public static final Pattern PATTERN_STORAGE_URL = Pattern.compile(PATTERN_STR_STORAGE_URL);
 
 	/** ロガー. */
 	private static final Logger logger = LoggerFactory.getLogger(ReflexBDBBackupUtil.class);
@@ -62,11 +69,16 @@ public class ReflexBDBBackupUtil {
 		// $1 : 名前空間
 		// $2 : Cloud Storage URL
 
+		// コマンドインジェクション防止: namespace は英数字・ハイフン・アンダースコア・ドットのみ許可
+		if (namespace == null || !ServiceCommonUtil.matchServiceNamePattern(namespace)) {
+			throw new IllegalArgumentException("Invalid namespace: " + namespace);
+		}
+		// storageUrl は gs:// または https://storage.googleapis.com/ のみ許可
+		if (!matchStorageUrl(storageUrl)) {
+			throw new IllegalArgumentException("Invalid storageUrl: " + storageUrl);
+		}
 		String[] command = {cmdPath, namespace, storageUrl}; // 起動コマンドを指定する
 
-		Runtime runtime = Runtime.getRuntime(); // ランタイムオブジェクトを取得する
-		BufferedReader br = null;
-		InputStream in = null;
 		try {
 			// ログ用接頭辞
 			String logprefix = null;
@@ -85,10 +97,16 @@ public class ReflexBDBBackupUtil {
 				logprefix = prefixsb.toString();
 			}
 
-			Process process = runtime.exec(command); // 指定したコマンドを実行する
+			Process process = new ProcessBuilder(command).start(); // 指定したコマンドを実行する
+			StreamReader stdout = new StreamReader(process.getInputStream());
+			StreamReader stderr = new StreamReader(process.getErrorStream());
+			stdout.start();
+			stderr.start();
 
 			// リターンコード
 			int returnCode = process.waitFor();
+			stdout.join();
+			stderr.join();
 			if (logger.isInfoEnabled()) {
 				StringBuilder logsbc = new StringBuilder();
 				logsbc.append(logprefix);
@@ -98,29 +116,13 @@ public class ReflexBDBBackupUtil {
 			}
 
 			// 標準出力
-			in = process.getInputStream();
-			StringBuilder sb = new StringBuilder();
-			br = new BufferedReader(new InputStreamReader(in));
-			String line;
-			while ((line = br.readLine()) != null) {
-				sb.append(line + Constants.NEWLINE);
-			}
-			String str = sb.toString();
+			String str = stdout.getResult();
 			if (logger.isInfoEnabled()) {
 				logger.info(logprefix + " [out] " + str);
 			}
 
-			br.close();
-			in.close();
-
 			// エラー出力
-			in = process.getErrorStream();
-			StringBuilder err = new StringBuilder();
-			br = new BufferedReader(new InputStreamReader(in));
-			while ((line = br.readLine()) != null) {
-				err.append(line + Constants.NEWLINE);
-			}
-			String errStr = err.toString();
+			String errStr = stderr.getResult();
 			if (!StringUtils.isBlank(errStr)) {
 				if (logger.isInfoEnabled()) {
 					// エラー出力
@@ -145,22 +147,67 @@ public class ReflexBDBBackupUtil {
 			}
 
 		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
 			throw new IOException(e);
-		} finally {
-			if (br != null) {
-				try {
-					br.close();
-				} catch (IOException e) {
-					logger.warn("[backup] Error occured (close).", e);
+		}
+	}
+
+	/**
+	 * Storage URL 入力値チエック
+	 * @param storageUrl Storage URL
+	 * @return Storage URL 入力値が正しければtrue
+	 */
+	private static boolean matchStorageUrl(String storageUrl) {
+		// storageUrl は gs:// または https://storage.googleapis.com/ のみ許可
+		if (storageUrl == null) {
+			return false;
+		}
+		Matcher matcher = PATTERN_STORAGE_URL.matcher(storageUrl);
+		return matcher.matches();
+	}
+
+	/**
+	 * プロセス出力を読み取るスレッド.
+	 */
+	private static class StreamReader extends Thread {
+
+		/** 入力ストリーム. */
+		private final InputStream in;
+		/** 読み取り結果. */
+		private final StringBuilder result = new StringBuilder();
+		/** 読み取り例外. */
+		private IOException exception;
+
+		/**
+		 * コンストラクタ.
+		 * @param in 入力ストリーム
+		 */
+		StreamReader(InputStream in) {
+			this.in = in;
+		}
+
+		@Override
+		public void run() {
+			try (BufferedReader br = new BufferedReader(new InputStreamReader(in, Constants.ENCODING))) {
+				String line;
+				while ((line = br.readLine()) != null) {
+					result.append(line);
+					result.append(Constants.NEWLINE);
 				}
+			} catch (IOException e) {
+				exception = e;
 			}
-			if (in != null) {
-				try {
-					in.close();
-				} catch (IOException e) {
-					logger.warn("[backup] Error occured (close).", e);
-				}
+		}
+
+		/**
+		 * 読み取り結果を取得.
+		 * @return 読み取り結果
+		 */
+		String getResult() throws IOException {
+			if (exception != null) {
+				throw exception;
 			}
+			return result.toString();
 		}
 	}
 

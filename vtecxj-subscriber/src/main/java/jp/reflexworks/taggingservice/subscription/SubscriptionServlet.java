@@ -1,7 +1,6 @@
 package jp.reflexworks.taggingservice.subscription;
 
 import java.io.IOException;
-import java.util.Enumeration;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,7 +13,6 @@ import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.RequestResponseManager;
-import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 
 /**
@@ -47,9 +45,11 @@ public class SubscriptionServlet extends ReflexServlet {
 			}
 
 			// リクエストヘッダをログ出力（デバッグ用）
+			/*
 			if (logger.isTraceEnabled()) {
 				writeHeaders(req);
 			}
+			*/
 
 			String pathInfo = TaggingEntryUtil.removeLastSlash(req.getPathInfo());
 			if (SubscriptionConst.PATHINFO_MAINTENANCE_NOTICE.equals(pathInfo)) {
@@ -78,6 +78,7 @@ public class SubscriptionServlet extends ReflexServlet {
 	 * リクエストヘッダをログ出力
 	 * @param req リクエスト
 	 */
+	/*
 	private void writeHeaders(HttpServletRequest req) {
 		// デバッグ用
 		if (logger.isDebugEnabled()) {
@@ -97,5 +98,5 @@ public class SubscriptionServlet extends ReflexServlet {
 			logger.debug(sb.toString());
 		}
 	}
-
+	*/
 }

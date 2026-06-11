@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-cloudrunjob</artifactId>
-  <version>10.0.1</version>
+  <version>10.0.2</version>
   <packaging>jar</packaging>
 
   <description>vte.cx CloudRunJob</description>
@@ -18,7 +18,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-batchjob-version>10.0.1</vtecxj-batchjob-version>
+    <vtecxj-batchjob-version>10.0.2</vtecxj-batchjob-version>
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
   </properties>

@@ -1,10 +1,7 @@
 package jp.reflexworks.taggingservice.memorysort;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -26,7 +23,6 @@ import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestInfo;
-import jp.reflexworks.taggingservice.api.RequestType;
 import jp.reflexworks.taggingservice.api.ResponseInfo;
 import jp.reflexworks.taggingservice.blogic.LogBlogic;
 import jp.reflexworks.taggingservice.blogic.LoginLogoutBlogic;
@@ -34,7 +30,6 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.AuthLockedException;
 import jp.reflexworks.taggingservice.exception.AuthenticationException;
 import jp.reflexworks.taggingservice.exception.ConnectionException;
-import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
 import jp.reflexworks.taggingservice.exception.NoEntryException;
 import jp.reflexworks.taggingservice.exception.NotInServiceException;
 import jp.reflexworks.taggingservice.exception.PermissionException;
@@ -42,11 +37,9 @@ import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
 import jp.reflexworks.taggingservice.plugin.RequestResponseManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.util.Constants.LogLevel;
-import jp.reflexworks.taggingservice.util.ErrorPageUtil;
 import jp.reflexworks.taggingservice.util.ExceptionUtil;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.ReflexExceptionUtil;
-import jp.sourceforge.reflex.util.StringUtils;
 
 /**
  * インメモリソートサーバ Filter
@@ -226,62 +219,23 @@ public class MemorySortFilter implements Filter, ReflexServletConst {
 			loginLogoutBlogic.writeAuthError(req, (AuthenticationException)e);
 		}
 
-		String errorpageSelfid = null;
-		Map<Pattern, String> patterns = null;
-		try {
-			patterns = ErrorPageUtil.getErrorPagePatterns(serviceName);
-		} catch (InvalidServiceSettingException ee) {
-			logger.warn(LogUtil.getRequestInfoStr(requestInfo) + "[doException] getErrorPagePatterns error." + ee);
-		}
-		if (patterns != null) {
-			try {
-				String uri = null;
-				RequestType param = req.getRequestType();
-				if (param != null) {
-					uri = param.getUri();
-				}
-				for (Map.Entry<Pattern, String> mapEntry : patterns.entrySet()) {
-					Pattern pattern = mapEntry.getKey();
-					Matcher matcher = pattern.matcher(uri);
-					if (matcher.matches()) {
-						errorpageSelfid = mapEntry.getValue();
-						if (!StringUtils.isBlank(errorpageSelfid)) {
-							break;
-						}
-					}
-				}
-			} catch (Throwable t) {
-				logger.error(LogUtil.getRequestInfoStr(requestInfo) + t.getClass().getName(), t);
-			}
-		}
-
-		boolean isRedirect = false;
-		if (!StringUtils.isBlank(errorpageSelfid)) {
-			// エラーページ表示パターンの場合、エラーページへのリダイレクト。
-			isRedirect = ErrorPageUtil.doErrorPageRedirect(req, resp,
-					errorpageSelfid, responseCode, message);
-		}
-
 		Object respObj = respFeed;
-		if (!isRedirect) {
-			// データで返却の場合
-			if (responseCode == SC_EXPECTATION_FAILED) {
-				// X-Requested-Withヘッダエラーはレスポンスデータを返さない。
-				respObj = null;
-			}
+		if (responseCode == SC_EXPECTATION_FAILED) {
+			// X-Requested-Withヘッダエラーはレスポンスデータを返さない。
+			respObj = null;
+		}
 
-			if (!resp.isWritten()) {
-				RequestResponseManager reqRespManager = TaggingEnvUtil.getRequestResponseManager();
-				int format = req.getResponseFormat();
-				boolean isGZip = reqRespManager.isGZip();
-				boolean isStrict = false;
-				boolean isNoCache = reqRespManager.isNoCache(req);
-				boolean isSameOrigin = reqRespManager.isSameOrigin(req);
-				ReflexServletUtil.doResponse(req, resp, respObj, format,
-						TaggingEnvUtil.getResourceMapper(serviceName),
-						connectionInfo.getDeflateUtil(), responseCode, isGZip,
-						isStrict, isNoCache, isSameOrigin);
-			}
+		if (!resp.isWritten()) {
+			RequestResponseManager reqRespManager = TaggingEnvUtil.getRequestResponseManager();
+			int format = req.getResponseFormat();
+			boolean isGZip = reqRespManager.isGZip();
+			boolean isStrict = false;
+			boolean isNoCache = reqRespManager.isNoCache(req);
+			boolean isSameOrigin = reqRespManager.isSameOrigin(req);
+			ReflexServletUtil.doResponse(req, resp, respObj, format,
+					TaggingEnvUtil.getResourceMapper(serviceName),
+					connectionInfo.getDeflateUtil(), responseCode, isGZip,
+					isStrict, isNoCache, isSameOrigin);
 		}
 	}
 

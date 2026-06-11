@@ -208,6 +208,13 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 		prefixsb.append(bucketName);
 		String logprefix = prefixsb.toString();
 
+		// コマンドインジェクション防止
+		if (bucketName == null || !bucketName.matches("[a-z0-9_\\-\\.]+")) {
+			throw new IllegalArgumentException("Invalid bucketName: " + bucketName);
+		}
+		if (gsutilDir == null || !gsutilDir.matches("[a-zA-Z0-9_\\-\\./]+")) {
+			throw new IllegalArgumentException("Invalid gsutilDir: " + gsutilDir);
+		}
 		// バケットの容量を取得
 		String[] command = {gsutilDir + "/gsutil", "du", "-s", "gs://" + bucketName}; // 起動コマンドを指定する
 		Runtime runtime = Runtime.getRuntime(); // ランタイムオブジェクトを取得する

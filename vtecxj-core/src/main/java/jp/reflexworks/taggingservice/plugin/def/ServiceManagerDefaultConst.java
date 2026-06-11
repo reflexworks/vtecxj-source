@@ -5,9 +5,6 @@ package jp.reflexworks.taggingservice.plugin.def;
  */
 public interface ServiceManagerDefaultConst {
 
-	/** サービス名に使用できる文字パターン */
-	public static final String PATTERN_STR_SERVICENAME = "^[0-9a-zA-Z_-]+$";
-
 	/** サービスの予約語設定 "_service.reserved.{連番}={予約語} */
 	public static final String PROP_SERVICE_RESERVED_PREFIX = "_service.reserved.";
 	/** 設定 : アクセスカウンタの有効時間(時) */
