@@ -66,7 +66,7 @@ public interface SubscriptionConst {
 	/** 設定 : pushエンドポイントURLのサーブレットパス */
 	public static final String PROP_SERVLETPATH = "_logalert.servletpath";
 	/** pushエンドポイントURLのサーブレットパス デフォルト値 */
-	public static final String SERVLETPATH_DEFAULT = "/l/";
+	public static final String SERVLETPATH_DEFAULT = "/l";
 	/** 設定 : サブスクリプション認証Audience */
 	public static final String PROP_AUDIENCE = "_logalert.audience";
 	/** 設定 : サブスクリプション認証サービスアカウント */

@@ -30,6 +30,7 @@ import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
+import jp.reflexworks.taggingservice.util.MaskUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.FileUtil;
 import jp.sourceforge.reflex.util.NumberingUtil;
@@ -398,7 +399,14 @@ public class OAuthUtil {
 						}
 						if (vals.size() > 1) {
 							if (logger.isTraceEnabled()) {
-								logger.trace("[getHeaders] There are two or more values. name=" + name + ", values=" + vals);
+								List<String> maskedVals = vals;
+								if ("Set-Cookie".equalsIgnoreCase(name)) {
+									maskedVals = new java.util.ArrayList<>(vals.size());
+									for (String v : vals) {
+										maskedVals.add(MaskUtil.maskSetCookieSid(v));
+									}
+								}
+								logger.trace("[getHeaders] There are two or more values. name=" + name + ", values=" + maskedVals);
 							}
 						}
 					}

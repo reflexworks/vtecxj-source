@@ -12,6 +12,7 @@ import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.env.ReflexEnvConst;
 import jp.reflexworks.taggingservice.env.ReflexEnvUtil;
 import jp.reflexworks.taggingservice.util.Constants.LogLevel;
+import jp.reflexworks.taggingservice.util.MaskUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -106,6 +107,11 @@ public class ReflexBDBLogUtil extends LogUtil {
 					tmp.append(",");
 				}
 				String value = values.nextElement();
+				if (name.equalsIgnoreCase("Authorization")) {
+					value = MaskUtil.maskAuthorizationHeader(value);
+				} else if (name.equalsIgnoreCase("Cookie")) {
+					value = MaskUtil.maskCookieSid(value);
+				}
 				tmp.append(value);
 			}
 			if (valNum > 1) {

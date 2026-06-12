@@ -221,18 +221,13 @@ public class ContentBlogic implements ReflexServletConst {
 		}
 		
 		if (logger.isTraceEnabled()) {
-			Enumeration<String> headerNames = req.getHeaderNames();
-			java.util.Iterator<String> it = headerNames.asIterator();
-			while (it.hasNext()) {
-				String headerName = it.next();
-				StringBuilder sb = new StringBuilder();
-				sb.append(LogUtil.getRequestInfoStr(requestInfo));
-				sb.append("[putMultipartContent] [headers] ");
-				sb.append(headerName);
-				sb.append(": ");
-				sb.append(req.getHeader(headerName));
-				logger.debug(sb.toString());
-			}
+			StringBuilder sb = new StringBuilder();
+			sb.append(LogUtil.getRequestInfoStr(requestInfo));
+			sb.append("[putMultipartContent] [headers] ");
+			LogBlogic logBlogic = new LogBlogic();
+			String headerStr = logBlogic.getRequestHeadersString(req);
+			sb.append(headerStr);
+			logger.info(sb.toString());
 		}
 
 		List<EntryBase> entries = new ArrayList<EntryBase>();

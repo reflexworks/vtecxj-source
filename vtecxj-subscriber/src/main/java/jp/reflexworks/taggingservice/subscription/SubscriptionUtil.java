@@ -20,10 +20,12 @@ import com.google.auth.oauth2.TokenVerifier.VerificationException;
 
 import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
+import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -101,39 +103,39 @@ public class SubscriptionUtil {
 	throws IOException, TaggingException {
 		String bearerToken = getBearerToken(authorizationValue);
 		if (StringUtils.isBlank(bearerToken)) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("[authenticateToken] bearerToken is required.");
+			if (logger.isInfoEnabled()) {
+				logger.info("[authenticateToken] bearerToken is required.");
 			}
 			return false;
 		}
 
-		String audience = getAudience();
+		String audience = getAudience(systemContext);
 		if (StringUtils.isBlank(audience)) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("[authenticateToken] audience is required.");
+			if (logger.isInfoEnabled()) {
+				logger.info("[authenticateToken] audience is required.");
 			}
 			return false;
 		}
 
 		String serviceAccount = getServiceAccount();
 		if (StringUtils.isBlank(serviceAccount)) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("[authenticateToken] service account is required.");
+			if (logger.isInfoEnabled()) {
+				logger.info("[authenticateToken] service account is required.");
 			}
 			return false;
 		}
 
 		// BearerTokenが認証済み(Redisに格納済み)の場合はtrueを返す。
-		String key = getBearerTokenCacheKey(bearerToken, audience, serviceAccount);
+		String key = getBearerTokenCacheKey(bearerToken);
 		String val = systemContext.getCacheString(key);
 		if (bearerToken.equals(val)) {
 			// 認証OK
-			if (logger.isDebugEnabled()) {
-				logger.debug("[authenticateToken] The BearerToken is authenticated.");
+			if (logger.isInfoEnabled()) {
+				logger.info("[authenticateToken] The BearerToken is authenticated.");
 			}
 			return true;
 		}
-
+		
 		// BearerTokenの署名、issuer、audience、期限、サービスアカウントの確認
 		boolean ret = verifyBearerToken(bearerToken, audience, serviceAccount);
 		if (ret) {
@@ -141,8 +143,8 @@ public class SubscriptionUtil {
 			systemContext.setCacheString(key, bearerToken, getBearerTokenCacheExpireSec());
 		} else {
 			// 認証NG
-			if (logger.isDebugEnabled()) {
-				logger.debug("[authenticateToken] The BearerToken is an authentication error.");
+			if (logger.isInfoEnabled()) {
+				logger.info("[authenticateToken] The BearerToken is an authentication error.");
 			}
 		}
 		return ret;
@@ -206,18 +208,11 @@ public class SubscriptionUtil {
 	/**
 	 * Bearerトークンキャッシュキーを取得
 	 * @param bearerToken Bearerトークン
-	 * @param audience Audience
-	 * @param serviceAccount サービスアカウント
 	 * @return Bearerトークンキャッシュキー
 	 */
-	private static String getBearerTokenCacheKey(String bearerToken, String audience,
-			String serviceAccount) {
+	private static String getBearerTokenCacheKey(String bearerToken) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(SubscriptionConst.BEARERTOKEN_CACHEKEY_PREFIX);
-		sb.append(audience);
-		sb.append("/");
-		sb.append(serviceAccount);
-		sb.append("/");
 		sb.append(bearerToken);
 		return sb.toString();
 	}
@@ -268,33 +263,33 @@ public class SubscriptionUtil {
 					.build();
 			JsonWebSignature jwt = verifier.verify(bearerToken);
 			if (jwt.getPayload().getExpirationTimeSeconds() == null) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("[verifyBearerToken] exp is required.");
+				if (logger.isInfoEnabled()) {
+					logger.info("[verifyBearerToken] exp is required.");
 				}
 				return false;
 			}
 
 			Object emailObj = jwt.getPayload().get(SubscriptionConst.EMAIL);
 			if (!(emailObj instanceof String)) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("[verifyBearerToken] email is not String. " + emailObj);
+				if (logger.isInfoEnabled()) {
+					logger.info("[verifyBearerToken] email is not String. " + emailObj);
 				}
 				return false;
 			}
 			String email = (String)emailObj;
-			if (logger.isDebugEnabled()) {
+			if (logger.isTraceEnabled()) {
 				StringBuilder sb = new StringBuilder();
 				sb.append("[verifyBearerToken] email: ");
 				sb.append(email);
 				sb.append(", service account: ");
 				sb.append(serviceAccount);
-				logger.debug(sb.toString());
+				logger.info(sb.toString());
 			}
 			return serviceAccount.equals(email);
 
 		} catch (VerificationException e) {
-			if (logger.isDebugEnabled()) {
-				logger.debug("[verifyBearerToken] Token verification failed.", e);
+			if (logger.isInfoEnabled()) {
+				logger.info("[verifyBearerToken] Token verification failed.", e);
 			}
 			return false;
 		}
@@ -302,10 +297,24 @@ public class SubscriptionUtil {
 
 	/**
 	 * Audienceを取得.
+	 * @param systemContext SystemContext
 	 * @return Audience
 	 */
-	private static String getAudience() {
-		return TaggingEnvUtil.getSystemProp(SubscriptionConst.PROP_AUDIENCE, null);
+	private static String getAudience(SystemContext systemContext) 
+	throws IOException, TaggingException {
+		String audience = TaggingEnvUtil.getSystemProp(SubscriptionConst.PROP_AUDIENCE, null);
+		if (StringUtils.isBlank(audience)) {
+			ServiceBlogic serviceBlogic = new ServiceBlogic();
+			String urlContextPath = serviceBlogic.getRedirectUrlContextPath(
+					TaggingEnvUtil.getSystemService(),
+					systemContext.getRequestInfo(), systemContext.getConnectionInfo());
+			StringBuilder sb = new StringBuilder();
+			sb.append(urlContextPath);
+			sb.append(SubscriptionConst.SERVLETPATH_DEFAULT);
+			sb.append(SubscriptionConst.PATHINFO_OOM);
+			audience = TaggingEntryUtil.editSlash(sb.toString());
+		}
+		return audience;
 	}
 
 	/**
@@ -342,8 +351,8 @@ public class SubscriptionUtil {
 			try {
 				serviceAccount = requestWorkloadIdentityServiceAccount();
 			} catch (IOException e) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("[getWorkloadIdentityServiceAccount] Metadata request failed.", e);
+				if (logger.isInfoEnabled()) {
+					logger.info("[getWorkloadIdentityServiceAccount] Metadata request failed.", e);
 				}
 				return null;
 			}
@@ -375,8 +384,8 @@ public class SubscriptionUtil {
 			}
 			int status = http.getResponseCode();
 			if (status != HttpURLConnection.HTTP_OK) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("[requestWorkloadIdentityServiceAccount] Response status is not OK. "
+				if (logger.isInfoEnabled()) {
+					logger.info("[requestWorkloadIdentityServiceAccount] Response status is not OK. "
 							+ status);
 				}
 				return null;
@@ -384,8 +393,8 @@ public class SubscriptionUtil {
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(
 					http.getInputStream(), Constants.ENCODING))) {
 				String serviceAccount = StringUtils.trim(reader.readLine());
-				if (logger.isDebugEnabled()) {
-					logger.debug("[requestWorkloadIdentityServiceAccount] service account: "
+				if (logger.isTraceEnabled()) {
+					logger.info("[requestWorkloadIdentityServiceAccount] service account: "
 							+ serviceAccount);
 				}
 				return serviceAccount;

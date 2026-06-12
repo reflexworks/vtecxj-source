@@ -72,4 +72,11 @@ public interface LogManager extends ReflexPlugin {
 	 */
 	public String getErrorMessage(Throwable e);
 
+	/**
+	 * リクエストヘッダのログ出力内容を取得.
+	 * @param req リクエスト
+	 * @return リクエストヘッダのログ出力内容
+	 */
+	public String getRequestHeadersString(ReflexRequest req);
+
 }

@@ -40,6 +40,7 @@ import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.CookieUtil;
 import jp.reflexworks.taggingservice.util.ExceptionUtil;
 import jp.reflexworks.taggingservice.util.LogUtil;
+import jp.reflexworks.taggingservice.util.MaskUtil;
 import jp.reflexworks.taggingservice.util.UserUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -107,7 +108,7 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 				uid = accessTokenManager.getUidByAccessToken(accessToken);
 				// uidが取得できなかった場合はエラー
 				if (StringUtils.isBlank(uid)) {
-					String msg = "AccessToken uid is required. AccessToken=" + accessToken;
+					String msg = "AccessToken uid is required. AccessToken=" + MaskUtil.maskToken(accessToken);
 					if (logger.isInfoEnabled()) {
 						logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 								"[authenticate] " + msg);
@@ -134,7 +135,7 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 
 				} else {
 					// 認証失敗
-					String msg = "AccessToken auth error. AccessToken=" + accessToken;
+					String msg = "AccessToken auth error. AccessToken=" + MaskUtil.maskToken(accessToken);
 					if (logger.isInfoEnabled()) {
 						logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 								"[authenticate] " + msg);
@@ -157,7 +158,7 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 					uid = accessTokenManager.getUidByAccessToken(linkToken);
 					// uidが取得できなかった場合はエラー
 					if (StringUtils.isBlank(uid)) {
-						String msg = "LinkToken uid is required. LinkToken=" + linkToken;
+						String msg = "LinkToken uid is required. LinkToken=" + MaskUtil.maskToken(linkToken);
 						if (logger.isInfoEnabled()) {
 							logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 									"[authenticate] " + msg);
@@ -185,7 +186,7 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 						auth.addLinkTokenUri(uri);
 					} else {
 						// 認証失敗
-						String msg = "LinkToken auth error. LinkToken=" + linkToken;
+						String msg = "LinkToken auth error. LinkToken=" + MaskUtil.maskToken(linkToken);
 						if (logger.isInfoEnabled()) {
 							logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 									"[authenticate] " + msg);

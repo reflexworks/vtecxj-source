@@ -37,6 +37,7 @@ import jp.reflexworks.taggingservice.util.CookieUtil;
 import jp.reflexworks.taggingservice.util.ErrorPageUtil;
 import jp.reflexworks.taggingservice.util.ExceptionUtil;
 import jp.reflexworks.taggingservice.util.LogUtil;
+import jp.reflexworks.taggingservice.util.MaskUtil;
 import jp.reflexworks.taggingservice.util.MetadataUtil;
 import jp.reflexworks.taggingservice.util.ReflexExceptionUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
@@ -60,6 +61,10 @@ public class LogManagerDefault implements LogManager {
 	public static final String LOGALERT_REPLACE_MESSAGE = "${MESSAGE}";
 	/** ログメッセージの文字数オーバー時区切り文字 */
 	public static final String CUTLOGMESSAGE_CHAR = ",";
+	/** ログメッセージのヘッダ伏せ字前の文字数 */
+	public static final int BEFORE_HIDDEN_LEN = 5;
+	/** ログメッセージのヘッダ伏せ字文字列 */
+	public static final String HIDDEN_TEXT = "*****";
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -437,6 +442,7 @@ public class LogManagerDefault implements LogManager {
 			// リクエストヘッダ出力
 			StringBuilder sb = new StringBuilder();
 			sb.append(msgRequestStart);
+			sb.append("[Headers] ");
 			sb.append(requestHeadersString);
 
 			String continuationOfFeedJson = null;
@@ -555,12 +561,13 @@ public class LogManagerDefault implements LogManager {
 
 	/**
 	 * リクエストヘッダのログ出力内容を取得.
+	 * トークン等は伏せ字にする。
 	 * @param req リクエスト
 	 * @return リクエストヘッダのログ出力内容
 	 */
-	private String getRequestHeadersString(ReflexRequest req) {
+	@Override
+	public String getRequestHeadersString(ReflexRequest req) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("[Headers] ");
 		Enumeration<String> enu = req.getHeaderNames();
 		boolean isNameFirst = true;
 		while (enu.hasMoreElements()) {
@@ -582,6 +589,12 @@ public class LogManagerDefault implements LogManager {
 					tmp.append(",");
 				}
 				String value = values.nextElement();
+				if (name.equalsIgnoreCase(ReflexServletConst.HEADER_AUTHORIZATION)) {
+					value = MaskUtil.maskAuthorizationHeader(value);
+				} else if (name.equalsIgnoreCase("Cookie")) {
+					value = MaskUtil.maskCookieSid(value);
+				}
+
 				tmp.append(value);
 			}
 			if (valNum > 1) {
@@ -625,6 +638,9 @@ public class LogManagerDefault implements LogManager {
 					tmp.append(",");
 				}
 				String value = it.next();
+				if (name.equalsIgnoreCase("Set-Cookie")) {
+					value = MaskUtil.maskSetCookieSid(value);
+				}
 				tmp.append(value);
 			}
 			if (valNum > 1) {
