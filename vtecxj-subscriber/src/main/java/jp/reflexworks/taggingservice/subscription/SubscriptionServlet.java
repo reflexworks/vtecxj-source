@@ -1,7 +1,6 @@
 package jp.reflexworks.taggingservice.subscription;
 
 import java.io.IOException;
-import java.util.Enumeration;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,10 +10,10 @@ import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.servlet.ReflexServlet;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
+import jp.reflexworks.taggingservice.blogic.LogBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.RequestResponseManager;
-import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 
 /**
@@ -78,24 +77,15 @@ public class SubscriptionServlet extends ReflexServlet {
 	 * リクエストヘッダをログ出力
 	 * @param req リクエスト
 	 */
-	private void writeHeaders(HttpServletRequest req) {
+	private void writeHeaders(ReflexRequest req) {
 		// デバッグ用
-		if (logger.isDebugEnabled()) {
+		if (logger.isInfoEnabled()) {
 			StringBuilder sb = new StringBuilder();
-			sb.append("[writeHeaders] start.");
-			Enumeration<String> enu = req.getHeaderNames();
-			while (enu.hasMoreElements()) {
-				sb.append(Constants.NEWLINE);
-				String name = enu.nextElement();
-				String val = req.getHeader(name);
-				sb.append(name);
-				sb.append(": ");
-				sb.append(val);
-			}
-			sb.append(Constants.NEWLINE);
-			sb.append("[writeHeaders] end.");
-			logger.debug(sb.toString());
+			sb.append("[writeHeaders] ");
+			LogBlogic logBlogic = new LogBlogic();
+			String headerStr = logBlogic.getRequestHeadersString(req);
+			sb.append(headerStr);
+			logger.info(sb.toString());
 		}
 	}
-
 }

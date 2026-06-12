@@ -79,6 +79,7 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.PdfManager;
 import jp.sourceforge.reflex.util.StringUtils;
+import jp.sourceforge.reflex.util.XmlInputFactoryUtil;
 
 /**
  * ReflexPdf 処理クラス.
@@ -124,7 +125,7 @@ public class ReflexPdfManager implements PdfManager {
 		
 		try (BufferedInputStream bin = new BufferedInputStream(
 				new ByteArrayInputStream(htmlTemplate.getBytes(ReflexPdfConst.ENCODING)))) {
-			XMLInputFactory factory = XMLInputFactory.newInstance();
+			XMLInputFactory factory = XmlInputFactoryUtil.newSecureFactory();
 			reader = factory.createXMLEventReader(bin);
 
 			// meta情報

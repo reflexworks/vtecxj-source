@@ -1,7 +1,5 @@
 package jp.reflexworks.taggingservice.subscription;
 
-import jp.reflexworks.taggingservice.util.Constants;
-
 /**
  * サブスクライバー 定数クラス.
  */
@@ -9,12 +7,8 @@ public interface SubscriptionConst {
 
 	/** 設定 : 再起動中フラグのキャッシュタイムアウト(秒) */
 	public static final String PROP_REBOOT_CACHE_EXPIRE_SEC = "_logalert.reboot.cache.expire.sec";
-	/** 設定 : サブスクリプショントークン検証リクエストタイムアウト(ミリ秒) */
-	public static final String PROP_LOGALERT_REQUEST_TIMEOUT_MILLIS = "_logalert.request.timeout.millis";
 	/** 再起動中フラグのキャッシュタイムアウト(秒)デフォルト値 */
 	public static final int REBOOT_CACHE_EXPIRE_SEC_DEFAULT = 1200;
-	/** 設定 : サブスクリプショントークン検証リクエストタイムアウト(ミリ秒)デフォルト値 */
-	public static final int LOGALERT_REQUEST_TIMEOUT_MILLIS_DEFAULT = 30000;
 
 	/** PathInfo : OutOfMemory */
 	public static final String PATHINFO_OOM = "/oom";
@@ -27,8 +21,6 @@ public interface SubscriptionConst {
 	public static final String DATA = "data";
 	/** JSON key : email */
 	public static final String EMAIL = "email";
-	/** JSON key : email_verified */
-	public static final String EMAIL_VERIFIED = "email_verified";
 	/** JSON key : aud */
 	public static final String AUD = "aud";
 
@@ -44,13 +36,23 @@ public interface SubscriptionConst {
 	/** OutOfMemoryError発生ログの前方一致条件 */
 	public static final String MESSAGE_OOM_PREFIX = "java.lang.OutOfMemoryError: ";
 
-	/** Bearer Tokenの検証リクエスト先 */
-	public static final String URL_TOKEN = "https://oauth2.googleapis.com/tokeninfo?id_token=";
-	/** Bearer Tokenの検証リクエストメソッド */
-	public static final String METHOD_TOKEN = Constants.GET;
+	/** Google ID TokenのIssuer */
+	public static final String GOOGLE_TOKEN_ISSUER = "https://accounts.google.com";
+	/** Workload Identityサービスアカウント取得URL */
+	public static final String METADATA_SERVICEACCOUNT_EMAIL_URL =
+			"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email";
+	/** Metadata Serverヘッダ */
+	public static final String HEADER_METADATA_FLAVOR = "Metadata-Flavor";
+	/** Metadata Serverヘッダ値 */
+	public static final String METADATA_FLAVOR_GOOGLE = "Google";
+	/** 設定 : Metadata Serverリクエストタイムアウト(ミリ秒) */
+	public static final String PROP_METADATA_REQUEST_TIMEOUT_MILLIS =
+			"_logalert.metadata.request.timeout.millis";
+	/** Metadata Serverリクエストタイムアウト(ミリ秒)デフォルト値 */
+	public static final int METADATA_REQUEST_TIMEOUT_MILLIS_DEFAULT = 1000;
 
-	/** Bearer Tokenのキャッシュキー接頭辞 (/_logalert/token//{トークン}) */
-	public static final String BEARERTOKEN_CACHEKEY_PREFIX = "/_logalert/token/";
+	/** Bearer Tokenのキャッシュキー接頭辞 (/_logalert/token/v2/{audience}/{serviceAccount}/{トークン}) */
+	public static final String BEARERTOKEN_CACHEKEY_PREFIX = "/_logalert/token/v2/";
 	/** 設定 : Bearer Tokenのキャッシュタイムアウト(秒) */
 	public static final String PROP_BEARERTOKEN_CACHE_EXPIRE_SEC = "_logalert.token.cache.expire.sec";
 	/** Bearer Tokenのキャッシュタイムアウト(秒)デフォルト値 */
@@ -61,13 +63,12 @@ public interface SubscriptionConst {
 	/** 再起動中フラグ */
 	public static final String REBOOT_VALUE = "rebooting";
 
-	/** bearer区切り文字(正規表現) */
-	public static final String BEARER_DELIMITER_REGEX = "\\.";
-
 	/** 設定 : pushエンドポイントURLのサーブレットパス */
 	public static final String PROP_SERVLETPATH = "_logalert.servletpath";
 	/** pushエンドポイントURLのサーブレットパス デフォルト値 */
-	public static final String SERVLETPATH_DEFAULT = "/l/";
+	public static final String SERVLETPATH_DEFAULT = "/l";
+	/** 設定 : サブスクリプション認証Audience */
+	public static final String PROP_AUDIENCE = "_logalert.audience";
 	/** 設定 : サブスクリプション認証サービスアカウント */
 	public static final String PROP_SERVICEACCOUNT = "_logalert.serviceaccount";
 	/** 設定 : kubenetes管理サービスアカウント (サブスクリプション認証サービスアカウント指定がない場合に使用) */

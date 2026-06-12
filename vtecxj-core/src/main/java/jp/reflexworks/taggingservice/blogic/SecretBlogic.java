@@ -74,8 +74,7 @@ public class SecretBlogic {
 				if (isEnableAccessLog()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
-					sb.append("[getSecretKey] return connVal=");
-					sb.append(connVal);
+					sb.append("[getSecretKey] return connVal. (masked)");
 					logger.info(sb.toString());
 				}
 				return connVal;
@@ -112,8 +111,7 @@ public class SecretBlogic {
 				if (isEnableAccessLog()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
-					sb.append("[getSecretKey] return cacheVal=");
-					sb.append(cacheVal);
+					sb.append("[getSecretKey] return cacheVal. (masked)");
 					logger.info(sb.toString());
 				}
 				return cacheVal;
@@ -136,9 +134,7 @@ public class SecretBlogic {
 		if (isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
-			sb.append("[getSecretKey] return secretVal=");
-			sb.append(secretVal);
-			sb.append(", currentTime=");
+			sb.append("[getSecretKey] return secretVal. (masked), currentTime=");
 			sb.append(currentTime);
 			logger.info(sb.toString());
 		}

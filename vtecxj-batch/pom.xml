@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-batch</artifactId>
-  <version>10.0.1</version>
+  <version>10.0.2</version>
   <packaging>jar</packaging>
 
   <description>vte.cx batch</description>
@@ -18,12 +18,12 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-storage-version>10.0.1</vtecxj-storage-version>
-    <vtecxj-bdbclient-version>10.0.1</vtecxj-bdbclient-version>
-    <vtecxj-bigquery-version>10.0.1</vtecxj-bigquery-version>
-    <vtecxj-authenticator-version>10.0.1</vtecxj-authenticator-version>
-    <vtecxj-redis-version>10.0.1</vtecxj-redis-version>
-    <vtecxj-secret-version>10.0.1</vtecxj-secret-version>
+    <vtecxj-storage-version>10.0.2</vtecxj-storage-version>
+    <vtecxj-bdbclient-version>10.0.2</vtecxj-bdbclient-version>
+    <vtecxj-bigquery-version>10.0.2</vtecxj-bigquery-version>
+    <vtecxj-authenticator-version>10.0.2</vtecxj-authenticator-version>
+    <vtecxj-redis-version>10.0.2</vtecxj-redis-version>
+    <vtecxj-secret-version>10.0.2</vtecxj-secret-version>
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
   </properties>

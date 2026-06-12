@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jp.reflexworks.servlet.util.UrlUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.RequestInfo;
+import jp.reflexworks.taggingservice.util.MaskUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -127,7 +128,7 @@ public class ReflexBDBServiceUtil {
 	throws IOException {
 		String sid = req.getHeader(HEADER_SID);
 		if (logger.isTraceEnabled()) {
-			logger.trace("MySid = " + sid);
+			logger.trace("MySid = " + MaskUtil.maskToken(sid));
 		}
 		return sid;
 	}

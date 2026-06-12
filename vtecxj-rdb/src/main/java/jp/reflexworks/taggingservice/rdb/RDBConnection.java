@@ -2,6 +2,7 @@ package jp.reflexworks.taggingservice.rdb;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -251,7 +252,7 @@ public class RDBConnection implements ReflexConnection<Connection> {
 	 * SQL文をデータベースに送るためのStatementオブジェクトを生成する.
 	 * @return Statementオブジェクト
 	 */
-	public RDBStatement createStatement() 
+	public RDBStatement createStatement()
 	throws IOException, TaggingException {
 		int numRetries = ReflexRDBUtil.getRdbRetryCount(serviceName);
 		int waitMillis = ReflexRDBUtil.getRdbRetryWaitmillis(serviceName);
@@ -262,6 +263,28 @@ public class RDBConnection implements ReflexConnection<Connection> {
 
 			} catch (SQLException se) {
 				ReflexRDBUtil.checkRetry(se, r, numRetries, waitMillis, "createStatement", requestInfo);
+			}
+		}
+		// 通らない
+		throw new IllegalStateException("The code that should not pass.");
+	}
+
+	/**
+	 * パラメータ付きSQL文をデータベースに送るためのPreparedStatementオブジェクトを生成する.
+	 * @param sql プレースホルダ(?)を含むSQL文
+	 * @return PreparedStatementオブジェクト
+	 */
+	public RDBPreparedStatement prepareStatement(String sql)
+	throws IOException, TaggingException {
+		int numRetries = ReflexRDBUtil.getRdbRetryCount(serviceName);
+		int waitMillis = ReflexRDBUtil.getRdbRetryWaitmillis(serviceName);
+		for (int r = 0; r <= numRetries; r++) {
+			try {
+				PreparedStatement pstmt = conn.prepareStatement(sql);
+				return new RDBPreparedStatement(pstmt, serviceName, requestInfo);
+
+			} catch (SQLException se) {
+				ReflexRDBUtil.checkRetry(se, r, numRetries, waitMillis, "prepareStatement", requestInfo);
 			}
 		}
 		// 通らない

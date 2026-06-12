@@ -118,5 +118,17 @@ public class LogBlogic {
 		LogManager logManager = TaggingEnvUtil.getLogManager();
 		return logManager.getErrorMessage(e);
 	}
+	
+
+	/**
+	 * リクエストヘッダのログ出力内容を取得.
+	 * トークン等は伏せ字にする。
+	 * @param req リクエスト
+	 * @return リクエストヘッダのログ出力内容
+	 */
+	public String getRequestHeadersString(ReflexRequest req) {
+		LogManager logManager = TaggingEnvUtil.getLogManager();
+		return logManager.getRequestHeadersString(req);
+	}
 
 }

@@ -58,6 +58,34 @@ public interface RDBManager extends ReflexPlugin {
 	public List<Map<String, Object>> querySql(String sql, ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
+
+	/**
+	 * PreparedStatementを使用してRDBに更新SQLを実行する.
+	 * SQLインジェクション対策としてプレースホルダ(?)を使用すること。
+	 * @param sql SQL (プレースホルダ ? を使用)
+	 * @param params バインドパラメータ
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return (1) SQLデータ操作言語(DML)文の場合は行数、(2)何も返さないSQL文の場合は0
+	 */
+	public int execPreparedSql(String sql, Object[] params, ReflexAuthentication auth,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException;
+
+	/**
+	 * PreparedStatementを使用してRDBに検索SQLを実行し結果を取得する.
+	 * SQLインジェクション対策としてプレースホルダ(?)を使用すること。
+	 * @param sql SQL (プレースホルダ ? を使用)
+	 * @param params バインドパラメータ
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 検索結果(キー:select項目名、値:検索結果、のリスト)
+	 */
+	public List<Map<String, Object>> queryPreparedSql(String sql, Object[] params,
+			ReflexAuthentication auth, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException;
 	
 	/**
 	 * AutoCommit設定を取得する.

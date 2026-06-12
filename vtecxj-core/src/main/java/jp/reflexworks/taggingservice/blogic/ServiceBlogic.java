@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexContext;
@@ -547,10 +548,13 @@ public class ServiceBlogic {
 	 */
 	public boolean isSecure(ReflexRequest req)
 	throws IOException, TaggingException {
-		// サービスステータスが"production"の場合https通信なのでsecure属性を付加する。
-		String serviceStatus = getServiceStatus(req.getServiceName(),
-				req.getRequestInfo(), req.getConnectionInfo());
-		return Constants.SERVICE_STATUS_PRODUCTION.equals(serviceStatus);
+		// (2026.6.10)localhost以外はsecureとする
+		String host = req.getHeader(ReflexServletConst.HEADER_HOST);
+		if (host != null && host.startsWith(SecurityConst.LOCALHOST_PREFIX)) {
+			return false;
+		} else {
+			return true;
+		}
 	}
 
 	/**

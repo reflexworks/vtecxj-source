@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.env.ReflexEnvConst;
@@ -25,7 +26,7 @@ public class CookieUtil {
 
 	/** sameSite指定 : lax */
 	private static final String SAME_SITE_LAX = "__SAME_SITE_LAX__";
-	
+
 	/**
 	 * 指定されたキー、値をレスポンスにSet-Cookieで設定します.
 	 * @param resp レスポンス

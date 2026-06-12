@@ -1,6 +1,8 @@
 package jp.reflexworks.taggingservice.auth;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -578,8 +580,11 @@ public class TaggingAuthenticationManager extends AuthenticationManagerDefault {
 		if (!StringUtils.isBlank(totpSecret)) {
 			String tdidSecret = userManager.getUserTDIDSecretByUid(uid, useCache, systemContext);
 			String cookieTdid = CookieUtil.getCookieValue(req, AuthenticatorConst.TDID);
-			if (!StringUtils.isBlank(cookieTdid) &&
-					cookieTdid.equals(tdidSecret)) {
+			// タイミング攻撃防止: 定時間比較を使用
+			if (!StringUtils.isBlank(cookieTdid) && !StringUtils.isBlank(tdidSecret) &&
+					MessageDigest.isEqual(
+						cookieTdid.getBytes(StandardCharsets.UTF_8),
+						tdidSecret.getBytes(StandardCharsets.UTF_8))) {
 				return false;
 			}
 			return true;
@@ -665,7 +670,11 @@ public class TaggingAuthenticationManager extends AuthenticationManagerDefault {
 		if (!StringUtils.isBlank(tdid)) {
 			// CookieにTDIDがセットされている場合、有効期限更新のためレスポンスにTDIDをセットする。
 			String cookieTdid = CookieUtil.getCookieValue(req, AuthenticatorConst.TDID);
-			if (tdid.equals(cookieTdid)) {
+			// タイミング攻撃防止: 定時間比較を使用
+			if (!StringUtils.isBlank(cookieTdid) &&
+					MessageDigest.isEqual(
+						tdid.getBytes(StandardCharsets.UTF_8),
+						cookieTdid.getBytes(StandardCharsets.UTF_8))) {
 				setTdid = true;
 			}
 		}

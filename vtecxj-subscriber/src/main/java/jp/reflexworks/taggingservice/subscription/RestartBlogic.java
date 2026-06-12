@@ -62,12 +62,18 @@ public class RestartBlogic {
 		// 認証 (JWT)
 		boolean isAuth = SubscriptionUtil.authenticate(req, systemContext);
 		if (!isAuth) {
+			if (logger.isInfoEnabled()) {
+				logger.info("[subscription] JWT authentication failed.");
+			}
 			return;
+		} else {
+			if (logger.isInfoEnabled()) {
+				logger.info("[subscription] JWT authentication succeeded.");
+			}
 		}
 
 		// 再起動処理
 		callRestart(podName, systemContext);
-
 	}
 
 	/**

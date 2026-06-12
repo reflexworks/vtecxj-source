@@ -57,6 +57,7 @@ import jp.reflexworks.taggingservice.taskqueue.TaskQueueUtil;
 import jp.reflexworks.taggingservice.util.CheckUtil;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.LogUtil;
+import jp.reflexworks.taggingservice.util.ServiceCommonUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.reflexworks.taggingservice.util.UserUtil;
 import jp.sourceforge.reflex.util.DateUtil;
@@ -71,9 +72,6 @@ public class ServiceManagerDefault implements ServiceManager {
 	/** createservice引数チェックに使用。接頭辞の長さ */
 	private static final int URI_SERVICE_PREFIX_LEN =
 			Constants.URI_SERVICE_PREFIX.length();
-	/** サービス名に使用できる文字パターンオブジェクト */
-	public static final Pattern PATTERN_SERVICENAME =
-			Pattern.compile(ServiceManagerDefaultConst.PATTERN_STR_SERVICENAME);
 	/** APIKeyの文字列長 */
 	private static final int APIKEY_STRING_LEN = 36;
 	/** サービスキーの文字列長 */
@@ -876,8 +874,7 @@ public class ServiceManagerDefault implements ServiceManager {
 			throw new IllegalParameterException("Please enter at least two characters in the service name.");
 		}
 		// 文字種チェック
-		Matcher matcher = PATTERN_SERVICENAME.matcher(str);
-		if (!matcher.matches()) {
+		if (!ServiceCommonUtil.matchServiceNamePattern(str)) {
 			throw new IllegalParameterException("Please enter the alphanumeric or '-'. : " + str);
 		}
 		// 予約語はエラー
