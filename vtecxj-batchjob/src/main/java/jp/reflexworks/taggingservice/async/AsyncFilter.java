@@ -3,9 +3,6 @@ package jp.reflexworks.taggingservice.async;
 import java.io.IOException;
 import java.util.Date;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -14,6 +11,10 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.servlet.ReflexServletUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
@@ -162,10 +163,12 @@ public class AsyncFilter implements Filter {
 			boolean isStrict = false;
 			boolean isNoCache = reqRespManager.isNoCache(req);
 			boolean isSameOrigin = reqRespManager.isSameOrigin(req);
+			int strictTransportSecuritySec = reqRespManager.getStrictTransportSecuritySec(req);
+			boolean includeSubDomains = reqRespManager.includeSubDomains(req);
 			ReflexServletUtil.doResponse(req, resp, responseInfo.data, format,
 					TaggingEnvUtil.getResourceMapper(serviceName),
 					connectionInfo.getDeflateUtil(), responseInfo.status, isGZip,
-					isStrict, isNoCache, isSameOrigin);
+					isStrict, isNoCache, isSameOrigin, strictTransportSecuritySec, includeSubDomains);
 		}
 	}
 

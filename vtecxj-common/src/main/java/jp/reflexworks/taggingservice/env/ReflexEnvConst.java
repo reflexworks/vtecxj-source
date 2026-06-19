@@ -53,6 +53,10 @@ public interface ReflexEnvConst {
 	public static final String STATICINFO_RETRY_COUNT = "_staticinfo.retry.count";
 	/** static情報ロック取得リトライ時のスリープ時間(ミリ秒) **/
 	public static final String STATICINFO_RETRY_WAITMILLIS = "_staticinfo.retry.waitmillis";
+	/** レスポンスヘッダ Strict-Transport-Security の max-age の値 */
+	public static final String STRICT_TRANSPORT_SECURITY_SEC = "_strict.transport.security.sec";
+	/** レスポンスヘッダ Strict-Transport-Security の includeSubDomains を付加するかどうか */
+	public static final String STRICT_TRANSPORT_SECURITY_INCLUDESUBDOMAIN = "_strict.transport.security.includesubdomain";
 
 	// ----- 定数値、デフォルト値 -----
 
@@ -99,5 +103,9 @@ public interface ReflexEnvConst {
 	public static final int STATICINFO_RETRY_COUNT_DEFAULT = 150;
 	/** 設定デフォルト : static情報lock取得リトライ時のスリープ時間(ミリ秒) */
 	public static final int STATICINFO_RETRY_WAITMILLIS_DEFAULT = 20;
+	/** 設定デフォルト : レスポンスヘッダ Strict-Transport-Security の max-age の値 */
+	public static final int STRICT_TRANSPORT_SECURITY_SEC_DEFAULT = 0;
+	/** 設定デフォルト : レスポンスヘッダ Strict-Transport-Security の includeSubDomains を付加するかどうか */
+	public static final boolean STRICT_TRANSPORT_SECURITY_INCLUDESUBDOMAIN_DEFAULT = false;
 
 }

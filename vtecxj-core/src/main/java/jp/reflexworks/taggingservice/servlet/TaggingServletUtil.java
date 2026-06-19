@@ -122,6 +122,8 @@ public class TaggingServletUtil {
 				req.getConnectionInfo().getDeflateUtil(), status,
 				reqRespManager.isGZip(), reqRespManager.isPrintNamespace(),
 				reqRespManager.isNoCache(req), reqRespManager.isSameOrigin(req),
+				reqRespManager.getStrictTransportSecuritySec(req), 
+				reqRespManager.includeSubDomains(req),
 				contentType);
 	}
 

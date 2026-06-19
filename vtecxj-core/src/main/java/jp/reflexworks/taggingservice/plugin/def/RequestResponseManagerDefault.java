@@ -17,6 +17,7 @@ import jp.reflexworks.taggingservice.api.ReflexContentInfo;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.blogic.ContentBlogic;
+import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
@@ -82,6 +83,26 @@ public class RequestResponseManagerDefault implements RequestResponseManager {
 	 */
 	public boolean isSameOrigin(ReflexRequest req) {
 		return true;	// 
+	}
+
+	/**
+	 * レスポンスヘッダ Strict-Transport-Security の max-age の値を取得
+	 * @return レスポンスヘッダ Strict-Transport-Security の max-age の値
+	 */
+	public int getStrictTransportSecuritySec(ReflexRequest req) {
+		return TaggingEnvUtil.getSystemPropInt(
+				TaggingEnvConst.STRICT_TRANSPORT_SECURITY_SEC,
+				TaggingEnvConst.STRICT_TRANSPORT_SECURITY_SEC_DEFAULT);
+	}
+	
+	/**
+	 * レスポンスヘッダ Strict-Transport-Security の includeSubDomains を付加するかどうかを取得
+	 * @return Strict-Transport-Security の includeSubDomains を付加する場合true
+	 */
+	public boolean includeSubDomains(ReflexRequest req) {
+		return TaggingEnvUtil.getSystemPropBoolean(
+				TaggingEnvConst.STRICT_TRANSPORT_SECURITY_INCLUDESUBDOMAIN,
+				TaggingEnvConst.STRICT_TRANSPORT_SECURITY_INCLUDESUBDOMAIN_DEFAULT);
 	}
 
 	/**

@@ -12,6 +12,7 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.net.Webhook;
 
+import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.servlet.ReflexServlet;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
@@ -102,7 +103,7 @@ public class ReflexStripeServlet extends ReflexServlet {
 			sb.append(": ");
 			sb.append(e.getMessage());
 			logger.warn(sb.toString(), e);
-			httpResp.setStatus(SC_BAD_REQUEST);
+			httpResp.setStatus(HttpStatus.SC_BAD_REQUEST);
 
 		} catch (IOException | TaggingException | RuntimeException | Error e) {
 			String errmsg = e.getMessage();

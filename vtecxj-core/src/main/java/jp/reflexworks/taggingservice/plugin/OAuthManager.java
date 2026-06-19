@@ -19,12 +19,12 @@ public interface OAuthManager extends ReflexPlugin {
 	 * @param req リクエスト
 	 * @param resp レスポンス
 	 * @param provider OAuthプロバイダ
-	 * @param rxid RXID
+	 * @param wsseApikey WSSE-APIKEY
 	 * @param reflexContext ReflexContext
 	 * @return 更新後のユーザトップエントリー
 	 */
 	public EntryBase mergeUser(ReflexRequest req, ReflexResponse resp, 
-			String provider, String rxid, ReflexContext reflexContext)
+			String provider, String wsseApikey, ReflexContext reflexContext)
 	throws IOException, TaggingException;
 	
 	/**

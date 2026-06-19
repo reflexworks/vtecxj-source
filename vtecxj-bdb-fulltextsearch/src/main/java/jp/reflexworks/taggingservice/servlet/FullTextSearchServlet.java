@@ -2,12 +2,13 @@ package jp.reflexworks.taggingservice.servlet;
 
 import java.io.IOException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.servlet.HttpStatus;
@@ -352,7 +353,7 @@ public class FullTextSearchServlet extends ReflexServlet {
 	protected void doResponse(FullTextSearchRequest req, FullTextSearchResponse resp,
 			Object retObj)
 	throws IOException {
-		doResponse(req, resp, retObj, SC_OK);
+		doResponse(req, resp, retObj, HttpStatus.SC_OK);
 	}
 
 	/**
@@ -390,7 +391,8 @@ public class FullTextSearchServlet extends ReflexServlet {
 				BDBEnvUtil.getAtomResourceMapper(),
 				req.getConnectionInfo().getDeflateUtil(), status, contentType,
 				BDBEnvUtil.isGZip(), BDBEnvUtil.isPrintNamespace(),
-				BDBEnvUtil.isNoCache(req), BDBEnvUtil.isSameOrigin(req));
+				BDBEnvUtil.isNoCache(req), BDBEnvUtil.isSameOrigin(req),
+				BDBEnvUtil.getStrictTransportSecuritySec(), BDBEnvUtil.includeSubDomain());
 	}
 
 	/**

@@ -85,12 +85,12 @@ public interface UserManager extends ReflexPlugin {
 	throws IOException, TaggingException;
 
 	/**
-	 * 指定されたアカウントのRXIDを生成
-	 * @param account アカウント
+	 * 指定されたUIDのRXIDを生成
+	 * @param uid UID
 	 * @param systemContext SystemContext
 	 * @return RXID
 	 */
-	public String createRXIDByAccount(String account, SystemContext systemContext)
+	public String createRXIDByUid(String uid, SystemContext systemContext)
 	throws IOException, TaggingException;
 
 	/**

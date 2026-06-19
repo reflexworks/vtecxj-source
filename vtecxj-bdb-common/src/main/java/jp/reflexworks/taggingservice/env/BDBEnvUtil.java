@@ -324,6 +324,25 @@ public class BDBEnvUtil {
 	public static boolean isSameOrigin(ReflexRequest req) {
 		return true;	// 
 	}
+	
+	/**
+	 * レスポンスヘッダ Strict-Transport-Security の max-age の値を取得
+	 * @return レスポンスヘッダ Strict-Transport-Security の max-age の値
+	 */
+	public static int getStrictTransportSecuritySec() {
+		return ReflexEnvUtil.getSystemPropInt(BDBEnvConst.STRICT_TRANSPORT_SECURITY_SEC,
+				BDBEnvConst.STRICT_TRANSPORT_SECURITY_SEC_DEFAULT);
+	}
+	
+	/**
+	 * レスポンスヘッダ Strict-Transport-Security の includeSubDomains を付加するかどうかを取得
+	 * @return Strict-Transport-Security の includeSubDomains を付加する場合true
+	 */
+	public static boolean includeSubDomain() {
+		return ReflexEnvUtil.getSystemPropBoolean(
+				BDBEnvConst.STRICT_TRANSPORT_SECURITY_INCLUDESUBDOMAIN,
+				BDBEnvConst.STRICT_TRANSPORT_SECURITY_INCLUDESUBDOMAIN_DEFAULT);
+	}
 
 	/**
 	 * 非同期処理管理プラグインを取得.

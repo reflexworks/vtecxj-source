@@ -70,7 +70,7 @@ public class ProviderUtil {
 	 * @param req リクエスト
 	 * @return APIKey
 	 */
-	 private static String getAPIKeyFromRequest(ReflexRequest req) {
+	 public static String getAPIKeyFromRequest(ReflexRequest req) {
 		// Authorization: APIKey {APIKey}
 		String apiKey = ReflexServletUtil.getHeaderValue(req,
 				ReflexServletConst.HEADER_AUTHORIZATION,

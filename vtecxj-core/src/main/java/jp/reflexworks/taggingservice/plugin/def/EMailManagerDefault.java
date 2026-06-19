@@ -187,10 +187,10 @@ public class EMailManagerDefault implements EMailManager {
 	throws IOException, TaggingException {
 		SystemContext systemContext = (SystemContext)baseReflexContext;
 		// ${RXID}をRXIDに変換する。
-		String rxid = createRXID(account, systemContext);
+		String rxid = createRXID(uid, systemContext);
 		message = replaceRXID(message, rxid);
 		// ${RXID=/xxx}の部分をRXID付きURLに変換する。
-		return replaceConversionStr(message, uid, account, url,
+		return replaceConversionStr(message, uid, url,
 				EMailConst.REPLACE_RXID_PREFIX, RequestParam.PARAM_RXID,
 				(SystemContext)systemContext);
 	}
@@ -208,7 +208,7 @@ public class EMailManagerDefault implements EMailManager {
 	public String replaceLink(String message, String uid, String account, String url,
 			BaseReflexContext systemContext)
 	throws IOException, TaggingException {
-		return replaceConversionStr(message, uid, account, url,
+		return replaceConversionStr(message, uid, url,
 				EMailConst.REPLACE_LINK_PREFIX, RequestParam.PARAM_TOKEN,
 				(SystemContext)systemContext);
 	}
@@ -221,14 +221,13 @@ public class EMailManagerDefault implements EMailManager {
 	 * リンクトークンの場合、指定されたURI(/xxx)でリンクトークンを作成します。
 	 * @param message メッセージ
 	 * @param uid UID
-	 * @param account アカウント
 	 * @param url URL
 	 * @param conversionStr 変換箇所を表すパラメータ
 	 * @param conversionParam 変換後のパラメータ名
 	 * @param systemContext SystemContext
 	 * @return 変換後のメッセージ
 	 */
-	private String replaceConversionStr(String message, String uid, String account,
+	private String replaceConversionStr(String message, String uid, 
 			String url, String conversionStr, String conversionParam,
 			SystemContext systemContext)
 	throws IOException, TaggingException {
@@ -263,7 +262,7 @@ public class EMailManagerDefault implements EMailManager {
 				paramVal = createLinkToken(uri, uid, systemContext);
 			} else {
 				// RXIDの生成
-				paramVal = createRXID(account, systemContext);
+				paramVal = createRXID(uid, systemContext);
 			}
 			paramVal = StringUtils.null2blank(paramVal);
 
@@ -325,15 +324,15 @@ public class EMailManagerDefault implements EMailManager {
 
 	/**
 	 * RXIDの生成
-	 * @param account アカウント
+	 * @param uid UID
 	 * @param systemContext SystemContext
 	 * @return RXID
 	 */
-	private String createRXID(String account, SystemContext systemContext)
+	private String createRXID(String uid, SystemContext systemContext)
 	throws IOException, TaggingException {
-		if (!StringUtils.isBlank(account)) {
+		if (!StringUtils.isBlank(uid)) {
 			UserManager userManager = TaggingEnvUtil.getUserManager();
-			return userManager.createRXIDByAccount(account, systemContext);
+			return userManager.createRXIDByUid(uid, systemContext);
 		}
 		return null;
 	}

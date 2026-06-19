@@ -271,35 +271,37 @@ public class UserManagerDefault implements UserManager {
 	throws IOException, TaggingException {
 		// 認証情報のチェック
 		ReflexAuthentication auth = reflexContext.getAuth();
-		if (auth == null || StringUtils.isBlank(auth.getAccount())) {
+		if (auth == null || StringUtils.isBlank(auth.getUid())) {
 			return null;
 		}
 		// SystemContextでアクセス
 		SystemContext systemContext = new SystemContext(auth,
 				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
-		return createRXIDByAccount(auth.getAccount(), systemContext);
+		return createRXIDByUid(auth.getUid(), systemContext);
 	}
 
 	/**
-	 * 指定されたアカウントのRXIDを生成
-	 * @param account アカウント
+	 * 指定されたUIDのRXIDを生成
+	 * @param uid UID
 	 * @param reflexContext ReflexContext
 	 * @return RXID
 	 */
-	public String createRXIDByAccount(String account, SystemContext systemContext)
+	public String createRXIDByUid(String uid, SystemContext systemContext)
 	throws IOException, TaggingException {
 		String serviceName = systemContext.getServiceName();
+		if (StringUtils.isBlank(uid)) {
+			return null;
+		}
 		// パスワード取得
-		String password = getPasswordByAccount(account, systemContext);
+		String password = getPasswordByUid(uid, systemContext);
 		// APIKey取得
 		ServiceBlogic serviceBlogic = new ServiceBlogic();
 		String apiKey = serviceBlogic.getAPIKey(serviceName, systemContext.getRequestInfo(),
 				systemContext.getConnectionInfo());
-
 		// RXID生成
-		if (!StringUtils.isBlank(account) && !StringUtils.isBlank(password) &&
+		if (!StringUtils.isBlank(password) &&
 				!StringUtils.isBlank(apiKey)) {
-			return AuthTokenUtil.createRXIDString(account, password, serviceName, apiKey);
+			return AuthTokenUtil.createRXIDString(uid, password, serviceName, apiKey);
 		}
 		return null;
 	}
@@ -350,10 +352,18 @@ public class UserManagerDefault implements UserManager {
 		}
 
 		String username = usernameAndService[0];
-		String account = UserUtil.editAccount(username);
-		String password = getPasswordByAccount(account, systemContext);
+		String uid = null;
+		String account = null;
+		String password = null;
+		if (wsseAuth.isRxid) {
+			uid = UserUtil.editAccount(username);
+			password = getPasswordByUid(uid, systemContext);
+		} else {
+			account = UserUtil.editAccount(username);
+			password = getPasswordByAccount(account, systemContext);
+		}
 		if (password == null) {
-			if (logger.isDebugEnabled()) {
+			if (logger.isTraceEnabled()) {
 				logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
 						"[authenticate]password is null.");
 			}
@@ -361,12 +371,15 @@ public class UserManagerDefault implements UserManager {
 			StringBuilder msgBld = new StringBuilder();
 			if (wsseAuth.isRxid) {
 				msgBld.append("RXID-user's password does not exist. RXID=");
+				msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
+				msgBld.append(" uid=");
+				msgBld.append(uid);
 			} else {
 				msgBld.append("WSSE-user's password does not exist. WSSE=");
+				msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
+				msgBld.append(" account=");
+				msgBld.append(account);
 			}
-			msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
-			msgBld.append(" account=");
-			msgBld.append(account);
 			ae.setSubMessage(msgBld.toString());
 			throw ae;
 		}
@@ -383,12 +396,15 @@ public class UserManagerDefault implements UserManager {
 			StringBuilder msgBld = new StringBuilder();
 			if (wsseAuth.isRxid) {
 				msgBld.append("RXID auth error. RXID=");
+				msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
+				msgBld.append(" uid=");
+				msgBld.append(uid);
 			} else {
 				msgBld.append("WSSE auth error. WSSE=");
+				msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
+				msgBld.append(" account=");
+				msgBld.append(account);
 			}
-			msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
-			msgBld.append(" account=");
-			msgBld.append(account);
 			String msg = msgBld.toString();
 			if (logger.isDebugEnabled()) {
 				logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
@@ -1638,7 +1654,7 @@ public class UserManagerDefault implements UserManager {
 		// パスワード変更一時トークンの取得、メール本文への設定
 		EntryBase tmpMailEntry = TaggingEntryUtil.copyEntry(mailEntry, 
 				TaggingEnvUtil.getResourceMapper(serviceName));
-		String rxid = createRXIDByAccount(account, systemContext);
+		String rxid = createRXIDByUid(uid, systemContext);
 		String passresetTokenUri = getCachePassresetTokenUri(uid);
 		String passresetToken = getPassresetTokenFromCache(passresetTokenUri, mySystemContext);
 		int rxidSec = TaggingEnvUtil.getRxidMinute(serviceName) * 60;
