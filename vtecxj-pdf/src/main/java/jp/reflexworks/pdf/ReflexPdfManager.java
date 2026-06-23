@@ -573,7 +573,7 @@ public class ReflexPdfManager implements PdfManager {
 			
 			// タイムスタンプ
 			if (metaMap.containsKey("timestamp")) {
-				pdfData = timestamp(pdfData, metaMap);
+				pdfData = timestamp(pdfData, metaMap, reflexContext);
 			}
 			
 			return pdfData;
@@ -1708,11 +1708,14 @@ public class ReflexPdfManager implements PdfManager {
 	 * PDFファイルにタイムスタンプを付加.
 	 * @param inPdf 入力PDFファイルデータ
 	 * @param metaMap PDF文書情報
+	 * @param reflexContext ReflexContext
 	 * @return タイムスタンプを付加したPDFファイルデータ
 	 */
-	private byte[] timestamp(byte[] inPdf, Map<String, String> metaMap) 
+	private byte[] timestamp(byte[] inPdf, Map<String, String> metaMap, ReflexContext reflexContext) 
 	throws IOException {
 		String url = metaMap.get("timestamp");
+		ReflexPdfUtil.checkTimestampUrl(url, reflexContext);
+		// 自サービスで想定されたURLかどうかチェック
 		String tsUsername = metaMap.get("timestampusername");
 		String tsPassword = metaMap.get("timestamppassword");
 		String ownerPassword = metaMap.get("ownerpassword");

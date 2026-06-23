@@ -1,15 +1,12 @@
 package jp.reflexworks.pdf;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLConnection;
 
 import jp.reflexworks.pdf.exception.IllegalPdfParameterException;
 import jp.reflexworks.taggingservice.api.ReflexContentInfo;
 import jp.reflexworks.taggingservice.api.ReflexContext;
+import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
+import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.sourceforge.reflex.util.StringUtils;
 
@@ -20,38 +17,20 @@ public class ReflexPdfUtil {
 	
 	/**
 	 * コンテンツ取得.
-	 * URLリクエスト、またはTaggingServiceのHTMLコンテントデータを取得し、バイト配列で返却する。
+	 * TaggingServiceのコンテントデータを取得し、バイト配列で返却する。
 	 * @param uri URI
 	 * @param reflexContext ReflexContext
 	 */
 	public static byte[] getContent(String uri, ReflexContext reflexContext) 
 	throws IOException, TaggingException {
 		if (StringUtils.isBlank(uri)) {
-			throw new IllegalPdfParameterException("uri is required.");
+			throw new IllegalPdfParameterException("Uri is required.");
 		}
-		byte[] content = null;
-		if (uri.startsWith("http:") || uri.startsWith("https:")) {
-			URL url = null;
-			try {
-				url = new URI(uri).toURL();
-			} catch (URISyntaxException e) {
-				throw new IllegalPdfParameterException(e.getMessage());
-			}
-			URLConnection conn = url.openConnection();
-			try (InputStream is = conn.getInputStream()) {
-				if (is != null) {
-					content = is.readAllBytes();
-				}
-			}
-		} else {
-			//content = reflexContext.getHtmlContent(uri);
-			ReflexContentInfo contentInfo = reflexContext.getContent(uri);
-			if (contentInfo == null || contentInfo.getData() == null) {
-				throw new IllegalPdfParameterException("content is not found. " + uri);
-			}
-			content = contentInfo.getData();
+		ReflexContentInfo contentInfo = reflexContext.getContent(uri);
+		if (contentInfo == null || contentInfo.getData() == null) {
+			throw new IllegalPdfParameterException("Content is not found. " + uri);
 		}
-		return content;
+		return contentInfo.getData();
 	}
 	
 	/**
@@ -63,7 +42,7 @@ public class ReflexPdfUtil {
 	public static byte[] getSignatureContent(String uri, ReflexContext reflexContext) 
 	throws IOException, TaggingException {
 		if (StringUtils.isBlank(uri)) {
-			throw new IllegalPdfParameterException("uri is required.");
+			throw new IllegalPdfParameterException("Uri is required.");
 		}
 		ReflexContentInfo contentInfo = reflexContext.getContent(uri);
 		byte[] ret = null;
@@ -74,6 +53,30 @@ public class ReflexPdfUtil {
 			throw new IllegalPdfParameterException("No content. " + uri);
 		}
 		return ret;
+	}
+	
+	/**
+	 * タイムスタンプサーバURLの入力チェック
+	 * @param url タイムスタンプサーバURL
+	 * @param reflexContext ReflexContext
+	 */
+	public static void checkTimestampUrl(String url, ReflexContext reflexContext) {
+		if (StringUtils.isBlank(url)) {
+			throw new IllegalParameterException("Timestamp URL is required.");
+		}
+		if (!url.startsWith(ReflexPdfConst.SCHEMA_HTTP_COLON_SLASH) &&
+				!url.startsWith(ReflexPdfConst.SCHEMA_HTTPS_COLON_SLASH)) {
+			throw new IllegalParameterException("Invalid URL scheme of timestamp.");
+		}
+		String serviceName = reflexContext.getServiceName();
+		String timestampUrl = TaggingEnvUtil.getProp(serviceName, 
+				ReflexPdfSettingConst.PDF_TIMESTAMP_URL, null);
+		if (StringUtils.isBlank(timestampUrl)) {
+			throw new IllegalParameterException("The timestamp URL is not set.");
+		}
+		if (!url.equals(timestampUrl)) {
+			throw new IllegalParameterException("Timestamp URLs are not allowed.");
+		}
 	}
 
 }

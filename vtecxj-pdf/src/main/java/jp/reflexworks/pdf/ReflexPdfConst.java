@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.openpdf.text.pdf.PdfWriter;
 
 import jp.reflexworks.atom.api.AtomConst;
+import jp.reflexworks.servlet.ReflexServletConst;
 
 /**
  * ReflexPdf 定数クラス.
@@ -87,6 +88,11 @@ public class ReflexPdfConst {
 	
 	/** QRコードのファイルフォーマット */
 	public static final String QRCODE_FORMAT = "png";
+	
+	/** http:// */
+	public static final String SCHEMA_HTTP_COLON_SLASH = ReflexServletConst.SCHEMA_HTTP + "://";
+	/** https:// */
+	public static final String SCHEMA_HTTPS_COLON_SLASH = ReflexServletConst.SCHEMA_HTTPS + "://";
 
 
 }
