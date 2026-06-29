@@ -635,7 +635,7 @@ public class UserManagerDefault implements UserManager {
 		SystemContext systemContext = new SystemContext(reflexContext.getAuth(),
 				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
 		return adduserInterimProc(account, null, null, nickname, null, AdduserType.LINK,
-				feed, null, systemContext);
+				feed, null, null, systemContext);
 	}
 
 	/**
@@ -667,11 +667,6 @@ public class UserManagerDefault implements UserManager {
 			}
 		}
 		boolean isByAdmin = !adduserType.equals(AdduserType.USER);
-		if (!isByAdmin && (mailEntry == null || StringUtils.isBlank(mailEntry.title) ||
-				(StringUtils.isBlank(mailEntry.summary) && StringUtils.isBlank(entry.getContentText())))) {
-			// adduserでメールの設定が無い場合はエラー
-			throw new InvalidServiceSettingException("There is no mail setting. (adduser)");
-		}
 
 		// 指定されたメールアドレスを小文字に変換し、さらにアカウント利用可能文字以外を削除した値をユーザアカウントとする。
 		String[] userInfo = checkUserAuthInfo(entry, UserAuthType.ADDUSER, isByAdmin, isByAdmin);
@@ -679,6 +674,7 @@ public class UserManagerDefault implements UserManager {
 		String password = userInfo[1];
 		String account = userInfo[2];
 		String nickname = userInfo[3];
+		String rawPassword = userInfo[4];	// パスワード自動生成時のみ値あり
 
 		CheckUtil.checkNotNull(account, "username");
 		if (!isByAdmin) {
@@ -686,9 +682,20 @@ public class UserManagerDefault implements UserManager {
 			CheckUtil.checkNotNull(email, "email");
 		}
 
+		// ユーザ名がメールアドレス形式の場合、管理者登録でも仮登録扱いとする
+		boolean isInterimByAdmin = isByAdmin && isMailAddress(email);
+
+		if (!isByAdmin || isInterimByAdmin) {
+			if (mailEntry == null || StringUtils.isBlank(mailEntry.title) ||
+					(StringUtils.isBlank(mailEntry.summary) && StringUtils.isBlank(entry.getContentText()))) {
+				// adduserでメールの設定が無い場合はエラー
+				throw new InvalidServiceSettingException("There is no mail setting. (adduser)");
+			}
+		}
+
 		// ユーザ仮登録処理
 		return adduserInterim(account, password, email, nickname, mailEntry, adduserType,
-				groupName, systemContext);
+				groupName, rawPassword, systemContext);
 	}
 
 	/**
@@ -701,15 +708,16 @@ public class UserManagerDefault implements UserManager {
 	 * @param mailEntry 送信メール
 	 * @param adduserType 管理ユーザによる登録かどうか。管理ユーザ登録の場合本登録まで行う。
 	 * @param groupName グループ管理者によるユーザ登録の場合、ユーザ名
+	 * @param rawPassword 管理者によるユーザ登録時に生成された、ハッシュ前パスワード
 	 * @param systemContext SystemContext
 	 * @return ユーザトップエントリー
 	 */
 	public EntryBase adduserInterim(String account, String password, String email,
 			String nickname, EntryBase mailEntry, AdduserType adduserType,
-			String groupName, SystemContext systemContext)
+			String groupName, String rawPassword, SystemContext systemContext)
 	throws IOException, TaggingException {
 		return adduserInterimProc(account, password, email, nickname, mailEntry, adduserType,
-				null, groupName, systemContext);
+				null, groupName, rawPassword, systemContext);
 	}
 
 	/**
@@ -723,18 +731,22 @@ public class UserManagerDefault implements UserManager {
 	 * @param adduserType 管理ユーザによる登録かどうか。管理ユーザ登録の場合本登録まで行う。
 	 * @param additionalFeed 追加のユーザ登録情報(任意)。キーの#はUIDに置き換える。
 	 * @param groupName グループ管理者による登録の場合、グループ名。
+	 * @param rawPassword 管理者によるユーザ登録時に生成された、ハッシュ前パスワード
 	 * @param systemContext SystemContext
 	 * @return ユーザトップエントリー
 	 */
 	private EntryBase adduserInterimProc(String account, String password, String email,
 			String nickname, EntryBase mailEntry, AdduserType adduserType,
-			FeedBase additionalFeed, String groupName, SystemContext systemContext)
+			FeedBase additionalFeed, String groupName, 
+			String rawPassword, SystemContext systemContext)
 	throws IOException, TaggingException {
 		String serviceName = systemContext.getServiceName();
 		boolean isByAdmin = !adduserType.equals(AdduserType.USER);
 		boolean isLink = adduserType.equals(AdduserType.LINK);
+		// ユーザ名がメールアドレス形式の場合、管理者登録でも仮登録扱いとする
+		boolean isInterimByAdmin = isByAdmin && !isLink && isMailAddress(email);
 		// 仮登録時はパスワードに余分な文字列を付ける。(本登録時に除去する。)
-		if (!isByAdmin && !isLink) {
+		if ((!isByAdmin || isInterimByAdmin) && !isLink) {
 			password = getTmpPassword(password);
 		}
 
@@ -778,6 +790,10 @@ public class UserManagerDefault implements UserManager {
 					throw new EntryDuplicatedException(sb.toString());
 				}
 			}
+			// グループのみ追加の場合は仮登録フローを使用しない
+			if (isGroupOnly) {
+				isInterimByAdmin = false;
+			}
 			// UIDが有効となるSystemContextを生成
 			mySystemContext = createMySystemContext(uid, account, serviceName,
 					requestInfo, connectionInfo);
@@ -788,6 +804,14 @@ public class UserManagerDefault implements UserManager {
 					Constants.USERSTATUS_REVOKED.equals(userstatus)) {
 				setUserstatus(userTopEntry, Constants.USERSTATUS_INTERIM);
 				updEntries.add(userTopEntry);
+			}
+
+			// グループ管理者による仮登録の場合、グループ名をユーザトップエントリーに保存する
+			if (isInterimByAdmin && !StringUtils.isBlank(groupName)) {
+				addInterimGroupContributor(userTopEntry, groupName);
+				if (!updEntries.contains(userTopEntry)) {
+					updEntries.add(userTopEntry);
+				}
 			}
 
 			String userAuthUri = null;
@@ -848,14 +872,17 @@ public class UserManagerDefault implements UserManager {
 
 			// /_user/{UID}
 			userTopEntry = createInterimUserTopEntry(uid, email, account,
-					nickname, serviceName);
+					nickname, (isInterimByAdmin ? groupName : null), serviceName);
 			insEntries.add(userTopEntry);
 
 			// /_user/{UID}/auth
 			userAuthEntry = createAuthEntry(password, uid, serviceName);
 			insEntries.add(userAuthEntry);
 			if (isByAdmin) {
-				setUserAuthAclActivate(userAuthEntry);
+				if (!isInterimByAdmin) {
+					// 仮登録の場合はsetUserAuthAclActivateをここでは呼ばない（本登録時に呼ぶ）
+					setUserAuthAclActivate(userAuthEntry);
+				}
 				setUserAuthAclAdminUpdate(userAuthEntry, groupName);
 			}
 
@@ -891,7 +918,7 @@ public class UserManagerDefault implements UserManager {
 			accessTokenManager.putAccessKey(uid, accessKey, mySystemContext);
 		}
 
-		if (isByAdmin) {
+		if (isByAdmin && !isInterimByAdmin) {
 			// 本登録
 			standardUserInit(uid, userTopEntry, userAuthEntry, groupName, isGroupOnly, mySystemContext);
 			// ユーザトップエントリーを取得し直し(メモリキャッシュから)
@@ -916,6 +943,10 @@ public class UserManagerDefault implements UserManager {
 				sb.append(" [content]: ");
 				sb.append(mailEntry.getContentText());
 				logger.debug(sb.toString());
+			}
+			if (isByAdmin && !StringUtils.isBlank(rawPassword)) {
+				// メール本文にパスワード埋め込み
+				replacePassword(mailEntry, rawPassword);
 			}
 			mySystemContext.sendMail(mailEntry, email, null);
 		}
@@ -980,7 +1011,11 @@ public class UserManagerDefault implements UserManager {
 	 * @param userAuthType 処理区分(adduser、passreset、changepass)
 	 * @param isByAdmin サービス管理者によるユーザ登録の場合true
 	 * @param isNotRequiredEmail メールアドレス形式必須でない場合true
-	 * @return [0]メールアドレス、[1]パスワード、[2]アカウント(メールアドレスを小文字に編集し、一部文字を除去)、[3]ニックネーム
+	 * @return [0]メールアドレス
+	 *         [1]パスワード
+	 *         [2]アカウント(メールアドレスを小文字に編集し、一部文字を除去)
+	 *         [3]ニックネーム
+	 *         [4]生パスワード(adduserByAdmin, adduserByGroupadmin でパスワード自動生成された場合のみ設定)
 	 */
 	private String[] checkUserAuthInfo(EntryBase entry, UserAuthType userAuthType,
 			boolean isByAdmin, boolean isNotRequiredEmail) {
@@ -994,7 +1029,11 @@ public class UserManagerDefault implements UserManager {
 	 * @param isByAdmin サービス管理者によるユーザ登録の場合true
 	 * @param isNotRequiredEmail メールアドレス形式必須でない場合true
 	 * @param createPass サービス管理者によるユーザ登録でパスワード設定がない場合に自動生成するかどうか
-	 * @return [0]メールアドレス、[1]パスワード、[2]アカウント(メールアドレスを小文字に編集し、一部文字を除去)、[3]ニックネーム
+	 * @return [0]メールアドレス
+	 *         [1]パスワード
+	 *         [2]アカウント(メールアドレスを小文字に編集し、一部文字を除去)
+	 *         [3]ニックネーム
+	 *         [4]生パスワード(adduserByAdmin, adduserByGroupadmin でパスワード自動生成された場合のみ設定)
 	 */
 	private String[] checkUserAuthInfo(EntryBase entry, UserAuthType userAuthType,
 			boolean isByAdmin, boolean isNotRequiredEmail, boolean createPass) {
@@ -1012,31 +1051,41 @@ public class UserManagerDefault implements UserManager {
 		String password = null;
 		String account = null;
 		String nickname = contributor.name;
+		String rawPassword = null;
 		String tmp = contributor.uri.substring(URN_PREFIX_AUTH_LEN);
 		int tmpLen = tmp.length();
 		if (tmpLen == 0) {
 			throw new IllegalParameterException("User information is required. " + contributor.uri);
 		}
-		boolean createdPass = false;
 		int idx = tmp.indexOf(UserManagerDefaultConst.URN_AUTH_PASSWORD_START);
+		if (tmpLen == 1 && idx == 0) {
+			throw new IllegalParameterException("User information is required. " + contributor.uri);
+		}
+		boolean createdPass = false;
 		if (UserAuthType.ADDUSER == userAuthType) {
 			if (idx <= 0 || idx >= tmpLen - 1) {
 				if (!isByAdmin) {
 					throw new IllegalParameterException("Password is required. " + contributor.uri);
-				} else {
-					if (idx == -1) {
-						// 管理者によるユーザ登録でパスワード指定が無い場合、ランダム値を発行してパスワードとする。
-						idx = tmpLen;
-						if (createPass) {
-							password = createPassword();
-							createdPass = true;
-						}
-					}
 				}
 			} else {
 				password = tmp.substring(idx + 1);
 			}
-			email = tmp.substring(0, idx);
+			if (StringUtils.isBlank(password) && isByAdmin) {
+				// 管理者によるユーザ登録でパスワード指定が無い場合、ランダム値を発行してパスワードとする。
+				if (idx <= 0) {
+					idx = tmpLen;
+				}
+				if (createPass) {
+					rawPassword = createPassword();
+					password = AuthTokenUtil.hash(rawPassword);
+					createdPass = true;
+				}
+			}
+			if (idx > 0) {
+				email = tmp.substring(0, idx);
+			} else {
+				email = tmp;
+			}
 		} else if (UserAuthType.PASSRESET == userAuthType) {
 			if (idx > -1) {
 				throw new IllegalParameterException("User information format is invalid. " + contributor.uri);
@@ -1080,7 +1129,7 @@ public class UserManagerDefault implements UserManager {
 				email = null;
 			}
 		}
-		return new String[]{email, password, account, nickname};
+		return new String[]{email, password, account, nickname, rawPassword};
 	}
 
 	/**
@@ -1199,6 +1248,21 @@ public class UserManagerDefault implements UserManager {
 		String uid = getUidByUri(userTopEntry.getMyUri());
 		EntryBase userAuthEntry = getUserAuthEntryByUid(uid, reflexContext);
 
+		// 仮登録時に保存されたグループ名を取得する（adduserByGroupadminでメールアドレス形式の場合）
+		String groupName = null;
+		if (userTopEntry.contributor != null) {
+			String interimAclPrefix = Constants.URN_PREFIX_ACL + GroupConst.URI_GROUP_GROUPADMIN_PREFIX;
+			List<Contributor> removals = new ArrayList<Contributor>();
+			for (Contributor c : userTopEntry.contributor) {
+				if (c.uri != null && c.uri.startsWith(interimAclPrefix)) {
+					groupName = c.uri.substring(interimAclPrefix.length(), c.uri.lastIndexOf(","));
+					removals.add(c);
+					break;
+				}
+			}
+			userTopEntry.contributor.removeAll(removals);
+		}
+
 		// パスワードの自動生成部分を除去する。
 		String password = getPassword(userAuthEntry);
 		if (password != null && password.length() > UserManagerDefaultConst.PASSWORD_LEN) {
@@ -1216,7 +1280,7 @@ public class UserManagerDefault implements UserManager {
 		// ユーザのCRUD権限を設定する。
 		setUserAuthAclActivate(userAuthEntry);
 
-		standardUserInit(uid, userTopEntry, userAuthEntry, null, false, reflexContext);
+		standardUserInit(uid, userTopEntry, userAuthEntry, groupName, false, reflexContext);
 	}
 
 	/**
@@ -2010,14 +2074,13 @@ public class UserManagerDefault implements UserManager {
 		RequestInfo requestInfo = systemContext.getRequestInfo();
 		ConnectionInfo connectionInfo = systemContext.getConnectionInfo();
 		String uid = systemContext.getUid();
-		String account = systemContext.getAccount();
 		String url = getUrl(serviceName, requestInfo, connectionInfo);
 
 		String retMessage = message;
 
 		EMailManager emailManager = TaggingEnvUtil.getEMailManager();
-		retMessage = emailManager.replaceRXID(retMessage, uid, account, url, systemContext);
-		retMessage = emailManager.replaceLink(retMessage, uid, account, url, systemContext);
+		retMessage = emailManager.replaceRXID(retMessage, uid, url, systemContext);
+		retMessage = emailManager.replaceLink(retMessage, uid, url, systemContext);
 		return replaceVerify(retMessage, verifyCode);
 	}
 
@@ -2077,6 +2140,35 @@ public class UserManagerDefault implements UserManager {
 	 */
 	private String replaceAll(String message, String regex, String replacement) {
 		return StringUtils.replaceAll(message, regex, StringUtils.null2blank(replacement));
+	}
+	
+	/**
+	 * メッセージの指定部分をパスワードに変換.
+	 * ${PASSWORD}の部分をパスワードに変換する。
+	 * @param mailEntry メールエントリー
+	 * @param password パスワード
+	 * @return 変換したメッセージ
+	 */
+	private void replacePassword(EntryBase mailEntry, String password) {
+		// 指定されたメールアドレス(小文字変換したものでなく入力値のまま)にメールを送信する。
+		// 本文に認証コードを埋め込む。
+		mailEntry.summary = replacePassword(mailEntry.summary, password);
+		if (mailEntry.content != null && !StringUtils.isBlank(mailEntry.content._$$text)) {
+			mailEntry.content._$$text = replacePassword(mailEntry.content._$$text, password);
+		}
+	}
+
+	/**
+	 * メッセージの指定部分をパスワードに変換.
+	 * ${PASSWORD}の部分をパスワードに変換する。
+	 * @param message メッセージ
+	 * @param password パスワード
+	 * @return 変換したメッセージ
+	 */
+	private String replacePassword(String message, String password) {
+		return replaceAll(message, 
+				UserManagerDefaultConst.REPLACE_REGEX_PASSWORD,
+				password);
 	}
 
 	/**
@@ -2986,7 +3078,7 @@ public class UserManagerDefault implements UserManager {
 	 * @return Entry
 	 */
 	private EntryBase createInterimUserTopEntry(String uid, String email,
-			String account, String nickname, String serviceName) {
+			String account, String nickname, String groupName, String serviceName) {
 		EntryBase userTopEntry = TaggingEntryUtil.createEntry(serviceName);
 		String userTopUri = getUserTopUriByUid(uid);
 		userTopEntry.setMyUri(userTopUri);
@@ -2997,8 +3089,29 @@ public class UserManagerDefault implements UserManager {
 			contributor.email = email;
 			userTopEntry.addContributor(contributor);
 		}
+		if (!StringUtils.isBlank(groupName)) {
+			addInterimGroupContributor(userTopEntry, groupName);
+		}
 		setUserstatus(userTopEntry, Constants.USERSTATUS_INTERIM);
 		return userTopEntry;
+	}
+
+	/**
+	 * 仮登録ユーザトップエントリーにグループ管理者の削除権限ACLを追加する.
+	 * @param userTopEntry ユーザトップエントリー
+	 * @param groupName グループ名
+	 */
+	private void addInterimGroupContributor(EntryBase userTopEntry, String groupName) {
+		String groupadminGroup = GroupUtil.getGroupadminGroup(groupName);
+		String interimAclUrn = TaggingEntryUtil.getAclUrn(groupadminGroup, 
+				Constants.ACL_TYPE_DELETE);
+		if (userTopEntry.contributor != null) {
+			userTopEntry.contributor.removeIf(c -> interimAclUrn.equals(c.uri));
+		}
+		userTopEntry.addContributor(TaggingEntryUtil.getAclContributor(Constants.URI_GROUP_ADMIN,
+				Constants.ACL_TYPE_CRUD));
+		userTopEntry.addContributor(TaggingEntryUtil.getAclContributor(groupadminGroup, 
+				Constants.ACL_TYPE_DELETE + Constants.ACL_TYPE_RETRIEVE));
 	}
 
 	/**
@@ -3618,9 +3731,16 @@ public class UserManagerDefault implements UserManager {
 		if (oauthManager != null) {
 			oauthManager.deleteUser(uid, reflexContext);
 		}
+		// グループはエイリアスのため、最後にグループエントリー本体を削除する必要あり。そのためのキーリストを取得。
+		List<String> groupUris = getGroupUris(uid, reflexContext);
 		// ユーザ削除
 		boolean isParallel = false;
 		reflexContext.deleteFolder(myUri, async, isParallel);
+		// グループはエイリアスのため、グループエントリー本体を削除する。
+		SystemContext systemContext = new SystemContext(reflexContext.getAuth(), 
+				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
+		deleteGroupByDeleteUser(groupUris, systemContext);
+
 		return getUserstatusEntry(userTopEntry, serviceName);
 	}
 
@@ -4309,6 +4429,40 @@ public class UserManagerDefault implements UserManager {
 			sb.append(cursorStr);
 		}
 		return sb.toString();
+	}
+	
+	/**
+	 * ユーザ削除時、所属しているグループのキーを取得する。
+	 * @param uid UID
+	 * @param reflexContext ReflexContext
+	 */
+	private List<String> getGroupUris(String uid, ReflexContext reflexContext) 
+	throws IOException, TaggingException {
+		String userGroupUri = getGroupUriByUid(uid);
+		FeedBase feed = reflexContext.getFeed(userGroupUri);
+		List<String> uris = null;
+		if (TaggingEntryUtil.isExistData(feed)) {
+			uris = new ArrayList<>();
+			for (EntryBase entry : feed.entry) {
+				String idUri = TaggingEntryUtil.getUriById(entry.id);
+				if (!StringUtils.isBlank(idUri)) {
+					uris.add(idUri);
+				}
+			}
+		}
+		return uris;
+	}
+
+	/**
+	 * ユーザ削除時、所属しているグループのエントリーを削除する。
+	 * @param groupUris グループのキーリスト
+	 * @param reflexContext ReflexContext
+	 */
+	private void deleteGroupByDeleteUser(List<String> groupUris, ReflexContext reflexContext) 
+	throws IOException, TaggingException {
+		if (groupUris != null && !groupUris.isEmpty()) {
+			reflexContext.delete(groupUris);
+		}
 	}
 
 }

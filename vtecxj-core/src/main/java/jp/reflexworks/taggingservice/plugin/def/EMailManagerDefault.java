@@ -115,15 +115,11 @@ public class EMailManagerDefault implements EMailManager {
 		UserManager userManager = TaggingEnvUtil.getUserManager();
 		String tmpAccount = UserUtil.editAccount(to);
 		String uid = userManager.getUidByAccount(tmpAccount, systemContext);
-		String account = null;
-		if (!StringUtils.isBlank(uid)) {
-			account = tmpAccount;
-		}
 
 		// RXID変換
-		retMessage = replaceRXID(retMessage, uid, account, url, systemContext);
+		retMessage = replaceRXID(retMessage, uid, url, systemContext);
 		// LINK変換
-		retMessage = replaceLink(retMessage, uid, account, url, systemContext);
+		retMessage = replaceLink(retMessage, uid, url, systemContext);
 
 		return retMessage;
 	}
@@ -176,13 +172,12 @@ public class EMailManagerDefault implements EMailManager {
 	 * ${RXID}をRXIDに変換する。
 	 * ${RXID=/xxx}の部分をRXID付きURLに変換する。
 	 * @param message メッセージ
-	 * @param uid UID
-	 * @param account アカウント
+	 * @param uid 送信先メールアドレスのUID
 	 * @param url URL
-	 * @param systemContext SystemContext
+	 * @param baseReflexContext SystemContext
 	 * @return 変換したメッセージ
 	 */
-	public String replaceRXID(String message, String uid, String account, String url,
+	public String replaceRXID(String message, String uid, String url,
 			BaseReflexContext baseReflexContext)
 	throws IOException, TaggingException {
 		SystemContext systemContext = (SystemContext)baseReflexContext;
@@ -199,13 +194,12 @@ public class EMailManagerDefault implements EMailManager {
 	 * メッセージにリンクトークン付きのURLを設定
 	 * ${LINK=/xxx}の部分をリンクトークン付きURLに変換する。
 	 * @param message メッセージ
-	 * @param uid UID
-	 * @param account アカウント
+	 * @param uid 送信先メールアドレスのUID
 	 * @param url URL
 	 * @param systemContext SystemContext
 	 * @return 変換したメッセージ
 	 */
-	public String replaceLink(String message, String uid, String account, String url,
+	public String replaceLink(String message, String uid, String url,
 			BaseReflexContext systemContext)
 	throws IOException, TaggingException {
 		return replaceConversionStr(message, uid, url,

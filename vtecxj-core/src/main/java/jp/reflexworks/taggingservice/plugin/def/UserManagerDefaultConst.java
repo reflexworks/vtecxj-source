@@ -56,7 +56,9 @@ public interface UserManagerDefaultConst {
 	public static final String REPLACE_REGEX_VERIFY = "\\$\\{VERIFY\\}";
 	/** メッセージ置き換え文字列 : パスワード変更一時トークン */
 	public static final String REPLACE_REGEX_PASSRESET_TOKEN = "\\$\\{PASSRESET_TOKEN\\}";
-	/** パスワード変更で旧パスワード・一時トークンチェックを行わない旧バージョン */
+	/** メッセージ置き換え文字列 : PASSWORD */
+	public static final String REPLACE_REGEX_PASSWORD = "\\$\\{PASSWORD\\}";
+ 	/** パスワード変更で旧パスワード・一時トークンチェックを行わない旧バージョン */
 	public static final String CHANGEPHASH_LEGACY = "true";
 	/** パスワード変更一時トークンの文字数 */
 	public static final int PASSRESET_TOKEN_LEN = 16;
@@ -76,7 +78,7 @@ public interface UserManagerDefaultConst {
 
 	/** 仮登録ユーザの仮削除時、アカウントの前につける文字列 */
 	public static final String USER_NOTHING_PREFIX = "****";
-	
+
 	/** 外部連携によるユーザ登録で合わせて登録するEntryのURIについて、UID変換文字 */
 	public static final String REGEX_CONVERT_UID = "#";
 
