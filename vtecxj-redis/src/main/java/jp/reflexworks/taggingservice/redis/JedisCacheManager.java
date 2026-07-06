@@ -419,7 +419,7 @@ implements CacheManager {
 
 	/**
 	 * Feedキャッシュのキー一覧を取得.
-	 * @param pattern パターン
+	 * @param pattern パターン（ワイルドカード"*"を指定したキー）
 	 * @param reflexContext ReflexContext
 	 * @return Feedキャッシュのキー一覧
 	 */
@@ -431,7 +431,7 @@ implements CacheManager {
 
 	/**
 	 * Entryキャッシュのキー一覧を取得.
-	 * @param pattern パターン
+	 * @param pattern パターン（ワイルドカード"*"を指定したキー）
 	 * @param reflexContext ReflexContext
 	 * @return Entryキャッシュのキー一覧
 	 */
@@ -443,7 +443,7 @@ implements CacheManager {
 
 	/**
 	 * 文字列キャッシュのキー一覧を取得.
-	 * @param pattern パターン
+	 * @param pattern パターン（ワイルドカード"*"を指定したキー）
 	 * @param reflexContext ReflexContext
 	 * @return 文字列キャッシュのキー一覧
 	 */
@@ -455,7 +455,7 @@ implements CacheManager {
 
 	/**
 	 * 数値キャッシュのキー一覧を取得.
-	 * @param pattern パターン
+	 * @param pattern パターン（ワイルドカード"*"を指定したキー）
 	 * @param reflexContext ReflexContext
 	 * @return 数値キャッシュのキー一覧
 	 */
@@ -467,7 +467,7 @@ implements CacheManager {
 
 	/**
 	 * キャッシュのキー一覧を取得.
-	 * @param pattern パターン
+	 * @param pattern パターン（ワイルドカード"*"を指定したキー）
 	 * @param type CF(Feed)、CE(Entry)、CT(String)、CL(Long)のいずれか
 	 * @param reflexContext ReflexContext
 	 * @return キャッシュのキー一覧。順不同。(Redisでkeysコマンドを実行すると順不同のため。)

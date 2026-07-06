@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import jakarta.activation.DataSource;
+
 import jp.reflexworks.taggingservice.api.BaseReflexContext;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 
@@ -43,13 +44,12 @@ public interface EMailManager extends ReflexPlugin {
 	 * メッセージにRXID付きのURLを設定.
 	 * ${RXID=/xxx}の部分をRXID付きURLに変換する。
 	 * @param message メッセージ
-	 * @param uid UID
-	 * @param account アカウント
+	 * @param uid 送信先メールアドレスのUID
 	 * @param url URL
 	 * @param systemContext SystemContext
 	 * @return 変換したメッセージ
 	 */
-	public String replaceRXID(String message, String uid, String account, String url,
+	public String replaceRXID(String message, String uid, String url,
 			BaseReflexContext systemContext)
 	throws IOException, TaggingException;
 
@@ -57,13 +57,12 @@ public interface EMailManager extends ReflexPlugin {
 	 * メッセージにリンクトークン付きのURLを設定
 	 * ${LINK=/xxx}の部分をリンクトークン付きURLに変換する。
 	 * @param message メッセージ
-	 * @param uid UID
-	 * @param account アカウント
+	 * @param uid 送信先メールアドレスのUID
 	 * @param url URL
 	 * @param systemContext SystemContext
 	 * @return 変換したメッセージ
 	 */
-	public String replaceLink(String message, String uid, String account, String url,
+	public String replaceLink(String message, String uid, String url,
 			BaseReflexContext systemContext)
 	throws IOException, TaggingException;
 

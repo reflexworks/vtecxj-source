@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexContentInfo;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
@@ -31,15 +32,31 @@ public interface RequestResponseManager extends ReflexPlugin {
 
 	/**
 	 * レスポンスヘッダに、ブラウザにキャッシュを残さないオプションを付けるかどうかを取得.
+	 * @param req リクエスト
 	 * @return ブラウザにキャッシュを残さないオプションを付ける場合true
 	 */
 	public boolean isNoCache(ReflexRequest req);
 
 	/**
 	 * レスポンスヘッダに、フレームオプションのSameOrigin指定を付けるかどうかを取得.
+	 * @param req リクエスト
 	 * @return フレームオプションのSameOrigin指定を付ける場合true
 	 */
 	public boolean isSameOrigin(ReflexRequest req);
+
+	/**
+	 * レスポンスヘッダ Strict-Transport-Security の max-age の値を取得
+	 * @param req リクエスト
+	 * @return レスポンスヘッダ Strict-Transport-Security の max-age の値
+	 */
+	public int getStrictTransportSecuritySec(ReflexRequest req);
+	
+	/**
+	 * レスポンスヘッダ Strict-Transport-Security の includeSubDomains を付加するかどうかを取得
+	 * @param req リクエスト
+	 * @return Strict-Transport-Security の includeSubDomains を付加する場合true
+	 */
+	public boolean includeSubDomains(ReflexRequest req);
 
 	/**
 	 * ReflexRequestを生成

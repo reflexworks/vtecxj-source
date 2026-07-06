@@ -482,7 +482,7 @@ public class BDBEntryServlet extends ReflexServlet {
 	protected void doResponse(BDBEntryRequest req, BDBEntryResponse resp,
 			Object retObj)
 	throws IOException {
-		doResponse(req, resp, retObj, SC_OK);
+		doResponse(req, resp, retObj, HttpStatus.SC_OK);
 	}
 
 	/**
@@ -520,7 +520,8 @@ public class BDBEntryServlet extends ReflexServlet {
 				BDBEnvUtil.getAtomResourceMapper(),
 				req.getConnectionInfo().getDeflateUtil(), status, contentType,
 				BDBEnvUtil.isGZip(), BDBEnvUtil.isPrintNamespace(),
-				BDBEnvUtil.isNoCache(req), BDBEnvUtil.isSameOrigin(req));
+				BDBEnvUtil.isNoCache(req), BDBEnvUtil.isSameOrigin(req),
+				BDBEnvUtil.getStrictTransportSecuritySec(), BDBEnvUtil.includeSubDomain());
 	}
 
 	/**

@@ -300,10 +300,12 @@ public class TaggingFilter implements Filter, ReflexServletConst {
 			boolean isStrict = false;
 			boolean isNoCache = reqRespManager.isNoCache(req);
 			boolean isSameOrigin = reqRespManager.isSameOrigin(req);
+			int strictTransportSecuritySec = reqRespManager.getStrictTransportSecuritySec(req);
+			boolean includeSubDomains = reqRespManager.includeSubDomains(req);
 			ReflexServletUtil.doResponse(req, resp, respObj, format,
 					TaggingEnvUtil.getResourceMapper(serviceName),
 					req.getConnectionInfo().getDeflateUtil(), status, isGZip,
-					isStrict, isNoCache, isSameOrigin);
+					isStrict, isNoCache, isSameOrigin, strictTransportSecuritySec, includeSubDomains);
 		}
 	}
 

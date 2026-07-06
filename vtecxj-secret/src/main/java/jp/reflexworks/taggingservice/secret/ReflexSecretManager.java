@@ -25,7 +25,7 @@ import jp.sourceforge.reflex.util.StringUtils;
  * シークレット管理クラス
  */
 public class ReflexSecretManager implements SecretManager {
-
+	
 	/** ロガー. */
 	private static final Logger logger = LoggerFactory.getLogger(ReflexSecretManager.class);
 
@@ -58,7 +58,11 @@ public class ReflexSecretManager implements SecretManager {
 		String projectId = contextUtil.get(ReflexSecretConst.PROP_GCP_PROJECTID);
 		String secretId = contextUtil.get(ReflexSecretConst.PROP_SECRETKEY_NAME);
 		String versionId = contextUtil.get(ReflexSecretConst.PROP_SECRETKEY_VERSION);
-		return getSecretKey(projectId, secretId, versionId, secretFilename);
+		String[] result = getSecretKey(projectId, secretId, versionId, secretFilename);
+		if (result != null) {
+			return result[0];
+		}
+		return null;
 	}
 
 	/**
@@ -66,10 +70,10 @@ public class ReflexSecretManager implements SecretManager {
 	 * 取り扱いには注意すること。
 	 * @param secretId Secret Managerから取得したい値の名前
 	 * @param versionId Secret Managerから取得したい値のバージョン。指定無しの場合はlatest
-	 * @return Secret Managerから取得した値
+	 * @return [0]Secret Managerから取得した値 [1]バージョンID
 	 */
 	@Override
-	public String getSecretKey(String secretId, String versionId)
+	public String[] getSecretKey(String secretId, String versionId)
 	throws IOException, TaggingException {
 		String secretFilename = 
 				TaggingEnvUtil.getSystemProp(ReflexSecretConst.PROP_SECRET_FILE_SECRET, null);
@@ -84,19 +88,18 @@ public class ReflexSecretManager implements SecretManager {
 	 * @param secretId Secret Managerから取得したい値の名前
 	 * @param versionId Secret Managerから取得したい値のバージョン。指定無しの場合はlatest
 	 * @param secretFilename サービスアカウントJSON鍵。Workload Identityの設定があれば不要。
-	 * @return Secret Managerから取得した値
+	 * @return [0]Secret Managerから取得した値 [1]バージョンID
 	 */
-	private String getSecretKey(String projectId, String secretId, String versionId, String secretFilename)
+	private String[] getSecretKey(String projectId, String secretId, String versionId, 
+			String secretFilename)
 	throws IOException, TaggingException {
-		String retValue = null;
-		
 		if (StringUtils.isBlank(projectId)) {
 			logger.warn("[getSecretKey] No project id setting.");
-			return retValue;
+			return null;
 		}
 		if (StringUtils.isBlank(secretId)) {
 			logger.warn("[getSecretKey] No secret key name setting.");
-			return retValue;
+			return null;
 		}
 		
 		if (StringUtils.isBlank(versionId)) {
@@ -125,15 +128,41 @@ public class ReflexSecretManager implements SecretManager {
 		// Initialize client that will be used to send requests. This client only needs to be created
 		// once, and can be reused for multiple requests. After completing all of your requests, call
 		// the "close" method on the client to safely clean up any remaining background resources.
+		String secretPayload = null;
+		String actualVersionId = null;
 		try (SecretManagerServiceClient client = SecretManagerServiceClient.create(settings)) {
 			// Build the name.
 			SecretVersionName secretVersionName = SecretVersionName.of(projectId, secretId, versionId);
+			// test log
+			if (logger.isTraceEnabled()) {
+				StringBuilder sb = new StringBuilder();
+				sb.append("[getSecretKey] secretId=");
+				sb.append(secretId);
+				sb.append(", versionId=");
+				sb.append(versionId);
+				sb.append(", secretVersion=");
+				sb.append(secretVersionName.getSecretVersion());
+				logger.info(sb.toString());
+			}
 
 			// シークレットの値を取得
 			AccessSecretVersionResponse response = client.accessSecretVersion(secretVersionName);
-			retValue = response.getPayload().getData().toStringUtf8();
+			String actualSecretVersionName = response.getName();
+			actualVersionId = SecretVersionName.parse(actualSecretVersionName).getSecretVersion();
+			secretPayload = response.getPayload().getData().toStringUtf8();
+		/*
+		} catch (com.google.api.gax.rpc.NotFoundException e) {
+			// シークレットの登録なし →例外をスローする
+			StringBuilder sb = new StringBuilder();
+			sb.append("[getSecretKey] NotFoundException: ");
+			sb.append(e.getMessage());
+			logger.warn(sb.toString());
+		*/
 		}
-		return retValue;
+		if (secretPayload != null && actualVersionId != null) {
+			return new String[] {secretPayload, actualVersionId};
+		}
+		return null;
 	}
 
 	/**

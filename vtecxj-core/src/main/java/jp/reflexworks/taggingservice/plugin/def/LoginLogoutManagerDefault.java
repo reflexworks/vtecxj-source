@@ -143,11 +143,12 @@ public class LoginLogoutManagerDefault implements LoginLogoutManager {
 				connectionInfo);
 
 		// 指定されたサービスのRXIDを発行
-		String account = req.getAuth().getAccount();
 		SystemContext systemContext = new SystemContext(targetServiceName,
 				requestInfo, connectionInfo);
 		UserManager userManager = TaggingEnvUtil.getUserManager();
-		String rxid = userManager.createRXIDByAccount(account, systemContext);
+		String account = req.getAuth().getAccount();
+		String targetServiceUid = userManager.getUidByAccount(account, systemContext);
+		String rxid = userManager.createRXIDByUid(targetServiceUid, systemContext);
 		if (StringUtils.isBlank(rxid)) {
 			String subMsg = "The account does not register for the specified service.";
 			AuthenticationException ae = new AuthenticationException();

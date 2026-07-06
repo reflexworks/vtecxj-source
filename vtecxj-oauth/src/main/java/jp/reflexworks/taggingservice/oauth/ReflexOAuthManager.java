@@ -66,13 +66,13 @@ public class ReflexOAuthManager implements OAuthManager {
 	 * @param req リクエスト
 	 * @param resp レスポンス
 	 * @param provider OAuthプロバイダ
-	 * @param rxid RXID
+	 * @param wsseApikey WSSE-APIKEY
 	 * @param reflexContext ReflexContext
 	 * @return 更新後のユーザトップエントリー
 	 */
 	@Override
 	public EntryBase mergeUser(ReflexRequest req, ReflexResponse resp, 
-			String provider, String rxid, ReflexContext reflexContext) 
+			String provider, String wsseApikey, ReflexContext reflexContext) 
 	throws IOException, TaggingException {
 		String serviceName = reflexContext.getServiceName();
 		ReflexAuthentication auth = reflexContext.getAuth();
@@ -81,7 +81,7 @@ public class ReflexOAuthManager implements OAuthManager {
 		
 		// 入力チェック
 		CheckUtil.checkNotNull(provider, "provider");
-		CheckUtil.checkNotNull(rxid, "authentication infomation");
+		CheckUtil.checkNotNull(wsseApikey, "authentication infomation");
 
 		// 未ログインはエラー →呼び出し元でチェック済み
 		String currentUid = auth.getUid();
@@ -115,7 +115,7 @@ public class ReflexOAuthManager implements OAuthManager {
 		
 		// メールアドレスをアカウントに変換し、ユーザトップエントリーを取得(`/_user?title={対象アカウント}`)。
 		// ユーザトップエントリーが存在しない場合エラー。
-		WsseAuth wsseAuth = AuthTokenUtil.parseRXID(rxid);
+		WsseAuth wsseAuth = AuthTokenUtil.parseWSSEheader(wsseApikey);
 		if (wsseAuth == null) {
 			throw new IllegalParameterException("RXID is invalid.");
 		}

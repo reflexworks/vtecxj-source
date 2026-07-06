@@ -124,22 +124,6 @@ public class UserBlogic {
 	}
 
 	/**
-	 * 指定されたアカウントのRXIDを生成
-	 * @param account アカウント
-	 * @param reflexContext ReflexContext
-	 * @return RXID
-	 */
-	public String createRXID(String account, SystemContext systemContext)
-	throws IOException, TaggingException {
-		if (StringUtils.isBlank(account)) {
-			throw new IllegalParameterException("Account is required.");
-		}
-		// RXID発行
-		UserManager userManager = TaggingEnvUtil.getUserManager();
-		return userManager.createRXIDByAccount(account, systemContext);
-	}
-
-	/**
 	 * ユーザ登録.
 	 * @param feed ユーザ登録情報
 	 * @param reflexContext ReflexContext
@@ -867,10 +851,10 @@ public class UserBlogic {
 		// 引数のnullチェック
 		CheckUtil.checkNotNull(feed, "parameter");
 		String provider = feed.subtitle;
-		String rxid = feed.rights;
+		String wsseApikey = feed.rights;
 		// 既存ユーザとソーシャルログインユーザの紐付け処理
 		OAuthManager oauthManager = TaggingEnvUtil.getOAuthManager();
-		return oauthManager.mergeUser(req, resp, provider, rxid, reflexContext);
+		return oauthManager.mergeUser(req, resp, provider, wsseApikey, reflexContext);
 	}
 
 	/**

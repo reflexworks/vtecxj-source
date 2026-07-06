@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.servlet.ReflexServletUtil;
 import jp.reflexworks.servlet.util.WsseAuth;
@@ -129,21 +130,21 @@ public class ExceptionUtil implements ReflexServletConst {
 			logBlogic.writeLogger(responseCode, sb.toString(), LogLevel.ERROR, e,
 					serviceName, requestInfo, connectionInfo);
 
-		} else if (responseCode == SC_UPGRADE_REQUIRED) {
+		} else if (responseCode == HttpStatus.SC_UPGRADE_REQUIRED) {
 			// サービス設定エラー
 			// スタックトレースは出力しない。ログエントリーのみ。
 			logBlogic.writeLogger(responseCode, message, LogLevel.INFO, e,
 					serviceName, requestInfo, connectionInfo);
 
-		} else if (responseCode == SC_FORBIDDEN ||
-				responseCode == SC_UNAUTHORIZED) {
+		} else if (responseCode == HttpStatus.SC_FORBIDDEN ||
+				responseCode == HttpStatus.SC_UNAUTHORIZED) {
 			logBlogic.writeLogger(responseCode, message, LogLevel.INFO, e,
 					serviceName, requestInfo, connectionInfo);
 
-		} else if (responseCode != SC_NO_CONTENT &&
-				responseCode != SC_FORBIDDEN &&
-				responseCode != SC_PRECONDITION_FAILED &&
-				!(responseCode == SC_FAILED_DEPENDENCY &&
+		} else if (responseCode != HttpStatus.SC_NO_CONTENT &&
+				responseCode != HttpStatus.SC_FORBIDDEN &&
+				responseCode != HttpStatus.SC_PRECONDITION_FAILED &&
+				!(responseCode == HttpStatus.SC_FAILED_DEPENDENCY &&
 						(NotInServiceException.MESSAGE_PREFIX.equals(message) ||
 								NotInServiceException.MESSAGE_NULL.equals(message)))) {
 			logBlogic.writeLogger(responseCode, message, LogLevel.INFO, e,
@@ -215,7 +216,7 @@ public class ExceptionUtil implements ReflexServletConst {
 		Object respObj = respFeed;
 		if (!isRedirect) {
 			// データで返却の場合
-			if (responseCode == SC_EXPECTATION_FAILED) {
+			if (responseCode == HttpStatus.SC_EXPECTATION_FAILED) {
 				// X-Requested-Withヘッダエラーはレスポンスデータを返さない。
 				respObj = null;
 			}
@@ -227,10 +228,12 @@ public class ExceptionUtil implements ReflexServletConst {
 				boolean isStrict = false;
 				boolean isNoCache = reqRespManager.isNoCache(req);
 				boolean isSameOrigin = reqRespManager.isSameOrigin(req);
+				int strictTransportSecuritySec = reqRespManager.getStrictTransportSecuritySec(req);
+				boolean includeSubDomains = reqRespManager.includeSubDomains(req);
 				ReflexServletUtil.doResponse(req, resp, respObj, format,
 						TaggingEnvUtil.getResourceMapper(serviceName),
-						connectionInfo.getDeflateUtil(), responseCode, isGZip,
-						isStrict, isNoCache, isSameOrigin);
+						connectionInfo.getDeflateUtil(), responseCode, isGZip, isStrict, 
+						isNoCache, isSameOrigin, strictTransportSecuritySec, includeSubDomains);
 			}
 		}
 	}

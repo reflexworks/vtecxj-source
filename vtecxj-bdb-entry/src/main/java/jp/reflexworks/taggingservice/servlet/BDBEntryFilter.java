@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.servlet.ReflexServletUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
@@ -161,20 +162,20 @@ public class BDBEntryFilter implements Filter, ReflexServletConst {
 			ReflexBDBLogUtil.writeLogger(responseCode, sb.toString(), LogLevel.ERROR, e,
 					requestInfo);
 
-		} else if (responseCode == SC_UPGRADE_REQUIRED) {
+		} else if (responseCode == HttpStatus.SC_UPGRADE_REQUIRED) {
 			// サービス設定エラー
 			ReflexBDBLogUtil.writeLogger(responseCode, message, LogLevel.WARN, e,
 					requestInfo);
 
-		} else if (responseCode == SC_FORBIDDEN ||
-				responseCode == SC_UNAUTHORIZED) {
+		} else if (responseCode == HttpStatus.SC_FORBIDDEN ||
+				responseCode == HttpStatus.SC_UNAUTHORIZED) {
 			ReflexBDBLogUtil.writeLogger(responseCode, message, LogLevel.INFO, e,
 					requestInfo);
 
-		} else if (responseCode != SC_NO_CONTENT &&
-				responseCode != SC_FORBIDDEN &&
-				responseCode != SC_PRECONDITION_FAILED &&
-				!(responseCode == SC_FAILED_DEPENDENCY &&
+		} else if (responseCode != HttpStatus.SC_NO_CONTENT &&
+				responseCode != HttpStatus.SC_FORBIDDEN &&
+				responseCode != HttpStatus.SC_PRECONDITION_FAILED &&
+				!(responseCode == HttpStatus.SC_FAILED_DEPENDENCY &&
 						(NotInServiceException.MESSAGE_PREFIX.equals(message) ||
 								NotInServiceException.MESSAGE_NULL.equals(message))) &&
 				!(e instanceof IllegalParameterException)) {
@@ -196,10 +197,12 @@ public class BDBEntryFilter implements Filter, ReflexServletConst {
 			boolean isStrict = false;
 			boolean isNoCache = BDBEnvUtil.isNoCache(req);
 			boolean isSameOrigin = BDBEnvUtil.isSameOrigin(req);
+			int strictTransportSecuritySec = BDBEnvUtil.getStrictTransportSecuritySec();
+			boolean includeSubDomain = BDBEnvUtil.includeSubDomain();
 			ReflexServletUtil.doResponse(req, resp, respFeed, format,
 					BDBEnvUtil.getAtomResourceMapper(),
-					connectionInfo.getDeflateUtil(), responseCode, isGZip,
-					isStrict, isNoCache, isSameOrigin);
+					connectionInfo.getDeflateUtil(), responseCode, isGZip, isStrict, isNoCache, 
+					isSameOrigin, strictTransportSecuritySec, includeSubDomain);
 		}
 	}
 

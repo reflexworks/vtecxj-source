@@ -239,33 +239,29 @@ public class TaggingAuthenticationManager extends AuthenticationManagerDefault {
 					}
 
 					// アカウントの取得
+					// WSSEの場合[0]アカウント、RXIDの場合[0]UID
 					String[] usernameAndService = AuthTokenUtil.getUsernameAndService(
 							wsseAuth);
-					account = UserUtil.editAccount(usernameAndService[0]);
-					if (StringUtils.isBlank(account)) {
-						StringBuilder msgBld = new StringBuilder();
-						if (wsseAuth.isRxid) {
-							msgBld.append("RXID account is null. RXID=");
-						} else {
-							msgBld.append("WSSE account is null. WSSE=");
-						}
-						msgBld.append(getAuthErrorSubMessageValue(req, wsseAuth));
-						String msg = msgBld.toString();
-						if (logger.isInfoEnabled()) {
-							logger.info(LogUtil.getRequestInfoStr(requestInfo) +
-									"[authenticate] " + msg);
-						}
-						AuthenticationException ae = new AuthenticationException();
-						ae.setSubMessage(msg);
-						throw ae;
-					}
-					authCountUser = account;
-
-					// サービスチェック
-					// RXIDのサービス名と、リクエスト先サービスが合致しなければエラー
-					// (ログインサービス除く)
 					if (wsseAuth.isRxid) {
-						// RXIDからサービス名を抽出
+						uid = usernameAndService[0];
+						if (StringUtils.isBlank(uid)) {
+							StringBuilder msgBld = new StringBuilder();
+							msgBld.append("RXID uid is null. RXID=");
+							msgBld.append(getAuthErrorSubMessageValue(req, wsseAuth));
+							String msg = msgBld.toString();
+							if (logger.isInfoEnabled()) {
+								logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+										"[authenticate] " + msg);
+							}
+							AuthenticationException ae = new AuthenticationException();
+							ae.setSubMessage(msg);
+							throw ae;
+						}
+						authCountUser = uid;
+
+						// サービスチェック
+						// RXIDのサービス名と、リクエスト先サービスが合致しなければエラー
+						// (ログインサービス除く)
 						String rxidServiceName = null;
 						if (usernameAndService != null && usernameAndService.length > 1) {
 							rxidServiceName = usernameAndService[1];
@@ -302,6 +298,22 @@ public class TaggingAuthenticationManager extends AuthenticationManagerDefault {
 						}
 
 					} else {
+						account = UserUtil.editAccount(usernameAndService[0]);
+						if (StringUtils.isBlank(account)) {
+							StringBuilder msgBld = new StringBuilder();
+							msgBld.append("WSSE account is null. WSSE=");
+							msgBld.append(getAuthErrorSubMessageValue(req, wsseAuth));
+							String msg = msgBld.toString();
+							if (logger.isInfoEnabled()) {
+								logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+										"[authenticate] " + msg);
+							}
+							AuthenticationException ae = new AuthenticationException();
+							ae.setSubMessage(msg);
+							throw ae;
+						}
+						authCountUser = account;
+
 						// WSSEの場合、「X-Requested-With」ヘッダが設定されていないとエラー
 						if (!ReflexServletUtil.hasXRequestedWith(req)) {
 							StringBuilder msgBld = new StringBuilder();
@@ -318,7 +330,7 @@ public class TaggingAuthenticationManager extends AuthenticationManagerDefault {
 					authFailureCount = securityBlogic.checkAuthFailureCount(
 							authCountUser, req, systemContext);
 
-					if (!wsseAuth.isRxid) {
+					if (!wsseAuth.useAPIKey) {
 						// WSSE認証で認証に一定回数失敗している場合、キャプチャチェックを行う。
 						wsseWithoutCaptchaCount = securityBlogic.getWsseWithoutCaptchaCount(serviceName);
 						if (wsseWithoutCaptchaCount > -1 && wsseWithoutCaptchaCount <= authFailureCount) {
@@ -326,21 +338,19 @@ public class TaggingAuthenticationManager extends AuthenticationManagerDefault {
 						}
 					}
 
-					// UID取得
-					uid = userManager.getUidByAccount(account, systemContext);
-					if (StringUtils.isBlank(uid)) {
-						AuthenticationException ae = new AuthenticationException();
-						StringBuilder msgBld = new StringBuilder();
-						if (wsseAuth.isRxid) {
-							msgBld.append("RXID-user does not exist. RXID=");
-						} else {
+					if (!wsseAuth.isRxid) {
+						// UID取得
+						uid = userManager.getUidByAccount(account, systemContext);
+						if (StringUtils.isBlank(uid)) {
+							AuthenticationException ae = new AuthenticationException();
+							StringBuilder msgBld = new StringBuilder();
 							msgBld.append("WSSE-user does not exist. WSSE=");
+							msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
+							msgBld.append(" account=");
+							msgBld.append(account);
+							ae.setSubMessage(msgBld.toString());
+							throw ae;
 						}
-						msgBld.append(ExceptionUtil.getAuthErrorSubMessageValue(req, wsseAuth));
-						msgBld.append(" account=");
-						msgBld.append(account);
-						ae.setSubMessage(msgBld.toString());
-						throw ae;
 					}
 
 					// UIDよりユーザ情報取得
@@ -351,9 +361,13 @@ public class TaggingAuthenticationManager extends AuthenticationManagerDefault {
 
 					// RXIDのワンタイムチェック
 					securityBlogic.checkRXIDCount(wsseAuth, req, systemContext);
-
+					
 					// 認証成功
 					if (usernameAndService != null && usernameAndService.length > 0) {
+						if (wsseAuth.isRxid) {
+							// アカウント取得
+							account = userManager.getAccountByUid(uid, systemContext);
+						}
 						auth = (TaggingAuthentication)sessionBlogic.createSession(
 								account, uid, authType, serviceName, requestInfo, connectionInfo);
 					}
