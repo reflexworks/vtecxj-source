@@ -52,7 +52,10 @@ public class ReflexStripeEnv {
 		String secretKeyKey = TaggingEnvUtil.getSystemProp(ReflexStripeConst.STRIPE_SECRETKEY_SECRETKEY, null);
 		SecretManager secretManager = TaggingEnvUtil.getSecretManager();
 		try {
-			this.secretKey = secretManager.getSecretKey(secretKeyKey, null);
+			String[] secretResult = secretManager.getSecretKey(secretKeyKey, null);
+			if (secretResult != null && secretResult.length > 0) {
+				this.secretKey = secretResult[0];
+			}
 			Stripe.apiKey = secretKey;
 
 			if (isEnableAccessLog()) {

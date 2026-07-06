@@ -11,6 +11,7 @@ import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.blogic.AclBlogic;
+import jp.reflexworks.taggingservice.blogic.SecretBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.PermissionException;
@@ -30,6 +31,8 @@ public class MonitorManagerDefault implements MonitorManager {
 	public static final String MONITOR_FULLTEXTSEARCH = "fulltextsearch";
 	/** monitorパラメータ : インデックス */
 	public static final String MONITOR_INDEX = "index";
+	/** monitorパラメータ : シークレットマネージャ */
+	public static final String MONITOR_SECRETMANAGER = "secretmanager";
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -83,6 +86,9 @@ public class MonitorManagerDefault implements MonitorManager {
 		} else if (MONITOR_INDEX.equals(target)) {
 			DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
 			return datastoreManager.monitor(req, resp);
+		} else if (MONITOR_SECRETMANAGER.equals(target)) {
+			SecretBlogic secretBlogic = new SecretBlogic();
+			return secretBlogic.monitor(req, resp);
 		} else {
 			throw new IllegalParameterException("Invalid parameter: " + target);
 		}

@@ -24,9 +24,9 @@ public interface SecretManager extends ReflexPlugin {
 	 * 取り扱いには注意すること。
 	 * @param secretId Secret Managerから取得したい値の名前
 	 * @param versionId Secret Managerから取得したい値のバージョン。指定無しの場合はlatest
-	 * @return Secret Managerから取得した値
+	 * @return [0]Secret Managerから取得した値 [1]バージョンID
 	 */
-	public String getSecretKey(String secretId, String versionId)
+	public String[] getSecretKey(String secretId, String versionId)
 	throws IOException, TaggingException;
 
 }

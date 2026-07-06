@@ -10,38 +10,19 @@ import jp.sourceforge.reflex.util.StringUtils;
  * シークレットのキャッシュ情報
  * リクエストで持ち回りたいためConnectionオブジェクトとする。
  */
-public class SecretCacheConnection implements ReflexConnection<Long> {
+public class SecretCacheConnection implements ReflexConnection<Map<String, String>> {
 	
-	/** reloadSecret for Redis */
-	private long reloadSecretTime = 0L;
 	/** secret cache for Redis */
 	private Map<String, String> secretCacheMap = new HashMap<>();
 
 	@Override
-	public Long getConnection() {
-		// TODO 自動生成されたメソッド・スタブ
-		return getReloadSecretTime();
+	public Map<String, String> getConnection() {
+		return secretCacheMap;
 	}
 
 	@Override
 	public void close() {
-		// TODO 自動生成されたメソッド・スタブ
-	}
-	
-	/**
-	 * コンストラクタ
-	 * @param reloadSecretTime reloadsecretの実行日時(エポック秒)
-	 */
-	SecretCacheConnection(long reloadSecretTime) {
-		this.reloadSecretTime = reloadSecretTime;
-	}
-
-	/**
-	 * reloadsecretの実行日時(エポック秒)を取得
-	 * @return 
-	 */
-	public long getReloadSecretTime() {
-		return reloadSecretTime;
+		// Do nothing.
 	}
 	
 	/**
@@ -75,7 +56,7 @@ public class SecretCacheConnection implements ReflexConnection<Long> {
 	private String getMapKey(String secretId, String versionId) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(secretId);
-		sb.append(SecretConst.URI_SECRET_CACHE_DELIMITER);
+		sb.append(SecretConst.SECRET_STATIC_KEY_DELIMITER);
 		sb.append(StringUtils.null2blank(versionId));
 		return sb.toString();
 	}

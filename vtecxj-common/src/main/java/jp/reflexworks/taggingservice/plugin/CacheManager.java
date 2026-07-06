@@ -1,6 +1,7 @@
 package jp.reflexworks.taggingservice.plugin;
 
 import java.io.IOException;
+import java.util.List;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
@@ -224,6 +225,42 @@ public interface CacheManager extends ReflexPlugin {
 	 * @return 設定完了の場合true、データ存在なしの場合false
 	 */
 	public boolean setExpireLong(String name, int sec, BaseReflexContext reflexContext)
+	throws IOException, TaggingException;
+
+	/**
+	 * Feedキャッシュのキー一覧を取得.
+	 * @param pattern パターン
+	 * @param reflexContext ReflexContext
+	 * @return Feedキャッシュのキー一覧
+	 */
+	public List<String> keysFeed(String pattern, BaseReflexContext reflexContext)
+	throws IOException, TaggingException;
+
+	/**
+	 * Entryキャッシュのキー一覧を取得.
+	 * @param pattern パターン
+	 * @param reflexContext ReflexContext
+	 * @return Entryキャッシュのキー一覧
+	 */
+	public List<String> keysEntry(String pattern, BaseReflexContext reflexContext)
+	throws IOException, TaggingException;
+
+	/**
+	 * 文字列キャッシュのキー一覧を取得.
+	 * @param pattern パターン
+	 * @param reflexContext ReflexContext
+	 * @return 文字列キャッシュのキー一覧
+	 */
+	public List<String> keysString(String pattern, BaseReflexContext reflexContext)
+	throws IOException, TaggingException;
+
+	/**
+	 * 数値キャッシュのキー一覧を取得.
+	 * @param pattern パターン
+	 * @param reflexContext ReflexContext
+	 * @return 数値キャッシュのキー一覧
+	 */
+	public List<String> keysLong(String pattern, BaseReflexContext reflexContext)
 	throws IOException, TaggingException;
 
 	/**

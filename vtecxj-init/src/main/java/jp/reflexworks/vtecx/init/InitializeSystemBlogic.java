@@ -192,7 +192,11 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		if (StringUtils.isBlank(secretNameApiKey)) {
 			throw new IllegalArgumentException("apikey name setting is required.");
 		}
-		String apiKey = secretManager.getSecretKey(secretNameApiKey, null);
+		String[] secretResult = secretManager.getSecretKey(secretNameApiKey, null);
+		String apiKey = null;
+		if (secretResult != null && secretResult.length > 0) {
+			apiKey = secretResult[0];
+		}
 		if (StringUtils.isBlank(apiKey)) {
 			throw new IllegalArgumentException("apikey setting is required.");
 		}
@@ -985,7 +989,11 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		if (StringUtils.isBlank(secretNameEmail)) {
 			throw new IllegalArgumentException("system service email name is required.");
 		}
-		String username = secretManager.getSecretKey(secretNameEmail, null);
+		String username = null;
+		String[] secretResult = secretManager.getSecretKey(secretNameEmail, null);
+		if (secretResult != null && secretResult.length > 0) {
+			username = secretResult[0];
+		}
 		if (StringUtils.isBlank(username)) {
 			throw new IllegalArgumentException("system service email is required.");
 		}
@@ -995,7 +1003,11 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		if (StringUtils.isBlank(secretNamePswd)) {
 			throw new IllegalArgumentException("system service password name is required.");
 		}
-		String tmpPswd = secretManager.getSecretKey(secretNamePswd, null);
+		String tmpPswd = null;
+		secretResult = secretManager.getSecretKey(secretNamePswd, null);
+		if (secretResult != null && secretResult.length > 0) {
+			tmpPswd = secretResult[0];
+		}
 		if (StringUtils.isBlank(tmpPswd)) {
 			throw new IllegalArgumentException("system service password is required.");
 		}
@@ -1067,7 +1079,11 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		if (StringUtils.isBlank(secretNameEmail)) {
 			throw new IllegalArgumentException("system service email name is required.");
 		}
-		String email = secretManager.getSecretKey(secretNameEmail, null);
+		String email = null;
+		String[] secretResult = secretManager.getSecretKey(secretNameEmail, null);
+		if (secretResult != null && secretResult.length > 0) {
+			email = secretResult[0];
+		}
 		if (StringUtils.isBlank(email)) {
 			throw new IllegalArgumentException("system service email is required.");
 		}

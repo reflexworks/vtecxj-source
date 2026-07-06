@@ -89,7 +89,7 @@ public class ReflexStripeUtil {
 	
 	/**
 	 * シークレット読み込み.
-	 * Redisキャッシュも使用する。同じスレッドで一度読み込んだものは使い回す。
+	 * Redisキャッシュをバージョン管理に使用する。同じスレッドで一度読み込んだものは使い回す。
 	 * @param secretKey シークレットキー
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
