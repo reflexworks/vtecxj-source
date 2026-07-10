@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import jp.reflexworks.atom.api.AtomConst;
 import jp.reflexworks.atom.api.EntryUtil;
 import jp.reflexworks.atom.entry.Author;
 import jp.reflexworks.atom.entry.Category;
@@ -32,12 +31,12 @@ public class TaggingEntryUtil extends EntryUtil {
 	/** ルートuri */
 	public static final String URI_ROOT = Constants.URI_ROOT;
 	/** HTML uriの接頭辞 */
-	public static final String URI_HTML_PREFIX = AtomConst.URI_HTML + "/";
+	public static final String URI_HTML_PREFIX = Constants.URI_HTML + "/";
 	/** ResourceMapper格納キー : ATOM標準 */
 	public static final String ATOM_STANDARD = ReflexEnvConst.ATOM_STANDARD;
 
 	/** HTML uriの文字数 */
-	private static final int URI_HTML_LEN = AtomConst.URI_HTML.length();
+	private static final int URI_HTML_LEN = Constants.URI_HTML.length();
 	/** intの最大桁数 */
 	private static final int INT_MAXVAL_LEN = 10;
 	/** created uid接頭辞の文字数 */

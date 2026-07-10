@@ -202,7 +202,7 @@ public class ErrorPageUtil implements ReflexServletConst, AtomConst {
 			sb.append(selfid);
 		} else {
 			// /_html配下の相対指定
-			sb.append(AtomConst.URI_HTML);
+			sb.append(Constants.URI_HTML);
 			sb.append("/");
 			sb.append(selfid);
 		}

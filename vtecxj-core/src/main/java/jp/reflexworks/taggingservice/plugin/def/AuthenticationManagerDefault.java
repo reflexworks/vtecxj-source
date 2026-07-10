@@ -6,7 +6,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jp.reflexworks.atom.api.AtomConst;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.servlet.ReflexServletConst;
 import jp.reflexworks.servlet.ReflexServletUtil;
@@ -598,7 +597,7 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 		// ユーザステータスのチェック。仮登録の場合もエラー。
 		EntryBase userstatusEntry = userManager.getUserstatusByAccount(account, systemContext);
 		String userstatus = userManager.getUserstatus(userstatusEntry);
-		if (!AtomConst.USERSTATUS_ACTIVATED.equals(userstatus)) {
+		if (!Constants.USERSTATUS_ACTIVATED.equals(userstatus)) {
 			AuthenticationException ae = new AuthenticationException();
 			ae.setSubMessage("User status is invalid. " + userstatus);
 			throw ae;

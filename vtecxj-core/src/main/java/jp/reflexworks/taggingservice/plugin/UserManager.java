@@ -122,6 +122,15 @@ public interface UserManager extends ReflexPlugin {
 	throws IOException, TaggingException;
 
 	/**
+	 * サービス作成時の管理者登録.
+	 * @param feed ユーザ登録情報(1件)
+	 * @param reflexContext ReflexContext
+	 * @return ユーザのトップエントリーリスト
+	 */
+	public FeedBase adduserByCreateservice(FeedBase feed, ReflexContext reflexContext)
+	throws IOException, TaggingException;
+
+	/**
 	 * グループ管理者によるユーザ登録.
 	 * @param feed ユーザ登録情報(複数ユーザ対応)
 	 * @param groupName グループ名

@@ -588,6 +588,34 @@ public class UserManagerDefault implements UserManager {
 	}
 
 	/**
+	 * 管理者によるユーザ登録.
+	 * @param feed ユーザ登録情報
+	 * @param reflexContext ReflexContext
+	 * @return ユーザのトップエントリーリスト
+	 */
+	public FeedBase adduserByCreateservice(FeedBase feed, ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		// feedチェック
+		checkUserAuthFeed(feed);
+
+		String serviceName = reflexContext.getServiceName();
+		SystemContext systemContext = new SystemContext(reflexContext.getAuth(),
+				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
+
+		// adduser共通処理を実行
+		List<EntryBase> retEntries = new ArrayList<EntryBase>();
+		for (EntryBase entry : feed.entry) {
+			EntryBase retEntry = adduserProc(entry, AdduserType.CREATESERVICE, null, systemContext);
+			retEntries.add(retEntry);
+		}
+
+		// ユーザトップエントリーリストを返却
+		FeedBase retFeed = TaggingEntryUtil.createFeed(serviceName);
+		retFeed.entry = retEntries;
+		return retFeed;
+	}
+
+	/**
 	 * グループ管理者によるユーザ登録.
 	 * @param feed ユーザ登録情報
 	 * @param groupName グループ名
@@ -641,7 +669,7 @@ public class UserManagerDefault implements UserManager {
 	/**
 	 * ユーザ登録処理.
 	 * @param entry 登録ユーザ
-	 * @param adduserType サービス管理者による登録の場合true
+	 * @param adduserType USER, ADMIN, GROUPADMIN, CREATESERVICE
 	 * @param groupName グループ管理者による登録の場合、グループ名
 	 * @param systemContext SystemContext
 	 * @return ユーザトップエントリーリスト
@@ -667,6 +695,7 @@ public class UserManagerDefault implements UserManager {
 			}
 		}
 		boolean isByAdmin = !adduserType.equals(AdduserType.USER);
+		boolean isCreateService = adduserType.equals(AdduserType.CREATESERVICE);
 
 		// 指定されたメールアドレスを小文字に変換し、さらにアカウント利用可能文字以外を削除した値をユーザアカウントとする。
 		String[] userInfo = checkUserAuthInfo(entry, UserAuthType.ADDUSER, isByAdmin, isByAdmin);
@@ -683,7 +712,7 @@ public class UserManagerDefault implements UserManager {
 		}
 
 		// ユーザ名がメールアドレス形式の場合、管理者登録でも仮登録扱いとする
-		boolean isInterimByAdmin = isByAdmin && isMailAddress(email);
+		boolean isInterimByAdmin = isInterimByAdmin(email, isByAdmin, isCreateService);
 
 		if (!isByAdmin || isInterimByAdmin) {
 			if (mailEntry == null || StringUtils.isBlank(mailEntry.title) ||
@@ -696,6 +725,18 @@ public class UserManagerDefault implements UserManager {
 		// ユーザ仮登録処理
 		return adduserInterim(account, password, email, nickname, mailEntry, adduserType,
 				groupName, rawPassword, systemContext);
+	}
+	
+	/**
+	 * 管理者によるユーザ登録で、ユーザを仮登録にするかどうかの判定
+	 * @param email メールアドレス
+	 * @param isByAdmin 管理者によるユーザ登録の場合true
+	 * @param isCreateService サービス登録処理の場合true
+	 * @return 管理者によるユーザ登録で、ユーザを仮登録にする場合のみtrue。
+	 *         一般ユーザ登録の場合と、管理者によるユーザ登録で一気に本登録処理とする場合はfalse。
+	 */
+	private boolean isInterimByAdmin(String email, boolean isByAdmin, boolean isCreateService) {
+		return isByAdmin && isMailAddress(email) && !isCreateService;
 	}
 
 	/**
@@ -743,8 +784,9 @@ public class UserManagerDefault implements UserManager {
 		String serviceName = systemContext.getServiceName();
 		boolean isByAdmin = !adduserType.equals(AdduserType.USER);
 		boolean isLink = adduserType.equals(AdduserType.LINK);
+		boolean isCreateService = adduserType.equals(AdduserType.CREATESERVICE);
 		// ユーザ名がメールアドレス形式の場合、管理者登録でも仮登録扱いとする
-		boolean isInterimByAdmin = isByAdmin && !isLink && isMailAddress(email);
+		boolean isInterimByAdmin = isInterimByAdmin(email, isByAdmin, isCreateService);
 		// 仮登録時はパスワードに余分な文字列を付ける。(本登録時に除去する。)
 		if ((!isByAdmin || isInterimByAdmin) && !isLink) {
 			password = getTmpPassword(password);

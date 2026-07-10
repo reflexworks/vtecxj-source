@@ -1182,13 +1182,23 @@ public class TaggingServlet extends ReflexServletBase {
 				retObj = userBlogic.changeTdid(req, reflexContext);
 
 			} else if (param.getOption(RequestParam.PARAM_MERGEOAUTHUSER) != null) {
-				// 既存ユーザとソーシャルログインユーザを紐付ける
+				// 既存ユーザとソーシャルログインユーザの紐付けリクエスト(確認コード送信)
 				if (logger.isInfoEnabled()) {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_mergeoauthuser");
 				}
 				FeedBase feed = req.getFeed();
 				UserBlogic userBlogic = new UserBlogic();
-				retObj = userBlogic.mergeOAuthUser(req, resp, feed, reflexContext);
+				userBlogic.mergeOAuthUser(feed, reflexContext);
+				retObj = createMessageFeed(msgManager.getMsgMergeoauthuser(serviceName), serviceName);
+
+			} else if (param.getOption(RequestParam.PARAM_MERGEOAUTHUSER_VERIFY) != null) {
+				// 既存ユーザとソーシャルログインユーザの紐付け実行
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_mergeoauthuser_verify");
+				}
+				String verifyCode = param.getOption(RequestParam.PARAM_MERGEOAUTHUSER_VERIFY);
+				UserBlogic userBlogic = new UserBlogic();
+				retObj = userBlogic.verifyMergeOAuthUser(req, resp, verifyCode, reflexContext);
 
 			} else if (param.getOption(RequestParam.PARAM_RELOADSECRET) != null) {
 				// SecretManager再読み込み

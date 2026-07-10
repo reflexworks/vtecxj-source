@@ -65,8 +65,8 @@ public interface UserManagerDefaultConst {
 	/** パスワード変更一時トークンのRedisキャッシュ格納キー接頭辞 */
 	public static final String URI_CACHESTRING_PASSRESET_TOKEN_PREFIX = "/_#passreset_token/";
 
-	/** ユーザ登録区分 : adduser、adduserByAdmin, adduserByGroupadmin, 外部連携 */
-	enum AdduserType {USER, ADMIN, GROUPADMIN, LINK};
+	/** ユーザ登録区分 : adduser、adduserByAdmin, adduserByGroupadmin, 外部連携, サービス作成 */
+	enum AdduserType {USER, ADMIN, GROUPADMIN, LINK, CREATESERVICE};
 
 	/** 処理区分 : adduser、passreset、changepass、changeaccount */
 	enum UserAuthType {ADDUSER, PASSRESET, CHANGEPASS, CHANGEACCOUNT};

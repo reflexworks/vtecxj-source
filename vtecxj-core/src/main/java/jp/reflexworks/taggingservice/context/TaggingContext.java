@@ -11,7 +11,6 @@ import jakarta.activation.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jp.reflexworks.atom.api.AtomConst;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.atom.mapper.FeedTemplateMapper;
@@ -2310,7 +2309,7 @@ public class TaggingContext implements ReflexContext {
 		CheckUtil.checkUri(uri);
 		if (!uri.startsWith(Constants.URI_SYSTEM_MANAGER) &&
 				!uri.startsWith(TaggingEntryUtil.URI_HTML_PREFIX)) {
-			uri = AtomConst.URI_HTML + uri;
+			uri = Constants.URI_HTML + uri;
 		}
 		ReflexContentInfo contentInfo = getContent(uri);
 		if (contentInfo != null) {
