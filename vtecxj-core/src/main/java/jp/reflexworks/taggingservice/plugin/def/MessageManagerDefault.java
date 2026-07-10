@@ -313,6 +313,16 @@ public class MessageManagerDefault implements MessageManager {
 	}
 
 	/**
+	 * 既存ユーザとソーシャルログインユーザの紐付けリクエストのメッセージを取得.
+	 * 確認コードのメール送信完了
+	 * @param serviceName サービス名
+	 * @return メッセージ
+	 */
+	public String getMsgMergeoauthuser(String serviceName) {
+		return MessageConst.MSG_SENDEMAIL;
+	}
+
+	/**
 	 * ユーザ退会完了のメッセージを取得.
 	 * @param auth 認証情報
 	 * @param serviceName サービス名

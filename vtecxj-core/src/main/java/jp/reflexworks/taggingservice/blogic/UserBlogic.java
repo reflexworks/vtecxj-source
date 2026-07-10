@@ -835,15 +835,13 @@ public class UserBlogic {
 	}
 
 	/**
-	 * 既存ユーザとソーシャルログインユーザを紐付ける
-	 * @param req リクエスト
-	 * @param resp レスポンス
-	 * @param feed subtitleにOAuthプロバイダ、rightsにRXID
+	 * 既存ユーザとソーシャルログインユーザの紐付けリクエスト.
+	 * WSSE認証を行い、対象アカウントのメールアドレス宛に確認コードを送信する。
+	 * この時点ではユーザ情報・セッション情報の更新は行わない。
+	 * @param feed subtitleにOAuthプロバイダ、rightsにWSSE
 	 * @param reflexContext ReflexContext
-	 * @return 更新後のユーザトップエントリー
 	 */
-	public EntryBase mergeOAuthUser(ReflexRequest req, ReflexResponse resp,
-			FeedBase feed, ReflexContext reflexContext)
+	public void mergeOAuthUser(FeedBase feed, ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		// 未ログインはエラー
 		ReflexAuthentication auth = reflexContext.getAuth();
@@ -851,10 +849,30 @@ public class UserBlogic {
 		// 引数のnullチェック
 		CheckUtil.checkNotNull(feed, "parameter");
 		String provider = feed.subtitle;
-		String wsseApikey = feed.rights;
-		// 既存ユーザとソーシャルログインユーザの紐付け処理
+		String wsse = feed.rights;
+		// 既存ユーザとソーシャルログインユーザの紐付けリクエスト処理
 		OAuthManager oauthManager = TaggingEnvUtil.getOAuthManager();
-		return oauthManager.mergeUser(req, resp, provider, wsseApikey, reflexContext);
+		oauthManager.mergeUser(provider, wsse, reflexContext);
+	}
+
+	/**
+	 * 既存ユーザとソーシャルログインユーザの紐付け実行.
+	 * 確認コードを照合し、一致すれば紐付けを実行する。
+	 * @param req リクエスト
+	 * @param resp レスポンス
+	 * @param verifyCode 確認コード
+	 * @param reflexContext ReflexContext
+	 * @return 更新後のユーザトップエントリー
+	 */
+	public EntryBase verifyMergeOAuthUser(ReflexRequest req, ReflexResponse resp,
+			String verifyCode, ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		// 未ログインはエラー
+		ReflexAuthentication auth = reflexContext.getAuth();
+		checkAuth(auth);
+		CheckUtil.checkNotNull(verifyCode, "verifyCode");
+		OAuthManager oauthManager = TaggingEnvUtil.getOAuthManager();
+		return oauthManager.verifyMergeUser(req, resp, verifyCode, reflexContext);
 	}
 
 	/**

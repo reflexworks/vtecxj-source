@@ -73,8 +73,10 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_CHECK_MQ = "_check_mq";
 	/** URLパラメータ : BDBQリトライチェック */
 	public static final String PARAM_CHECK_BDBQ = "_check_bdbq";
-	/** URLパラメータ : 既存ユーザとソーシャルログインユーザを紐付ける */
+	/** URLパラメータ : 既存ユーザとソーシャルログインユーザの紐付けリクエスト(確認コード送信) */
 	public static final String PARAM_MERGEOAUTHUSER = "_mergeoauthuser";
+	/** URLパラメータ : 既存ユーザとソーシャルログインユーザの紐付け実行(確認コード照合) */
+	public static final String PARAM_MERGEOAUTHUSER_VERIFY = "_mergeoauthuser_verify";
 	/** URLパラメータ : サイズ指定コンテンツ登録 */
 	public static final String PARAM_BYSIZE = "_bysize";
 	/** URLパラメータ : 拡張子 */

@@ -110,6 +110,24 @@ public interface OAuthConst {
 	/** URI : /oauth (データストアのエイリアスに使用) */
 	public static final String URI_USER_OAUTH = "/oauth";
 
+	/** URI : /_mergeoauthuser (Redisキャッシュに使用、親階層) */
+	public static final String URI_MERGEOAUTHUSER = "/_mergeoauthuser";
+	/** URI : target_uid (Redisキャッシュキーの末尾) */
+	public static final String URI_MERGEOAUTHUSER_TARGET_UID = "/target_uid";
+	/** URI : provider (Redisキャッシュキーの末尾) */
+	public static final String URI_MERGEOAUTHUSER_PROVIDER = "/provider";
+	/** URI : verify (Redisキャッシュキーの末尾) */
+	public static final String URI_MERGEOAUTHUSER_VERIFY = "/verify";
+	/** URI : error_count (Redisキャッシュキーの末尾) */
+	public static final String URI_MERGEOAUTHUSER_ERROR_COUNT = "/error_count";
+
+	/** メッセージ置き換え文字列 : 確認コード */
+	public static final String REPLACE_REGEX_VERIFY = "\\$\\{VERIFY\\}";
+	/** プロパティデフォルト値 : 確認コードの文字数 (UserManagerDefaultConst.VERIFY_CODE_LENGTH_DEFAULTと同値。SettingConst.VERIFY_CODE_LENGTHで設定変更可能) */
+	public static final int VERIFY_CODE_LENGTH_DEFAULT = 6;
+	/** プロパティデフォルト値 : 確認コード照合失敗許容回数 (UserManagerDefaultConst.VERIFY_FAILED_COUNT_DEFAULTと同値。SettingConst.VERIFY_FAILED_COUNTで設定変更可能) */
+	public static final int VERIFY_FAILED_COUNT_DEFAULT = 10;
+
 	/** message : 紐付けリクエスト依頼 */
 	public static final String MSG_REQUIRE_LINK = "It is required to link social accounts with logged-in users.";
 	/** message : 既存アカウントのパスワード確認リクエスト依頼 */

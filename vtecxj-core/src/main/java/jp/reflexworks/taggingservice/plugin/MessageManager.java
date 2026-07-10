@@ -206,6 +206,14 @@ public interface MessageManager extends ReflexPlugin {
 	public String getMsgChangeaccountVerify(String serviceName);
 
 	/**
+	 * 既存ユーザとソーシャルログインユーザの紐付けリクエストのメッセージを取得.
+	 * 確認コードのメール送信完了
+	 * @param serviceName サービス名
+	 * @return メッセージ
+	 */
+	public String getMsgMergeoauthuser(String serviceName);
+
+	/**
 	 * ユーザ退会完了のメッセージを取得.
 	 * @param auth 認証情報
 	 * @param serviceName サービス名

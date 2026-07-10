@@ -678,7 +678,7 @@ public class ServiceManagerDefault implements ServiceManager {
 		feed = createAdduserParam(auth, newServiceName, reflexContext);
 		// 新サービス管理ユーザ登録
 		UserManager userManager = TaggingEnvUtil.getUserManager();
-		FeedBase retFeed = userManager.adduserByAdmin(feed, newSystemContext);
+		FeedBase retFeed = userManager.adduserByCreateservice(feed, newSystemContext);
 
 		if (retFeed == null || retFeed.entry == null || retFeed.entry.isEmpty()) {
 			throw new NoExistingEntryException("create service failed. admin user couldn't regist.");
