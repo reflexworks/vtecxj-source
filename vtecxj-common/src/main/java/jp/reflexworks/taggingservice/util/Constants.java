@@ -86,6 +86,89 @@ public interface Constants extends AtomConst {
 	/** ユーザ初期エントリー設定 : ユーザ番号に置き換える記号 */
 	public static final String ADDUSERINFO_UID = SettingConst.SETTING_USERINIT_UID;
 
+	/** URI : settings (value) */
+	public static final String URI_SETTINGS_VAL = "_settings";
+	/** URI : settings */
+	public static final String URI_SETTINGS = "/" + URI_SETTINGS_VAL;
+	/** URI : settings - admin */
+	public static final String URI_SETTINGS_PROPERTIES = URI_SETTINGS + "/properties";
+	/** URI : settings - adduser */
+	public static final String URI_SETTINGS_ADDUSER = URI_SETTINGS + "/adduser";
+	/** URI : settings - adduserinfo */
+	public static final String URI_SETTINGS_ADDUSERINFO = URI_SETTINGS + "/adduserinfo";
+	/** URI : settings - passreset */
+	public static final String URI_SETTINGS_PASSRESET = URI_SETTINGS + "/passreset";
+	/** URI : settings - adduserByAdmin */
+	public static final String URI_SETTINGS_ADDUSER_BYADMIN = URI_SETTINGS + "/adduserByAdmin";
+	/** URI : settings - changeaccount */
+	public static final String URI_SETTINGS_CHANGEACCOUNT = URI_SETTINGS + "/changeaccount";
+	/** URI : settings - mergeoauthuser */
+	public static final String URI_SETTINGS_MERGEOAUTHUSER = URI_SETTINGS + "/mergeoauthuser";
+	/** URI : settings - logalert */
+	public static final String URI_SETTINGS_LOGALERT = URI_SETTINGS + "/logalert";
+	/** URI : user init (value) */
+	public static final String URI_USERINIT_VAL = "userinit.xml";
+	/** URI : settings - user init */
+	public static final String URI_SETTINGS_USERINIT = URI_SETTINGS + "/" + URI_USERINIT_VAL;
+	/** URI : feed template (value) */
+	public static final String URI_TEMPLATE_VAL = "template";
+	/** URI : settings - feed template */
+	public static final String URI_SETTINGS_TEMPLATE = URI_SETTINGS + "/" + URI_TEMPLATE_VAL;
+	/** URI : group */
+	public static final String URI_GROUP = "/_group";
+	/** URI : system group prefix */
+	public static final String URI_SERVICE_GROUP_MARK = "$";
+	/** URI : system group prefix */
+	public static final String URI_SERVICE_GROUP_PREFIX = "/" + URI_SERVICE_GROUP_MARK;
+	/** URI : $admin */
+	public static final String URI_$ADMIN = URI_SERVICE_GROUP_PREFIX + "admin";
+	/** URI : $content */
+	public static final String URI_$CONTENT = URI_SERVICE_GROUP_PREFIX + "content";
+	/** URI : $useradmin */
+	public static final String URI_$USERADMIN = URI_SERVICE_GROUP_PREFIX + "useradmin";
+	/** URI : group - admin */
+	public static final String URI_GROUP_ADMIN = URI_GROUP + URI_$ADMIN;
+	/** URI : group - content */
+	public static final String URI_GROUP_CONTENT = URI_GROUP + URI_$CONTENT;
+	/** URI : group - useradmin */
+	public static final String URI_GROUP_USERADMIN = URI_GROUP + URI_$USERADMIN;
+	/** URI : auth (value) */
+	public static final String URI_LAYER_AUTH_VAL = "auth";
+	/** URI : auth (layer) */
+	public static final String URI_LAYER_AUTH = "/" + URI_LAYER_AUTH_VAL;
+	/** URI : platform (layer) */
+	public static final String URI_LAYER_PLATFORM = "/platform";
+	/** URI : group (layer) */
+	public static final String URI_LAYER_GROUP = "/group";
+	/** URI : html */
+	public static final String URI_HTML = "/_html";
+	/** URI : user */
+	public static final String URI_USER_VAL = "_user";
+	/** URI : user */
+	public static final String URI_USER = "/" + URI_USER_VAL;
+
+	/** type : webhook */
+	public static final String TYPE_WEBHOOK = "webhook";
+	/** type : websocket */
+	public static final String TYPE_WEBSOCKET = "websocket";
+	/** type : mobile push */
+	public static final String TYPE_MOBILEPUSH = "push";
+	/** type : メール通知 */
+	public static final String TYPE_EMAIL = "email";
+	/** type : node */
+	public static final String TYPE_NODE = "node";
+	
+	/** ユーザステータス : 登録なし */
+	public static final String USERSTATUS_NOTHING = "Nothing";
+	/** ユーザステータス : 仮登録 */
+	public static final String USERSTATUS_INTERIM = "Interim";
+	/** ユーザステータス : 本登録 */
+	public static final String USERSTATUS_ACTIVATED = "Activated";
+	/** ユーザステータス : 無効 */
+	public static final String USERSTATUS_REVOKED = "Revoked";
+	/** ユーザステータス : 退会 */
+	public static final String USERSTATUS_CANCELLED = "Cancelled";
+
 	/** URI : security */
 	public static final String URI_SECURITY = "/_security";
 	/** URI : accesskey */

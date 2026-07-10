@@ -16,7 +16,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jp.reflexworks.atom.api.AtomConst;
 import jp.reflexworks.atom.entry.Contributor;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
@@ -1377,9 +1376,9 @@ public class ServiceManagerDefault implements ServiceManager {
 				AuthenticationConst.ACCOUNT_SERVICEADMIN,
 				AuthenticationConst.UID_SERVICEADMIN, null,
 				Constants.AUTH_TYPE_SYSTEM, serviceName);
-		auth.addGroup(AtomConst.URI_GROUP_ADMIN);
-		auth.addGroup(AtomConst.URI_GROUP_CONTENT);
-		auth.addGroup(AtomConst.URI_GROUP_USERADMIN);
+		auth.addGroup(Constants.URI_GROUP_ADMIN);
+		auth.addGroup(Constants.URI_GROUP_CONTENT);
+		auth.addGroup(Constants.URI_GROUP_USERADMIN);
 		return auth;
 	}
 
