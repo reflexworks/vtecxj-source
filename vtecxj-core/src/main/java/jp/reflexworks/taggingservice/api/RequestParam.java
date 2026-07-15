@@ -107,6 +107,8 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_BILLINGPORTAL = "_billingportal";
 	/** URLパラメータ : セッション生成 */
 	public static final String PARAM_CREATESESSION = "_createsession";
+	/** URLパラメータ : タイプ */
+	public static final String PARAM_TYPE = "_type";
 
 	/**
 	 * Entry検索かどうか返却します.
