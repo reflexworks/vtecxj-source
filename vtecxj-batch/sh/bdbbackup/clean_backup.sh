@@ -31,13 +31,13 @@ DATE_URL=$GS_BACKUP_URL$DATETIME'/'
 
 # クリーンアップ
 # Storageからバックアップ一覧フォルダを取得
-backuplist=`gsutil ls $GS_BACKUP_URL`
+backuplist=`gcloud storage ls $GS_BACKUP_URL`
 
 sortlist=`sort -r <<END
 $backuplist
 END`
 
-#sortlist=`$GCLOUD_DIR/gsutil ls $GS_BACKUP_URL | sort -r`
+#sortlist=`$GCLOUD_DIR/gcloud storage ls $GS_BACKUP_URL | sort -r`
 
 #echo '[clean backup] backup_num='$BACKUP_NUM
 
@@ -56,7 +56,7 @@ do
       if [ $count -lt 0 ]; then
         #Storageのフォルダ削除
         echo '[clean backup] delete: '$line
-        gsutil -m -q rm -r $line
+        gcloud storage rm -r $line --quiet
       fi
     fi
   fi

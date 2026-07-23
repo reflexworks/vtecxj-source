@@ -35,7 +35,8 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 	private static final String FORMAT_YYYYMM = "yyyyMM";
 	
 	/** Storageサイズ取得時のバケット未存在エラーメッセージ */
-	private static final String OUTERR_BUCKETNOTFOUND_PREFIX = "BucketNotFoundException: 404";
+	//private static final String OUTERR_BUCKETNOTFOUND_PREFIX = "BucketNotFoundException: 404";
+	private static final String OUTERR_BUCKETNOTFOUND = "not found: 404";
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -44,7 +45,7 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 	 * 実行処理.
 	 * @param reflexContext ReflexContext
 	 * @param args 引数 (ReflexApplication実行時の引数の4番目以降)
-	 *             [0]gsutilの格納ディレクトリ
+	 *             [0]gcloudの格納ディレクトリ
 	 */
 	public Boolean exec(ReflexContext reflexContext, String[] args) {
 		// 引数チェック
@@ -52,9 +53,9 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 			throw new IllegalStateException("引数がnullです。");
 		}
 		if (args.length < 1) {
-			throw new IllegalStateException("引数が不足しています。[0]gsutilの格納ディレクトリ");
+			throw new IllegalStateException("引数が不足しています。[0]gcloudの格納ディレクトリ");
 		}
-		String gsutilDir = args[0];
+		String gcloudDir = args[0];
 
 		// サービス名がシステム管理サービスでなければエラー
 		String systemService = reflexContext.getServiceName();
@@ -81,7 +82,7 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 
 			// サービスごとにアクセスカウンタのバッチ処理を行う。
 			for (EntryBase serviceEntry : serviceFeed.entry) {
-				execForEachService(systemContext, serviceEntry, gsutilDir);
+				execForEachService(systemContext, serviceEntry, gcloudDir);
 			}
 
 		} catch (IOException e) {
@@ -96,10 +97,10 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 	 * サービスごとの処理
 	 * @param systemContext SystemContext
 	 * @param serviceEntry サービスエントリー
-	 * @param gsutilDir gsutilの格納ディレクトリ
+	 * @param gcloudDir gcloudの格納ディレクトリ
 	 */
 	private void execForEachService(SystemContext systemContext, EntryBase serviceEntry,
-			String gsutilDir)
+			String gcloudDir)
 	throws IOException, TaggingException {
 		String serviceName = TaggingServiceUtil.getServiceNameFromServiceUri(serviceEntry.getMyUri());
 		try {
@@ -131,8 +132,8 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 			}
 
 			// ・ストレージ容量取得
-			//  gsutilでストレージの容量を取得
-			Long storageTotalsize = getStorageTotalsize(systemContext, serviceName, gsutilDir);
+			//  gcloud storageでストレージの容量を取得
+			Long storageTotalsize = getStorageTotalsize(systemContext, serviceName, gcloudDir);
 
 			//  Redisにストレージ容量を設定
 			if (storageTotalsize != null) {
@@ -187,10 +188,10 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 	 * ストレージのデータ容量を取得.
 	 * @param systemContext SystemContext
 	 * @param serviceName サービス名
-	 * @param gsutilDir gsutilの格納ディレクトリ
+	 * @param gcloudDir gcloudの格納ディレクトリ
 	 * @return ストレージのデータ容量
 	 */
-	private Long getStorageTotalsize(SystemContext systemContext, String serviceName, String gsutilDir)
+	private Long getStorageTotalsize(SystemContext systemContext, String serviceName, String gcloudDir)
 	throws IOException, TaggingException {
 		// バケット名取得
 		String bucketName = CloudStorageUtil.getBucketNameByEntry(serviceName, systemContext);
@@ -212,11 +213,11 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 		if (bucketName == null || !bucketName.matches("[a-z0-9_\\-\\.]+")) {
 			throw new IllegalArgumentException("Invalid bucketName: " + bucketName);
 		}
-		if (gsutilDir == null || !gsutilDir.matches("[a-zA-Z0-9_\\-\\./]+")) {
-			throw new IllegalArgumentException("Invalid gsutilDir: " + gsutilDir);
+		if (gcloudDir == null || !gcloudDir.matches("[a-zA-Z0-9_\\-\\./]+")) {
+			throw new IllegalArgumentException("Invalid gcloudDir: " + gcloudDir);
 		}
 		// バケットの容量を取得
-		String[] command = {gsutilDir + "/gsutil", "du", "-s", "gs://" + bucketName}; // 起動コマンドを指定する
+		String[] command = {gcloudDir + "/gcloud", "storage", "du", "-s", "gs://" + bucketName}; // 起動コマンドを指定する
 		Runtime runtime = Runtime.getRuntime(); // ランタイムオブジェクトを取得する
 		BufferedReader br = null;
 		InputStream in = null;
@@ -248,8 +249,10 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 			}
 			String errStr = err.toString();
 			if (!StringUtils.isBlank(errStr)) {
-				// エラー文字列の最初が「BucketNotFoundException: 404」であればログ出力しない
-				if (errStr.startsWith(OUTERR_BUCKETNOTFOUND_PREFIX)) {
+				// ~~エラー文字列の最初が「BucketNotFoundException: 404」であればログ出力しない~~
+				// (2026.7.22 gsutil→gcloud storage)Bucketが存在しない場合のエラー文字列は
+				// 「ERROR: (gcloud.storage.du) gs://{bucketName} not found: 404.」
+				if (errStr.indexOf(OUTERR_BUCKETNOTFOUND) > -1) {
 					return null;
 				}
 				StringBuilder logsb = new StringBuilder();

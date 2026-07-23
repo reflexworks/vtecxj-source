@@ -37,21 +37,21 @@ public class AccessCountApp {
 	/**
 	 * main
 	 * @param args 引数
-	 *             [0]gsutilの格納ディレクトリ
+	 *             [0]gcloudの格納ディレクトリ
 	 */
 	public static void main(String[] args) {
 		try {
 			// 引数チェック
 			if (args == null || args.length <= 0) {
-				throw new IllegalArgumentException("引数を指定してください。[0]gsutilの格納ディレクトリ");
+				throw new IllegalArgumentException("引数を指定してください。[0]gcloudの格納ディレクトリ");
 			}
-			String gsutilDir = args[0];
-			if (StringUtils.isBlank(gsutilDir)) {
-				throw new IllegalArgumentException("引数を指定してください。[0]gsutilの格納ディレクトリ");
+			String gcloudDir = args[0];
+			if (StringUtils.isBlank(gcloudDir)) {
+				throw new IllegalArgumentException("引数を指定してください。[0]gcloudの格納ディレクトリ");
 			}
-			
-			String[] blogicArgs = new String[]{PROPERTY_FILE_NAME, SYSTEM_SERVICE, 
-					CLASS_NAME, gsutilDir};
+
+			String[] blogicArgs = new String[]{PROPERTY_FILE_NAME, SYSTEM_SERVICE,
+					CLASS_NAME, gcloudDir};
 			
 			ReflexApplication<Boolean> reflexApp = new ReflexApplication<Boolean>();
 			reflexApp.exec(blogicArgs);
