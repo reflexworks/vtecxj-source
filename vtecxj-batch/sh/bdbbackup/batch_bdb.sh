@@ -46,6 +46,11 @@ echo '[bdb batch] BDBディスク使用率チェック 開始'
 ./check_bdb_disk_usage.sh
 echo '[bdb batch] BDBディスク使用率チェック 終了'
 
+# 一定期間経過した削除済みサービスの情報削除
+echo '[bdb batch] 一定期間経過した削除済みサービスの情報削除 開始'
+./delete_deleted_serviceinfo.sh
+echo '[bdb batch] 一定期間経過した削除済みサービスの情報削除 終了'
+
 # 夜間バッチend
 echo '[bdb batch] 夜間バッチend 開始'
 ./end_batch_bdb.sh

@@ -6,7 +6,6 @@ DIR=`pwd`
 
 # 定数読み込み
 # build.txt を1階層上に配置する。
-# build.txt の定数 VTECX_SUBSCRIBER には、コピー先ディレクトリを記述したファイルを絶対パスで指定する。
 # 指定したファイルには、コピー先ディレクトリを記述する。コピー先が複数ある場合は改行して記述する。
 # build.txt の定数 VTECX_SUBSCRIBER_SH には、シェル格納ディレクトリのコピー先を指定する。
 source ../build.txt

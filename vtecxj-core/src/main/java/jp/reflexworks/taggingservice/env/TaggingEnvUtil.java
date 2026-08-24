@@ -142,11 +142,13 @@ public final class TaggingEnvUtil {
 	 * Feed内のEntry最大デフォルト値を取得.
 	 * @return Feed内のEntry最大デフォルト値
 	 */
-	public static int getEntryNumberDefault(String serviceName)
-			throws InvalidServiceSettingException{
-		return getPropInt(serviceName, SettingConst.ENTRY_NUMBER_DEFAULT,
-				TaggingEnvConst.ENTRY_NUMBER_DEFAULT_DEFAULT);
-
+	public static int getEntryNumberDefault(String serviceName) {
+		try {
+			return getPropInt(serviceName, SettingConst.ENTRY_NUMBER_DEFAULT,
+					TaggingEnvConst.ENTRY_NUMBER_DEFAULT_DEFAULT);
+		} catch (InvalidServiceSettingException e) {
+			return TaggingEnvConst.ENTRY_NUMBER_DEFAULT_DEFAULT;
+		}
 	}
 
 	/**

@@ -54,6 +54,8 @@ public interface RequestType {
 	public static final String PARAM_SETIDS = "_setids";
 	/** URLパラメータ : 加算処理の枠設定 */
 	public static final String PARAM_RANGEIDS = "_rangeids";
+	/** URLパラメータ : 加算処理の値削除 */
+	public static final String PARAM_DELETEIDS = "_deleteids";
 	/** URLパラメータ : 認証チェックサービス */
 	public static final String PARAM_AUTHCHECK = "_authcheck";
 	/** URLパラメータ : 認証チェックとユーザ名・ニックネーム・UID取得サービス */
@@ -194,6 +196,8 @@ public interface RequestType {
 	public static final String PARAM_CLOSE = "_close";
 	/** URLパラメータ : テーブルリスト取得 : GET /b/?_list={テーブル名} */
 	public static final String PARAM_LIST = "_list";
+	/** URLパラメータ : 階層キー配下のデータ一覧取得 : GET /b{キー}?_getidslist */
+	public static final String PARAM_GETIDSLIST = "_getidslist";
 	/** URLパラメータ : BDB環境統計情報取得 : GET /b/?_stats */
 	public static final String PARAM_STATS = "_stats";
 	/** URLパラメータ : ディスク使用率取得 : GET /b/?_diskusage */

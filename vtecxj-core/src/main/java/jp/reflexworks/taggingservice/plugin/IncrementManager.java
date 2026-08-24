@@ -2,9 +2,11 @@ package jp.reflexworks.taggingservice.plugin;
 
 import java.io.IOException;
 
+import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.RequestInfo;
+import jp.reflexworks.taggingservice.exception.OutOfRangeException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 
 /**
@@ -77,13 +79,29 @@ public interface IncrementManager extends ReflexPlugin {
 	throws IOException, TaggingException;
 
 	/**
-	 * 全ての加算情報を削除.
-	 * サービス削除時に使用
-	 * @param serviceName サービス名
+	 * 加算情報を削除.
+	 * @param feed 削除情報
+	 *             feed.linkリストの`_$href`に削除対象キー
+	 * @param auth 認証情報
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	public void deleteAll(String serviceName,
+	public void delete(FeedBase feed, ReflexAuthentication auth,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException;
+
+	/**
+	 * 加算値一覧.
+	 * @param uri URI
+	 * @param limit 最大取得件数
+	 * @param cursorStr カーソル
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 加算値一覧
+	 */
+	public FeedBase getidsList(String uri, int limit, String cursorStr, 
+			ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
 

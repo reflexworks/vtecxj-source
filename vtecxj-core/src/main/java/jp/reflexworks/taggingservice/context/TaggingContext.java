@@ -913,6 +913,60 @@ public class TaggingContext implements ReflexContext {
 	}
 
 	/**
+	 * 加算処理の一覧取得.
+	 * <p>
+	 * addidsで加算する番号の現在値一覧を返します。<br>
+	 * 戻り値はFeed形式で、entryに加算後の現在値一覧が設定されます。<br>
+	 * </p>
+	 * @param uri キー、最大取得件数、カーソル
+	 * @return addidsで加算する番号の現在値一覧
+	 */
+	public FeedBase getidsList(String uri)
+	throws IOException, TaggingException {
+		RequestParam param = new RequestParamInfo(uri, getServiceName());
+		return getidsList(param);
+	}
+
+	/**
+	 * 加算処理の一覧取得.
+	 * <p>
+	 * addidsで加算する番号の現在値一覧を返します。<br>
+	 * 戻り値はFeed形式で、entryに加算後の現在値一覧が設定されます。<br>
+	 * </p>
+	 * @param param キー、最大取得件数、カーソル
+	 * @return addidsで加算する番号の現在値一覧
+	 */
+	public FeedBase getidsList(RequestParam param)
+	throws IOException, TaggingException {
+		return getidsList(param, null, null);
+	}
+
+	/**
+	 * 加算処理の一覧取得.
+	 * <p>
+	 * addidsで加算する番号の現在値一覧を返します。<br>
+	 * 戻り値はFeed形式で、entryに加算後の現在値一覧が設定されます。<br>
+	 * </p>
+	 * @param param キー、最大取得件数、カーソル
+	 * @param targetServiceName 対象サービス名
+	 * @param targetServiceKey 対象サービスのサービスキー
+	 * @return addidsで加算する番号の現在値一覧
+	 */
+	public FeedBase getidsList(RequestParam param, String targetServiceName, String targetServiceKey)
+	throws IOException, TaggingException {
+		try {
+			IncrementBlogic blogic = new IncrementBlogic();
+			return blogic.getidsList(param, targetServiceName, targetServiceKey, 
+					auth, requestInfo, connectionInfo);
+		} catch (IOException | TaggingException | RuntimeException | Error e) {
+			String msg = getErrorMessage("getidsList", param.getUri(), e);
+			requestInfo.setReflexContextMessage(msg);
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + msg);
+			throw e;
+		}
+	}
+
+	/**
 	 * インクリメント値を設定.
 	 * @param uri インクリメント項目の値設定をしたいEntryのURI
 	 * @param value 設定値
@@ -984,6 +1038,24 @@ public class TaggingContext implements ReflexContext {
 			return blogic.getRangeids(uri, auth, requestInfo, connectionInfo);
 		} catch (IOException | TaggingException | RuntimeException | Error e) {
 			String msg = getErrorMessage("getRangeids", uri, e);
+			requestInfo.setReflexContextMessage(msg);
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + msg);
+			throw e;
+		}
+	}
+
+	/**
+	 * 加算カウンタ削除
+	 * @param feed 削除情報
+	 *             feed.linkリストの`_$href`に削除対象キー
+	 */
+	public void deleteids(FeedBase feed)
+	throws IOException, TaggingException {
+		try {
+			IncrementBlogic blogic = new IncrementBlogic();
+			blogic.deleteids(feed, auth, requestInfo, connectionInfo);
+		} catch (IOException | TaggingException | RuntimeException | Error e) {
+			String msg = getErrorMessage("deleteids", e);
 			requestInfo.setReflexContextMessage(msg);
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) + msg);
 			throw e;

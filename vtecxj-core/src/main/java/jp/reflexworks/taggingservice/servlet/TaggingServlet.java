@@ -284,6 +284,13 @@ public class TaggingServlet extends ReflexServletBase {
 				}
 				retObj = reflexContext.getids(param.getUri());
 
+			} else if (param.getOption(RequestParam.PARAM_GETIDSLIST) != null) {
+				// 現在番号リスト取得
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_getidslist");
+				}
+				retObj = reflexContext.getidsList(param);
+
 			} else if (param.getOption(RequestParam.PARAM_REFRESHCACHE) != null) {
 				// データストアキャッシュリフレッシュ
 				if (logger.isInfoEnabled()) {
@@ -867,6 +874,15 @@ public class TaggingServlet extends ReflexServletBase {
 				String range = IncrementBlogic.getRange(feed);
 				reflexContext.rangeids(param.getUri(), range);
 				retObj = createMessageFeed(msgManager.getMsgRangeids(serviceName), serviceName);
+
+			} else if (param.getOption(RequestParam.PARAM_DELETEIDS) != null) {
+				// 加算値削除
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_deleteids");
+				}
+				FeedBase feed = req.getFeed();
+				reflexContext.deleteids(feed);
+				retObj = createMessageFeed(msgManager.getMsgDelete(serviceName), serviceName);
 
 			} else if (param.getOption(RequestParam.PARAM_CACHEFEED) != null) {
 				// Feed形式キャッシュ更新

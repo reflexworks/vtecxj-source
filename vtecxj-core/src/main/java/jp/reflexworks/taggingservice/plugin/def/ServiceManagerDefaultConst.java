@@ -9,14 +9,14 @@ public interface ServiceManagerDefaultConst {
 	public static final String PROP_SERVICE_RESERVED_PREFIX = "_service.reserved.";
 	/** 設定 : アクセスカウンタの有効時間(時) */
 	public static final String PROP_ACCESSCOUNT_EXPIRE_HOUR = "_accesscount.expire.hour";
-	/** 設定 : サービス初期フォルダ "_createservice.postfolder.{フォルダの登録順}={URI}" */
-	//public static final String PROP_CREATESERVICE_POSTFOLDER_PREFIX = "_createservice.postfolder.";
-	/** 設定 : サービス初期フォルダのACL "_createservice.postfolderacl.{フォルダの登録順}.{連番}={ACL}" */
-	//public static final String PROP_CREATESERVICE_POSTFOLDERACL_PREFIX = "_createservice.postfolderacl.";
+	/** 設定 : 削除済みサービス(サービスステータス=deleted)のサービスエントリー削除待ち日数(日) */
+	public static final String PROP_SERVICE_PENDING_DELETION_DAY = "_service.pending.deletion.day";
 	/** サービス設定処理のアクセスログ（処理経過ログ）を出力するかどうか */
 	public static final String SERVICESETTING_ENABLE_ACCESSLOG = "_servicesetting.enable.accesslog";
 	/** 設定デフォルト値 : アクセスカウンタの有効時間(時) */
 	public static final int ACCESSCOUNT_EXPIRE_HOUR_DEFAULT = 72;
+	/** 設定デフォルト値 : 削除済みサービス(サービスステータス=deleted)のサービスエントリー削除待ち日数(日) */
+	public static final int SERVICE_PENDING_DELETION_DAY_DEFAULT = 90;
 
 	/** サービスを表す記号 */
 	public static final String MARK_SERVICE = "@";

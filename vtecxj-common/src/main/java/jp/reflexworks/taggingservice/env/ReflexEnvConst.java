@@ -19,8 +19,6 @@ public interface ReflexEnvConst {
 
 	/** エントリー最大数設定 **/
 	public static final String ENTRY_NUMBER_LIMIT = "_entry.number.limit";
-	/** フィードリスト最大数設定 **/
-	public static final String FEED_NUMBER_LIMIT = "_feed.number.limit";
 	/** エイリアス最大数設定 **/
 	public static final String ALIAS_NUMBER_LIMIT = "_alias.number.limit";
 	/** フェッチ件数制限 */

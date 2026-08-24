@@ -558,6 +558,17 @@ public class ContentBlogic implements ReflexServletConst {
 		return contentManager.getStorageUsage(reflexContext.getServiceName(),
 				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
 	}
+	
+	/**
+	 * サービスのコンテンツ格納先情報を保持するエントリーのキーを取得.
+	 * 登録先はシステム管理サービス
+	 * @param serviceName サービス名
+	 * @return サービスのコンテンツ格納先情報を保持するエントリーのキー
+	 */
+	public String getContentUri(String serviceName) {
+		ContentManager contentManager = TaggingEnvUtil.getContentManager();
+		return contentManager.getContentUri(serviceName);
+	}
 
 	/**
 	 * コンテンツアップロード

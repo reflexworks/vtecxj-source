@@ -31,6 +31,7 @@ import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.auth.AuthenticationConst;
+import jp.reflexworks.taggingservice.blogic.ContentBlogic;
 import jp.reflexworks.taggingservice.blogic.SecurityConst;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.env.StaticInfoUtil;
@@ -573,6 +574,21 @@ public class ServiceManagerDefault implements ServiceManager {
 				// 削除中エラー
 				throw new IllegalParameterException("The service is being deleted. " + newServiceName);
 
+			} else if (Constants.SERVICE_STATUS_DELETED.equals(serviceStatus)) {
+				// 削除済みで登録ユーザが異なる場合
+				if (isNotInUseService(newServiceName, systemContext)) {
+					// deletedエントリーを削除
+					deleteDeletedService(newServiceName, systemContext);
+				} else {
+					// エラー
+					StringBuilder sb = new StringBuilder();
+					sb.append(EntryDuplicatedException.MESSAGE);
+					sb.append("(deleted service)");
+					sb.append(" ");
+					sb.append(uri);
+					throw new EntryDuplicatedException(sb.toString());
+				}
+				
 			} else {
 				StringBuilder sb = new StringBuilder();
 				sb.append(EntryDuplicatedException.MESSAGE);
@@ -809,6 +825,56 @@ public class ServiceManagerDefault implements ServiceManager {
 		serviceName = editServiceName(serviceName);
 
 		return serviceName;
+	}
+	
+	/**
+	 * 指定された削除サービス使用されていないかどうかチェック
+	 * @param serviceName サービス名
+	 * @param systemContext SystemContext
+	 * @return 指定された削除サービス使用されていない場合true
+	 */
+	private boolean isNotInUseService(String serviceName, SystemContext systemContext)
+	throws IOException, TaggingException {
+		int servicePendingDeletedDay = getServicePendingDeletionDay();
+
+		// アクセスカウンタ(CacheLong)`/_service/{サービス名}/access_count/today`が0かどうか
+		long accessCounterToday = getAccessCount(serviceName, systemContext);
+		if (accessCounterToday > 0) {
+			return false;
+		}
+
+		// 直近3か月のアクセスカウンタ(addids)`/_service/{サービス名}/access_count/{yyyyMM}`が全て0かどうか
+		if (servicePendingDeletedDay > 0) {
+			List<String> yearMonthList = TaggingServiceUtil.getYearMonthList(servicePendingDeletedDay);
+			for (String ym : yearMonthList) {
+				// /_service/{サービス名}/access_count/{yyyyMM}
+				long accessCountYm = getAccessCountYm(serviceName, ym, systemContext);
+				if (accessCountYm > 0) {
+					return false;
+				}
+			}
+		}
+
+		// /_service/{サービス名}/content エントリーが存在しないかどうか
+		ContentBlogic contentBlogic = new ContentBlogic();
+		String contentUri = contentBlogic.getContentUri(serviceName);
+		EntryBase contentEntry = systemContext.getEntry(contentUri);
+		if (contentEntry != null) {
+			return false;
+		}
+
+		return true;
+	}
+	
+	/**
+	 * deletedサービスの物理削除猶予日数を取得
+	 * @return deletedサービスの物理削除猶予日数
+	 */
+	public int getServicePendingDeletionDay() {
+		// deletedサービスの物理削除猶予日数
+		return TaggingEnvUtil.getSystemPropInt(
+				ServiceManagerDefaultConst.PROP_SERVICE_PENDING_DELETION_DAY,
+				ServiceManagerDefaultConst.SERVICE_PENDING_DELETION_DAY_DEFAULT);
 	}
 
 	/**
@@ -1658,6 +1724,19 @@ public class ServiceManagerDefault implements ServiceManager {
 		// システム管理サービスにてアクセスカウンタを取得
 		SystemContext systemContext = new SystemContext(TaggingEnvUtil.getSystemService(),
 				requestInfo, connectionInfo);
+		return getAccessCount(serviceName, systemContext);
+	}
+
+	/**
+	 * サービスのアクセスカウンタを取得.
+	 * @param serviceName サービス名
+	 * @param systemContext SystemContext
+	 * @return アクセスカウンタ
+	 */
+	private long getAccessCount(String serviceName, SystemContext systemContext)
+	throws IOException, TaggingException {
+		RequestInfo requestInfo = systemContext.getRequestInfo();
+		// システム管理サービスにてアクセスカウンタを取得
 		String uri = TaggingServiceUtil.getAccessCountTodayUri(serviceName);
 		if (isEnableAccessLog()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
@@ -1671,6 +1750,52 @@ public class ServiceManagerDefault implements ServiceManager {
 			return 0;
 		}
 		return count;
+	}
+
+	/**
+	 * 指定された年月のサービスのアクセスカウンタを取得.
+	 * @param serviceName サービス名
+	 * @param ym 年月(yyyyMM形式)
+	 * @param systemContext SystemContext
+	 * @return アクセスカウンタ
+	 */
+	private long getAccessCountYm(String serviceName, String ym, SystemContext systemContext)
+	throws IOException, TaggingException {
+		RequestInfo requestInfo = systemContext.getRequestInfo();
+		// システム管理サービスにてアクセスカウンタを取得
+		String uri = TaggingServiceUtil.getAccessCountYmUri(serviceName, ym);
+		if (isEnableAccessLog()) {
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+					"[getAccessCountYm] uri: " + uri + " start.");
+		}
+		FeedBase feed = systemContext.getids(uri);
+		if (feed == null || StringUtils.isBlank(feed.title) || !StringUtils.isLong(feed.title)) {
+			if (isEnableAccessLog()) {
+				String val = "0";
+				if (feed != null) {
+					val = feed.title;
+				}
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + 
+						"[getAccessCountYm] uri: " + uri + " , getids: " + val);
+			}
+			return 0;
+		}
+		if (isEnableAccessLog()) {
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + 
+					"[getAccessCountYm] uri: " + uri + " , getids: " + feed.title);
+		}
+		return StringUtils.longValue(feed.title);
+	}
+	
+	/**
+	 * deletedサービスのサービスエントリーのデータ削除.
+	 * @param serviceName 対象サービス
+	 * @param systemContext システム管理サービスのSystemContext
+	 */
+	public void deleteDeletedService(String serviceName, SystemContext systemContext) 
+	throws IOException, TaggingException {
+		String serviceUri = getServiceUri(serviceName);
+		systemContext.deleteFolder(serviceUri, false, true);
 	}
 
 	/**

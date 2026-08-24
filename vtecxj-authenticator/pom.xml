@@ -50,6 +50,12 @@
       </exclusions>
     </dependency>
 
+    <dependency>
+      <groupId>com.maxmind.db</groupId>
+      <artifactId>maxmind-db</artifactId>
+      <version>4.1.0</version>
+    </dependency>
+
   </dependencies>
 
 </project>

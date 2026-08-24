@@ -1,6 +1,7 @@
 package jp.reflexworks.taggingservice.bdb;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,10 +14,16 @@ import jp.reflexworks.taggingservice.env.BDBEnvManager;
 import jp.reflexworks.taggingservice.env.BDBEnvUtil;
 import jp.reflexworks.taggingservice.exception.OutOfRangeException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.model.AllocidsRequestParam;
+import jp.reflexworks.taggingservice.model.BDBCondition;
+import jp.reflexworks.taggingservice.model.FetchInfo;
 import jp.reflexworks.taggingservice.model.IncrementInfo;
 import jp.reflexworks.taggingservice.model.IncrementRangeInfo;
+import jp.reflexworks.taggingservice.util.IndexUtil;
 import jp.reflexworks.taggingservice.util.LogUtil;
+import jp.reflexworks.taggingservice.util.PointerUtil;
 import jp.reflexworks.taggingservice.util.ReflexBDBLogUtil;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -343,6 +350,142 @@ public class IncrementManager {
 			}
 		}
 		throw new IllegalStateException("Unreachable code.");
+	}
+
+	/**
+	 * 階層キー配下のデータを一覧取得.
+	 * @param namespace 名前空間
+	 * @param param URLパラメータ (最大件数、カーソル)
+	 * @param uri キー
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 一覧取得結果
+	 *         続きがある場合はカーソルを返す。(Feedのlink rel="next"のhrefに設定)
+	 */
+	public FetchInfo<IncrementInfo> getidsList(String namespace, AllocidsRequestParam param,
+			String uri, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		BDBQuery<IncrementInfo> bdbQuery = new BDBQuery<IncrementInfo>();
+		int limit = getLimit(param.getOption(AllocidsRequestParam.PARAM_LIMIT));
+		String cursorStr = PointerUtil.decode(
+				param.getOption(AllocidsRequestParam.PARAM_NEXT));
+
+		// 階層キー配下(孫以降を含む)のみを対象とする。
+		// 単純な前方一致(uri + 終端文字)では、uriと文字列として類似する別キー
+		// (例 : "/aaa"に対する"/aaaa"、"/aaa_001")も一致してしまうため、
+		// 区切り文字("/")を明示的に付加して範囲を絞り込む。
+		String startKeyStr = TaggingEntryUtil.editSlash(uri);
+		String endKeyStr = IndexUtil.getEndKeyStr(startKeyStr);
+		BDBCondition bdbCondition = new BDBCondition(startKeyStr, endKeyStr, cursorStr);
+
+		int numRetries = BDBEnvUtil.getBDBRetryCount();
+		int waitMillis = BDBEnvUtil.getBDBRetryWaitmillis();
+		for (int r = 0; r <= numRetries; r++) {
+			try {
+				BDBEnv bdbEnv = getBDBEnvByNamespace(namespace, true);
+				BDBDatabase dbIncrement = bdbEnv.getDb(AllocidsConst.DB_INCREMENT);
+				IncrementBinding binding = BDBUtil.getIncrementBinding();
+
+				return bdbQuery.getByQuery(namespace, null, dbIncrement, binding,
+						bdbCondition, limit, requestInfo);
+
+			} catch (DatabaseException e) {
+				// リトライ判定、入力エラー判定
+				BDBUtil.convertError(e, uri, requestInfo);
+				if (r >= numRetries) {
+					// リトライ対象だがリトライ回数を超えた場合
+					BDBUtil.convertIOError(e, uri);
+				}
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+							"[getIdsList] " + ReflexBDBLogUtil.getRetryLog(e, r));
+				}
+				BDBUtil.sleep(waitMillis + r * 10);
+			}
+		}
+		throw new IllegalStateException("Unreachable code.");
+	}
+
+	/**
+	 * データ削除.
+	 * @param namespace 名前空間
+	 * @param uris 削除対象キーリスト
+	 * @param serviceName サービス名(ログ用)
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 */
+	public void deleteids(String namespace, List<String> uris, String serviceName,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		for (String uri : uris) {
+			deleteOne(namespace, uri, serviceName, requestInfo, connectionInfo);
+		}
+	}
+
+	/**
+	 * データ1件削除.
+	 * @param namespace 名前空間
+	 * @param uri 削除対象キー
+	 * @param serviceName サービス名(ログ用)
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 */
+	private void deleteOne(String namespace, String uri, String serviceName,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		int numRetries = BDBEnvUtil.getBDBRetryCount();
+		int waitMillis = BDBEnvUtil.getBDBRetryWaitmillis();
+		for (int r = 0; r <= numRetries; r++) {
+			BDBTransaction bdbTxn = null;
+			try {
+				// BDB環境情報取得
+				BDBEnv bdbEnv = getBDBEnvByNamespace(namespace, true);
+				BDBDatabase dbIncrement = bdbEnv.getDb(AllocidsConst.DB_INCREMENT);
+
+				// トランザクション開始
+				bdbTxn = bdbEnv.beginTransaction();
+
+				BDBDelete bdbDelete = new BDBDelete();
+				bdbDelete.delete(serviceName, bdbTxn, dbIncrement, uri, requestInfo, connectionInfo);
+
+				bdbTxn.commit();
+				bdbTxn = null;
+				return;
+
+			} catch (DatabaseException e) {
+				// リトライ判定、入力エラー判定
+				BDBUtil.convertError(e, uri, requestInfo);
+				if (r >= numRetries) {
+					// リトライ対象だがリトライ回数を超えた場合
+					BDBUtil.convertIOError(e, uri);
+				}
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+							"[deleteIds] " + ReflexBDBLogUtil.getRetryLog(e, r));
+				}
+				BDBUtil.sleep(waitMillis + r * 10);
+
+			} finally {
+				if (bdbTxn != null) {
+					try {
+						bdbTxn.abort();
+					} catch (Throwable e) {
+						logger.warn("[deleteIds] abort error.", e);
+					}
+				}
+			}
+		}
+		throw new IllegalStateException("Unreachable code.");
+	}
+
+	/**
+	 * リクエストパラメータから指定件数を取得.
+	 * @param limitStr lパラメータの値
+	 * @return 指定件数
+	 */
+	private int getLimit(String limitStr) {
+		int defLimit = BDBEnvUtil.getEntryNumberLimit();
+		return StringUtils.intValue(limitStr, defLimit);
 	}
 
 	/**

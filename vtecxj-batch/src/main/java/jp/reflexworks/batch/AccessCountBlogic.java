@@ -177,11 +177,7 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 		String ym = DateUtil.getDateTimeFormat(aggregateDate, FORMAT_YYYYMM);
 
 		// /_service/{サービス名}/access_count/{yyyyMM}
-		StringBuilder sb = new StringBuilder();
-		sb.append(TaggingServiceUtil.getAccessCountUri(serviceName));
-		sb.append("/");
-		sb.append(ym);
-		return sb.toString();
+		return TaggingServiceUtil.getAccessCountYmUri(serviceName, ym);
 	}
 
 	/**

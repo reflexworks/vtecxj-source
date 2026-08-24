@@ -521,6 +521,44 @@ public interface ReflexContext extends BaseReflexContext {
 	throws IOException, TaggingException;
 
 	/**
+	 * 加算処理の一覧取得.
+	 * <p>
+	 * addidsで加算する番号の現在値一覧を返します。<br>
+	 * 戻り値はFeed形式で、entryに加算後の現在値一覧が設定されます。<br>
+	 * </p>
+	 * @param uri キー、最大取得件数、カーソル
+	 * @return addidsで加算する番号の現在値一覧
+	 */
+	public FeedBase getidsList(String uri)
+	throws IOException, TaggingException;
+
+	/**
+	 * 加算処理の一覧取得.
+	 * <p>
+	 * addidsで加算する番号の現在値一覧を返します。<br>
+	 * 戻り値はFeed形式で、entryに加算後の現在値一覧が設定されます。<br>
+	 * </p>
+	 * @param param キー、最大取得件数、カーソル
+	 * @return addidsで加算する番号の現在値一覧
+	 */
+	public FeedBase getidsList(RequestParam param)
+	throws IOException, TaggingException;
+
+	/**
+	 * 加算処理の一覧取得.
+	 * <p>
+	 * addidsで加算する番号の現在値一覧を返します。<br>
+	 * 戻り値はFeed形式で、entryに加算後の現在値一覧が設定されます。<br>
+	 * </p>
+	 * @param param キー、最大取得件数、カーソル
+	 * @param targetServiceName 対象サービス名
+	 * @param targetServiceKey 対象サービスのサービスキー
+	 * @return addidsで加算する番号の現在値一覧
+	 */
+	public FeedBase getidsList(RequestParam param, String targetServiceName, String targetServiceKey)
+	throws IOException, TaggingException;
+
+	/**
 	 * インクリメント値を設定.
 	 * @param uri インクリメント項目の値設定をしたいEntryのURI
 	 * @param value 設定値
@@ -564,6 +602,14 @@ public interface ReflexContext extends BaseReflexContext {
 	 * @return 加算枠
 	 */
 	public FeedBase getRangeids(String uri)
+	throws IOException, TaggingException;
+
+	/**
+	 * 加算カウンタ削除
+	 * @param feed 削除情報
+	 *             feed.linkリストの`_$href`に削除対象キー
+	 */
+	public void deleteids(FeedBase feed)
 	throws IOException, TaggingException;
 
 	/**

@@ -1481,4 +1481,14 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 		return size;
 	}
 
+	/**
+	 * サービスのコンテンツ格納先情報を保持するエントリーのキーを取得.
+	 * 登録先はシステム管理サービス
+	 * @param serviceName サービス名
+	 * @return サービスのコンテンツ格納先情報を保持するエントリーのキー
+	 */
+	public String getContentUri(String serviceName) {
+		return CloudStorageUtil.getContentUri(serviceName);
+	}
+
 }
