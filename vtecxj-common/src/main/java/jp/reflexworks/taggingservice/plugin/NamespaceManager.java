@@ -73,4 +73,11 @@ public interface NamespaceManager extends SettingService {
 	 */
 	public void setStaticNamespace(String serviceName, String namespace);
 
+	/**
+	 * 名前空間設定EntryのURIを取得
+	 * @param serviceName サービス名
+	 * @return 名前空間設定EntryのURI
+	 */
+	public String getNamespaceUri(String serviceName);
+
 }

@@ -577,8 +577,11 @@ public class ServiceManagerDefault implements ServiceManager {
 			} else if (Constants.SERVICE_STATUS_DELETED.equals(serviceStatus)) {
 				// 削除済みで登録ユーザが異なる場合
 				if (isNotInUseService(newServiceName, systemContext)) {
-					// deletedエントリーを削除
+					// deletedステータスのサービスエントリーを削除
 					deleteDeletedService(newServiceName, systemContext);
+					// creatingステータスのサービスエントリーを登録、名前空間の設定
+					entry = createServiceEntry(newServiceName, uid, systemContext, namespaceManager);
+
 				} else {
 					// エラー
 					StringBuilder sb = new StringBuilder();
@@ -600,21 +603,8 @@ public class ServiceManagerDefault implements ServiceManager {
 			// 新規登録の場合、サービス名にアンダースコアも不可
 			checkUnderscore(newServiceName);
 			
-			// システム管理サービスに登録中ステータスを登録
-			entry = TaggingEntryUtil.createEntry(systemService);
-			entry.setMyUri(uri);
-			setServiceStatus(entry, Constants.SERVICE_STATUS_CREATING);
-			entry.rights = uid;	// サービス登録ユーザを仮登録
-			// サービス作成者は参照権限のみ
-			entry.addContributor(TaggingEntryUtil.getAclContributor(
-					Constants.URI_GROUP_ADMIN, Constants.ACL_TYPE_CRUD));
-			entry.addContributor(TaggingEntryUtil.getAclContributor(
-					uid, Constants.ACL_TYPE_RETRIEVE));
-
-			entry = systemContext.post(entry);
-			// 名前空間の設定
-			namespaceManager.setNamespace(newServiceName, newServiceName,
-					requestInfo, connectionInfo);
+			// creatingステータスのサービスエントリーを登録、名前空間の設定
+			entry = createServiceEntry(newServiceName, uid, systemContext, namespaceManager);
 		}
 
 		String serviceStatus = null;
@@ -651,6 +641,51 @@ public class ServiceManagerDefault implements ServiceManager {
 		return newServiceName;
 	}
 
+	/**
+	 * サービスエントリーを生成.
+	 * サービスステータスはcreatingにする。
+	 * @param newServiceName 新規作成作成サービス名
+	 * @param uid UID
+	 * @param systemContext SystemContext
+	 * @param namespaceManager NamespaceManager
+	 * @return サービスエントリー
+	 */
+	private EntryBase createServiceEntry(String newServiceName, String uid, 
+			SystemContext systemContext, NamespaceManager namespaceManager) 
+	throws IOException, TaggingException {
+		String systemService = systemContext.getServiceName();
+		RequestInfo requestInfo = systemContext.getRequestInfo();
+		ConnectionInfo connectionInfo = systemContext.getConnectionInfo();
+		String uri = getServiceUri(newServiceName);
+		
+		// システム管理サービスに登録中ステータスを登録
+		EntryBase entry = TaggingEntryUtil.createEntry(systemService);
+		entry.setMyUri(uri);
+		setServiceStatus(entry, Constants.SERVICE_STATUS_CREATING);
+		entry.rights = uid;	// サービス登録ユーザを仮登録
+		// サービス作成者は参照権限のみ
+		entry.addContributor(TaggingEntryUtil.getAclContributor(
+				Constants.URI_GROUP_ADMIN, Constants.ACL_TYPE_CRUD));
+		entry.addContributor(TaggingEntryUtil.getAclContributor(
+				uid, Constants.ACL_TYPE_RETRIEVE));
+
+		entry = systemContext.post(entry);
+		// 名前空間の設定
+		// まずは名前空間が過去に登録されたことがあるかチェック
+		String namespaceUri = namespaceManager.getNamespaceUri(newServiceName);
+		EntryBase namespaceEntry = systemContext.getEntry(namespaceUri);
+		if (namespaceEntry != null) {
+			// 再設定
+			namespaceManager.changeNamespace(newServiceName, requestInfo, connectionInfo);
+		} else {
+			// 新規設定
+			namespaceManager.setNamespace(newServiceName, newServiceName,
+					requestInfo, connectionInfo);
+		}
+		
+		return entry;
+	}
+	
 	/**
 	 * 新しいサービスのデータストア環境設定.
 	 * @param newServiceName サービス名
