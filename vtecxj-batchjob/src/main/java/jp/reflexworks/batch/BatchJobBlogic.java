@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.atom.entry.Link;
 import jp.reflexworks.batch.servlet.BatchJobRequestUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
@@ -649,16 +650,25 @@ public class BatchJobBlogic {
 		// キー: /_batchjob/{ジョブ名}/{ジョブ実行時刻(yyyyMMddHHmm)}
 		// エイリアス: /_batchjob_alias/{999999999999-ジョブ実行時刻(yyyyMMddHHmm)}_{ジョブ名}
 		// 値
-		//    titleにrunning(ジョブ実行ステータス: 実行中)
-		//    subtitleにPod名(環境変数HOSTNAMEで取得可)
+		//    titleにwaiting(ジョブ実行ステータス: 実行待ち)
+		//    subtitleにジョブ実行ID
+		//    summaryにジョブ実行時刻(yyyyMMddHHmm)
+		//    rightsにジョブ名
+		//    linkのrel="via"のhrefにバッチジョブサーバのPod名(環境変数`HOSTNAME`で取得可)
 		EntryBase batchJobTimeEntry = TaggingEntryUtil.createEntry(serviceName);
 		batchJobTimeEntry.setMyUri(uri);
 		String alias = getBatchJobTimeAlias(jobName, jobDateStr);
 		batchJobTimeEntry.addAlternate(alias);
 		batchJobTimeEntry.title = BatchJobConst.JOB_STATUS_WAITING;
-		batchJobTimeEntry.subtitle = podName;
+		// ジョブ実行ID。指定時刻での実行の場合はジョブ実行時刻(yyyyMMddHHmm)。
+		batchJobTimeEntry.subtitle = jobDateStr;
 		batchJobTimeEntry.summary = jobDateStr;
 		batchJobTimeEntry.rights = jobName;
+		Link link = new Link();
+		link._$rel = Link.REL_VIA;
+		link._$href = podName;
+		batchJobTimeEntry.addLink(link);
+
 		return batchJobTimeEntry;
 	}
 

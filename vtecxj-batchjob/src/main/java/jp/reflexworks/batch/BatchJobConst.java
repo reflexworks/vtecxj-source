@@ -16,8 +16,10 @@ public interface BatchJobConst {
 	public static final String JOB_STATUS_SUCCEEDED = "succeeded";
 	/** ジョブステータス : 失敗 */
 	public static final String JOB_STATUS_FAILED = "failed";
-	/** ジョブステータス : 未実行 */
-	public static final String JOB_STATUS_NOT_EXECUTED = "not_executed";
+	/** ジョブステータス : 実行停止中 */
+	public static final String JOB_STATUS_CANCELING = "canceling";
+	/** ジョブステータス : 実行停止 */
+	public static final String JOB_STATUS_CANCELED = "canceled";
 
 	/** 設定 : ジョブ設定接頭辞 */
 	public static final String PROP_BATCHJOB_PREFIX = SettingConst.BATCHJOB_PREFIX;
@@ -38,6 +40,16 @@ public interface BatchJobConst {
 	public static final String PROP_URL_BATCHJOB = "_url.batchjob";
 	/** 設定 : バッチジョブサーバへのリクエストタイムアウト時間(ミリ秒) */
 	public static final String PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS = "_batchjobexec.request.timeout.millis";
+	/** 設定 : バッチジョブ実行サーバ(runner)のジョブ実行リクエストURL */
+	public static final String PROP_BATCHJOB_RUNNER_URL = "_batchjob.runner.url";
+	/** 設定 : バッチジョブ実行サーバからの終了通知リクエストURL (runnerへwebhook_urlとして渡す) */
+	public static final String PROP_BATCHJOB_RESPONSE_URL = "_batchjob.response.url";
+	/** 設定 : バッチジョブ実行サーバへのリクエストタイムアウト時間(ミリ秒) */
+	public static final String PROP_BATCHJOB_RUNNER_REQUEST_TIMEOUT_MILLIS = "_batchjob.runner.request.timeout.millis";
+	/** 設定 : バッチジョブ実行サーバへのリクエスト失敗時リトライ総数 */
+	public static final String PROP_BATCHJOB_RUNNER_RETRY_COUNT = "_batchjob.runner.retry.count";
+	/** 設定 : バッチジョブ実行サーバへのリクエスト失敗時リトライ時のスリープ時間(ミリ秒) */
+	public static final String PROP_BATCHJOB_RUNNER_RETRY_WAITMILLIS = "_batchjob.runner.retry.waitmillis";
 	/** 設定 : バッチジョブサーバのホスト名 */
 	public static final String PROP_BATCHJOB_SERVERNAME = "_batchjob.servername";
 	/** 設定 : アクセスログ出力フラグ */
@@ -53,6 +65,12 @@ public interface BatchJobConst {
 	public static final int TASKQUEUE_AWAITTERMINATION_SEC_DEFAULT = 60;
 	/** バッチジョブサーバへのリクエストタイムアウト時間(ミリ秒) デフォルト値 */
 	public static final int BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS_DEFAULT = 30000;
+	/** バッチジョブ実行サーバへのリクエストタイムアウト時間(ミリ秒) デフォルト値 */
+	public static final int BATCHJOB_RUNNER_REQUEST_TIMEOUT_MILLIS_DEFAULT = 30000;
+	/** バッチジョブ実行サーバへのリクエスト失敗時リトライ総数 デフォルト値 */
+	public static final int BATCHJOB_RUNNER_RETRY_COUNT_DEFAULT = 2;
+	/** バッチジョブ実行サーバへのリクエスト失敗時リトライ時のスリープ時間(ミリ秒) デフォルト値 */
+	public static final int BATCHJOB_RUNNER_RETRY_WAITMILLIS_DEFAULT = 500;
 
 	/** URI : ジョブ管理キー親階層 */
 	public static final String URI_BATCHJOB = Constants.URI_BATCHJOB;
@@ -95,6 +113,32 @@ public interface BatchJobConst {
 
 	/** バッチジョブサーバリクエストメソッド */
 	public static final String METHOD_BATCHJOB = Constants.POST;
+
+	/** バッチジョブ実行サーバへのリクエストメソッド */
+	public static final String METHOD_BATCHJOB_RUNNER = Constants.POST;
+	/** バッチジョブ実行結果受信を表すリクエストパラメータ名 */
+	public static final String PARAM_BATCHJOBRESULT = "_batchjobresult";
+
+	/** 実行サーバ連携JSONフィールド : APサーバURL */
+	public static final String JSON_URL = "url";
+	/** 実行サーバ連携JSONフィールド : サービス名 */
+	public static final String JSON_SERVICE_NAME = "service_name";
+	/** 実行サーバ連携JSONフィールド : APIキー */
+	public static final String JSON_APIKEY = "apikey";
+	/** 実行サーバ連携JSONフィールド : アクセストークン */
+	public static final String JSON_ACCESSTOKEN = "accesstoken";
+	/** 実行サーバ連携JSONフィールド : ジョブ名(サーバサイドJS名) */
+	public static final String JSON_SCRIPT_NAME = "script_name";
+	/** 実行サーバ連携JSONフィールド : ジョブ実行ID */
+	public static final String JSON_JOB_ID = "job_id";
+	/** 実行サーバ連携JSONフィールド : 終了通知リクエストURL */
+	public static final String JSON_WEBHOOK_URL = "webhook_url";
+	/** 実行サーバ連携JSONフィールド : 実行結果(成功/失敗) */
+	public static final String JSON_OK = "ok";
+	/** 実行サーバ連携JSONフィールド : メッセージ */
+	public static final String JSON_MESSAGE = "message";
+	/** 実行サーバ連携JSONフィールド : 経過時間(秒) */
+	public static final String JSON_ELAPSED_TIME = "elapsed_time";
 	
 	/** サービス一覧検索URI */
 	public static final String URI_SERVICE = Constants.URI_SERVICE;

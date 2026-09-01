@@ -102,6 +102,10 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 		String batchJobTimeUri = batchJobTimeEntry.getMyUri();
 		EntryBase tmpBatchJobTimeEntry = null;
 		JobManager jobManager = null;
+		// ジョブ実行が非同期(実行サーバへリクエストし結果は終了通知で受信)かどうか
+		boolean isAsyncJob = false;
+		// 非同期ジョブが実行サーバに受け付けられた(ステータス202)場合true
+		boolean asyncAccepted = false;
 		// 開始時刻
 		long startJobTime = 0L;
 		long endJobTime = 0L;
@@ -125,10 +129,16 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 			// 開始時刻
 			startJobTime = new Date().getTime();
 			if (cloudrunjobEntry != null) {
-				// Cloud Run Jobでバッチジョブ実行
+				// バッチジョブ実行サーバ(またはCloud Run Job)でバッチジョブ実行
 				jobManager = TaggingEnvUtil.getJobManager();
-				future = jobManager.runJob(jsFunction, reflexContext);
-				
+				isAsyncJob = jobManager.isAsyncJob();
+				future = jobManager.runJob(jsFunction, batchJobTimeEntry, reflexContext);
+				if (isAsyncJob) {
+					// 実行サーバに受け付けられた(202)。ステータスはrunningのまま。
+					// 実行結果と実行時間はバッチジョブ実行サーバからの終了通知で確定する。
+					asyncAccepted = true;
+				}
+
 			} else {
 				// サーバサイドJSでバッチジョブ実行
 				JsContext jscontext = new JsContext(reflexContext, req, resp, BatchJobConst.METHOD);
@@ -136,12 +146,13 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 						BatchJobConst.METHOD, 0, null, reflexContext);
 			}
 
-			// 結果を受け取る
-			int timeout = BatchJobUtil.getJsTimeout(serviceName, requestInfo, connectionInfo);
-			future.get(timeout, TimeUnit.SECONDS);
-			isSucceeded = true;
-			
-		// TODO Java17では jdk.nashorn.internal.runtime.ECMAException がない。
+			if (!isAsyncJob) {
+				// 結果を受け取る
+				int timeout = BatchJobUtil.getJsTimeout(serviceName, requestInfo, connectionInfo);
+				future.get(timeout, TimeUnit.SECONDS);
+				isSucceeded = true;
+			}
+
 		} catch (ParseException | InterruptedException | TimeoutException |
 				TaggingException | IOException e) {
 			StringBuilder sb = new StringBuilder();
@@ -175,48 +186,57 @@ public class BatchJobCallable extends ReflexCallable<Boolean> {
 			reflexContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
 
 		} finally {
-			// 終了時刻
-			endJobTime = new Date().getTime();
-			String jobStatus = null;
-			if (isSucceeded) {
-				// 正常に終了した場合、titleにsucceeded(ジョブ実行ステータス: 成功)を設定
-				jobStatus = BatchJobConst.JOB_STATUS_SUCCEEDED;
+			if (asyncAccepted) {
+				// 非同期ジョブが実行サーバに受け付けられた場合、ここでは結果を確定しない。
+				// (ステータスはrunningのまま。succeeded/failedと実行時間の加算は終了通知で行う。)
+				if (isEnabledAccessLog()) {
+					logger.info(getLoggerPrefix(methodName, serviceName) +
+							"[call] async job accepted. batchJobTimeUri=" + batchJobTimeUri);
+				}
 			} else {
-				// 異常終了した場合、titleにfailed(ジョブ実行ステータス: 失敗)を設定
-				jobStatus = BatchJobConst.JOB_STATUS_FAILED;
-			}
-			batchJobTimeEntry.title = jobStatus;
-			if (jobManager != null) {
-				// Cloud Run Jobの実行IDを設定
-				jobManager.setJobInfo(future, batchJobTimeEntry);
-			}
+				// 終了時刻
+				endJobTime = new Date().getTime();
+				String jobStatus = null;
+				if (isSucceeded) {
+					// 正常に終了した場合、titleにsucceeded(ジョブ実行ステータス: 成功)を設定
+					jobStatus = BatchJobConst.JOB_STATUS_SUCCEEDED;
+				} else {
+					// 異常終了した場合、titleにfailed(ジョブ実行ステータス: 失敗)を設定
+					jobStatus = BatchJobConst.JOB_STATUS_FAILED;
+				}
+				batchJobTimeEntry.title = jobStatus;
+				if (jobManager != null) {
+					// Cloud Run Jobの実行IDを設定
+					jobManager.setJobInfo(future, batchJobTimeEntry);
+				}
 
-			try {
-				tmpBatchJobTimeEntry = systemContext.put(batchJobTimeEntry);
-				transfer(tmpBatchJobTimeEntry);
-			} catch (IOException | TaggingException e) {
-				String msg = BatchJobUtil.editErrorMessage(batchJobTimeUri, e);
-				logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
-				systemContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
-			}
-			// 実行時間の加算
-			if (isEnabledAccessLog()) {
-				StringBuilder sb = new StringBuilder();
-				sb.append(LogUtil.getRequestInfoStr(requestInfo));
-				sb.append("[call] startJobTime=");
-				sb.append(startJobTime);
-				sb.append(", endJobTime=");
-				sb.append(endJobTime);
-				sb.append(", isSucceeded=");
-				sb.append(isSucceeded);
-				sb.append(" ");
-				sb.append(info);
-				logger.info(sb.toString());
-			}
-			if (startJobTime > 0L) {
-				long execTimeMillisec = endJobTime - startJobTime;
-				serviceManager.incrementBatchjoExecTime(execTimeMillisec, serviceName, 
-						requestInfo, connectionInfo);
+				try {
+					tmpBatchJobTimeEntry = systemContext.put(batchJobTimeEntry);
+					transfer(tmpBatchJobTimeEntry);
+				} catch (IOException | TaggingException e) {
+					String msg = BatchJobUtil.editErrorMessage(batchJobTimeUri, e);
+					logger.warn(getLoggerPrefix(methodName, serviceName) + msg);
+					systemContext.log(BatchJobConst.LOG_TITLE, Constants.WARN, msg);
+				}
+				// 実行時間の加算
+				if (isEnabledAccessLog()) {
+					StringBuilder sb = new StringBuilder();
+					sb.append(LogUtil.getRequestInfoStr(requestInfo));
+					sb.append("[call] startJobTime=");
+					sb.append(startJobTime);
+					sb.append(", endJobTime=");
+					sb.append(endJobTime);
+					sb.append(", isSucceeded=");
+					sb.append(isSucceeded);
+					sb.append(" ");
+					sb.append(info);
+					logger.info(sb.toString());
+				}
+				if (startJobTime > 0L) {
+					long execTimeMillisec = endJobTime - startJobTime;
+					serviceManager.incrementBatchjoExecTime(execTimeMillisec, serviceName,
+							requestInfo, connectionInfo);
+				}
 			}
 		}
 

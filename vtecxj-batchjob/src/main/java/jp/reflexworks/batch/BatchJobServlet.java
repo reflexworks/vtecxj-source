@@ -23,6 +23,8 @@ import jp.reflexworks.taggingservice.blogic.MessageQueueBlogic;
 import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
 import jp.reflexworks.taggingservice.context.ReflexContextUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
+import jp.reflexworks.taggingservice.exception.AuthenticationException;
+import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.MethodNotAllowedException;
 import jp.reflexworks.taggingservice.model.RequestInfoImpl;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
@@ -76,6 +78,25 @@ public class BatchJobServlet extends HttpServlet {
 	throws IOException {
 		if (logger.isTraceEnabled()) {
 			logger.info("[doPost] start");
+		}
+
+		// バッチジョブ実行サーバからの終了通知
+		if (httpReq.getParameter(BatchJobConst.PARAM_BATCHJOBRESULT) != null) {
+			try {
+				new BatchJobResultBlogic().receive(httpReq);
+				httpResp.setStatus(HttpStatus.SC_OK);
+				writeResponseData(httpResp, "BatchJob result is accepted.");
+			} catch (AuthenticationException e) {
+				logger.warn("[doPost] BatchJob result auth error. " + e.getMessage());
+				httpResp.setStatus(HttpStatus.SC_UNAUTHORIZED);
+			} catch (IllegalParameterException e) {
+				logger.warn("[doPost] BatchJob result bad request. " + e.getMessage());
+				httpResp.setStatus(HttpStatus.SC_BAD_REQUEST);
+			} catch (Throwable e) {
+				logger.error("[doPost] BatchJob result error occured.", e);
+				httpResp.setStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+			}
+			return;
 		}
 
 		// バッチジョブ管理処理をTaskQueueに登録してレスポンスする。

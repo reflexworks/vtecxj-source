@@ -15,11 +15,13 @@ public interface JobManager extends ReflexPlugin {
 	/**
 	 * ジョブ実行処理.
 	 * @param jobName ジョブ名
+	 * @param batchJobTimeEntry バッチジョブ管理テーブル
 	 * @param reflexContext ReflexContext
 	 */
-	public Future runJob(String jobName, ReflexContext reflexContext)
+	public Future runJob(String jobName, EntryBase batchJobTimeEntry,
+			ReflexContext reflexContext)
 	throws IOException, TaggingException;
-	
+
 	/**
 	 * ジョブの情報をバッチジョブ管理テーブルに設定.
 	 * @param future ジョブ実行Future
@@ -27,5 +29,15 @@ public interface JobManager extends ReflexPlugin {
 	 */
 	public void setJobInfo(Future future, EntryBase entry)
 	throws IOException, TaggingException;
+
+	/**
+	 * ジョブ実行が非同期かどうか.
+	 * trueの場合、{@link #runJob}の戻り後もジョブは完了しておらず、
+	 * 実行結果は別途通知される(バッチジョブ管理テーブルのステータスはrunningのまま)。
+	 * @return 非同期実行の場合true
+	 */
+	default boolean isAsyncJob() {
+		return false;
+	}
 
 }

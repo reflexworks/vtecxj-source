@@ -90,8 +90,8 @@ public interface BatchBDBConst {
 	public static final String BQ_BATCHJOB_SCRIPT = "script";
 	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : start */
 	public static final String BQ_BATCHJOB_START = "start";
-	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : cloudrunjob */
-	public static final String BQ_BATCHJOB_CLOUDRUNJOB = "cloudrunjob";
+	/** BigQuery バッチジョブ履歴エントリーテーブル項目 : jobid */
+	public static final String BQ_BATCHJOB_JOBID = "jobid";
 	
 	/** ディスク使用量アラートメール メッセージ置き換え文字列 : ディスク使用率 */
 	public static final String REPLACE_REGEX_DISKUSAGE = "\\$\\{DISKUSAGE\\}";
