@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.batch.BatchJobConst.CronTimeUnit;
-import jp.reflexworks.js.JsExec;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexContext;
@@ -944,15 +943,13 @@ public class BatchJobUtil {
 	}
 
 	/**
-	 * バッチジョブ実行タイムアウト(秒)を取得
-	 * @param serviceName サービス名
-	 * @param requestInfo リクエスト情報
-	 * @param connectionInfo コネクション情報
-	 * @return バッチジョブ実行タイムアウト(秒)
+	 * バッチジョブ実行リクエストタイムアウト(ミリ秒)を取得
+	 * @return バッチジョブ実行タイムアウト(ミリ秒)
 	 */
-	public static int getJsTimeout(String serviceName, RequestInfo requestInfo,
-			ConnectionInfo connectionInfo) {
-		return JsExec.getTimeout(serviceName, requestInfo, connectionInfo);
+	public static int getBatchjobExecRequestTimeoutMillis() {
+		return TaggingEnvUtil.getSystemPropInt(
+				BatchJobConst.PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS,
+				BatchJobConst.BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS_DEFAULT);
 	}
 
 	/**
@@ -1299,9 +1296,7 @@ public class BatchJobUtil {
 
 		try {
 			Requester requester = new Requester();
-			int timeoutMillis = TaggingEnvUtil.getSystemPropInt(
-					BatchJobConst.PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS,
-					BatchJobConst.BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS_DEFAULT);
+			int timeoutMillis = getBatchjobExecRequestTimeoutMillis();
 			if (logger.isDebugEnabled()) {
 				logger.debug("[requestBatchJob] Request URL: " + url);
 			}

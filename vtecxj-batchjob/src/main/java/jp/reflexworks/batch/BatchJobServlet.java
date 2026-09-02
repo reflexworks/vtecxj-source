@@ -11,7 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jp.reflexworks.js.JsExec;
 import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
@@ -48,10 +47,7 @@ public class BatchJobServlet extends HttpServlet {
 	 */
 	@Override
 	public void init() {
-		if (logger.isTraceEnabled()) {
-			logger.info("[init] start.");
-		}
-		JsExec.init();
+		// Do nothing.
 	}
 
 	/**

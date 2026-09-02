@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-batchjob</artifactId>
-  <version>10.0.4</version>
+  <version>10.0.5</version>
   <packaging>jar</packaging>
 
   <description>vte.cx BatchJob</description>
@@ -18,8 +18,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-bdbclient-version>10.0.4</vtecxj-bdbclient-version>
-    <vtecxj-js-version>10.0.4</vtecxj-js-version>
+    <vtecxj-bdbclient-version>10.0.5</vtecxj-bdbclient-version>
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
   </properties>
@@ -30,12 +29,6 @@
       <groupId>jp.reflexworks</groupId>
       <artifactId>vtecxj-bdbclient</artifactId>
       <version>${vtecxj-bdbclient-version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>jp.reflexworks</groupId>
-      <artifactId>vtecxj-js</artifactId>
-      <version>${vtecxj-js-version}</version>
     </dependency>
 
   </dependencies>

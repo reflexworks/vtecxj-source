@@ -76,8 +76,8 @@ public interface BatchJobConst {
 	public static final String URI_BATCHJOB = Constants.URI_BATCHJOB;
 	/** URI : ジョブ管理エイリアス親階層 */
 	public static final String URI_BATCHJOB_ALIAS = Constants.URI_BATCHJOB_ALIAS;
-	/** URI : Cloud Run Jobで実行されるバッチジョブの親階層 */
-	public static final String URI_CLOUDRUNJOB = Constants.URI_HTML + "/batchjob";
+	/** URI : バッチジョブ実行サーバで実行されるバッチジョブの親階層 */
+	public static final String URI_BATCHJOB_SCRIPT = Constants.URI_HTML + "/batchjob";
 
 	/** ログタイトル */
 	public static final String LOG_TITLE = "BatchJob";

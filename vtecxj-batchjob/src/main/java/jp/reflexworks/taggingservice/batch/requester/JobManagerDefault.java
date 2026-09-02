@@ -52,16 +52,6 @@ public class JobManagerDefault implements JobManager {
 	}
 
 	/**
-	 * 非同期実行.
-	 * runJobの戻り後もジョブは完了していない(ステータスはrunningのまま)。
-	 * @return true
-	 */
-	@Override
-	public boolean isAsyncJob() {
-		return true;
-	}
-
-	/**
 	 * バッチジョブの実行.
 	 * バッチジョブ実行サーバへPOSTリクエストを行う。
 	 * @param jobName ジョブ名(サーバサイドJS名)
@@ -151,16 +141,6 @@ public class JobManagerDefault implements JobManager {
 			}
 		}
 		throw lastError;
-	}
-
-	/**
-	 * ジョブの情報をバッチジョブ管理テーブルに設定.
-	 * runnerは同期で実行IDを返さず、ジョブ実行IDはsubtitleに格納済みのため何もしない。
-	 */
-	@Override
-	public void setJobInfo(Future future, EntryBase entry)
-	throws IOException, TaggingException {
-		// Do nothing.
 	}
 
 	/**

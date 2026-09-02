@@ -9,7 +9,6 @@ package jp.reflexworks.taggingservice.exception;
  */
 public class NoEntryException extends TaggingException {
 	
-	
 	/** serialVersionUID */
 	private static final long serialVersionUID = 2378278149292300761L;
 	
