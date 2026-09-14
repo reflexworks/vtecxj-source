@@ -33,7 +33,6 @@ import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
-import jp.reflexworks.taggingservice.auth.AuthenticationConst;
 import jp.reflexworks.taggingservice.blogic.AclBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.OptimisticLockingException;
@@ -42,6 +41,7 @@ import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
 import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
+import jp.reflexworks.taggingservice.service.ServiceAuthenticationConst;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -1119,7 +1119,7 @@ public class ReflexStripeManager implements PaymentManager {
 			ConnectionInfo connectionInfo) {
 		AuthenticationManager authManager = TaggingEnvUtil.getAuthenticationManager();
 		ReflexAuthentication auth = authManager.createAuth(
-				AuthenticationConst.ACCOUNT_SERVICEADMIN,
+				ServiceAuthenticationConst.ACCOUNT_SERVICEADMIN,
 				uid, null, Constants.AUTH_TYPE_SYSTEM, TaggingEnvUtil.getSystemService());
 		return new SystemContext(auth, requestInfo, connectionInfo);
 	}

@@ -137,7 +137,7 @@ public interface BatchJobConst {
 	public static final String JSON_OK = "ok";
 	/** 実行サーバ連携JSONフィールド : メッセージ */
 	public static final String JSON_MESSAGE = "message";
-	/** 実行サーバ連携JSONフィールド : 経過時間(秒) */
+	/** 実行サーバ連携JSONフィールド : 経過時間(ミリ秒) */
 	public static final String JSON_ELAPSED_TIME = "elapsed_time";
 	
 	/** サービス一覧検索URI */

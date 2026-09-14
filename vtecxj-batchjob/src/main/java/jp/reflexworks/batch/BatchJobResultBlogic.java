@@ -47,7 +47,7 @@ import jp.sourceforge.reflex.util.StringUtils;
  *   "accesstoken": ACCESS_TOKEN,
  *   "script_name": ジョブ名,
  *   "job_id": ジョブ実行ID,
- *   "elapsed_time": 経過時間(秒)。エラーの場合も設定する。
+ *   "elapsed_time": 経過時間(ミリ秒)。エラーの場合も設定する。
  * }
  * </pre>
  */
@@ -83,7 +83,7 @@ public class BatchJobResultBlogic {
 		String accesstoken = body.optString(BatchJobConst.JSON_ACCESSTOKEN, null);
 		String scriptName = body.optString(BatchJobConst.JSON_SCRIPT_NAME, null);
 		String jobId = body.optString(BatchJobConst.JSON_JOB_ID, null);
-		long elapsedTimeSec = body.optLong(BatchJobConst.JSON_ELAPSED_TIME, 0L);
+		long elapsedTimeMillisec = body.optLong(BatchJobConst.JSON_ELAPSED_TIME, 0L);
 
 		if (StringUtils.isBlank(serviceName)) {
 			throw new IllegalParameterException("service_name is required.");
@@ -139,8 +139,8 @@ public class BatchJobResultBlogic {
 			}
 
 			// バッチジョブ実行時間を加算 (エラーの場合も加算)
-			if (elapsedTimeSec > 0L) {
-				serviceManager.incrementBatchjoExecTime(elapsedTimeSec * 1000L, serviceName,
+			if (elapsedTimeMillisec > 0L) {
+				serviceManager.incrementBatchjoExecTime(elapsedTimeMillisec, serviceName,
 						requestInfo, connectionInfo);
 			}
 
@@ -153,8 +153,8 @@ public class BatchJobResultBlogic {
 				sb.append(jobId);
 				sb.append(", ok=");
 				sb.append(ok);
-				sb.append(", elapsedTimeSec=");
-				sb.append(elapsedTimeSec);
+				sb.append(", elapsedTimeMillisec=");
+				sb.append(elapsedTimeMillisec);
 				logger.info(sb.toString());
 			}
 

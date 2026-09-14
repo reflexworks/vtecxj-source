@@ -179,7 +179,47 @@ public class BatchJobServlet extends HttpServlet {
 			BatchJobBlogic batchJobBlogic = new BatchJobBlogic();
 			batchJobBlogic.initService(serviceName, requestInfo, connectionInfo);
 			
-			if (httpReq.getParameter(RequestParam.PARAM_CHECK_MQ) != null) {
+			if (httpReq.getParameter(RequestParam.PARAM_CHECK) != null) {
+				if (isEnabledAccessLog()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check");
+				}
+				// サービス単位の定期チェック統合.
+				//  (1) バッチジョブ実行管理 (実行対象ジョブの検知・スケジュール)
+				//  (2) メッセージキュー未送信チェック
+				//  (3) BDBQリトライチェック
+				// いずれか1つが失敗しても他の処理は継続する。
+				StringBuilder resultSb = new StringBuilder();
+
+				try {
+					new BatchJobBlogic().execManagementByService(serviceName,
+							BatchJobConst.PODNAME, systemContext);
+					resultSb.append(" batchjob=ok");
+				} catch (Throwable e) {
+					logger.error("[doPut] _check batchjob management error. serviceName=" + serviceName, e);
+					resultSb.append(" batchjob=error(").append(e.getClass().getSimpleName()).append(")");
+				}
+
+				try {
+					new MessageQueueBlogic().checkMessageQueue(systemContext);
+					resultSb.append(" mq=ok");
+				} catch (Throwable e) {
+					logger.warn("[doPut] _check message queue error. serviceName=" + serviceName, e);
+					resultSb.append(" mq=error(").append(e.getClass().getSimpleName()).append(")");
+				}
+
+				try {
+					new BigQueryBlogic().checkRetryBdbq(systemContext);
+					resultSb.append(" bdbq=ok");
+				} catch (Throwable e) {
+					logger.warn("[doPut] _check retry bdbq error. serviceName=" + serviceName, e);
+					resultSb.append(" bdbq=error(").append(e.getClass().getSimpleName()).append(")");
+				}
+
+				// 戻り値 (個々のチェックのエラーはログ出力済み。処理自体は受け付けたため200を返す。)
+				httpResp.setStatus(HttpStatus.SC_OK);
+				writeResponseData(httpResp, "Check completed: " + serviceName + " -" + resultSb.toString());
+
+			} else if (httpReq.getParameter(RequestParam.PARAM_CHECK_MQ) != null) {
 				if (isEnabledAccessLog()) {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_mq");
 				}
@@ -190,7 +230,7 @@ public class BatchJobServlet extends HttpServlet {
 				// 戻り値
 				httpResp.setStatus(HttpStatus.SC_OK);
 				writeResponseData(httpResp, "Check message queue completed: " + serviceName);
-				
+
 			} else if (httpReq.getParameter(RequestParam.PARAM_CHECK_BDBQ) != null) {
 				if (isEnabledAccessLog()) {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_bdbq");

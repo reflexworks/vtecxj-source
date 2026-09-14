@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.EntryBase;
-import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.atom.entry.Link;
 import jp.reflexworks.batch.servlet.BatchJobRequestUtil;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
@@ -22,7 +21,6 @@ import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.bdbclient.BDBClientUtil;
-import jp.reflexworks.taggingservice.blogic.SessionBlogic;
 import jp.reflexworks.taggingservice.context.ReflexContextUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.EntryDuplicatedException;
@@ -31,7 +29,7 @@ import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.model.RequestInfoImpl;
 import jp.reflexworks.taggingservice.plugin.AuthenticationManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
-import jp.reflexworks.taggingservice.plugin.UserManager;
+import jp.reflexworks.taggingservice.service.ServiceAuthenticationConst;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.CheckUtil;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -89,28 +87,15 @@ public class BatchJobBlogic {
 
 			// 有効なサービス名・名前空間を取得
 			Map<String, String> validNamespaces = getNamespaceMap(reflexContext);
-			// 現在時刻
-			Date now = new Date();
-			int minute = Integer.parseInt(DateUtil.getDateTimeFormat(now, "m"));
-			int hour = Integer.parseInt(DateUtil.getDateTimeFormat(now, "H"));
-			int date = Integer.parseInt(DateUtil.getDateTimeFormat(now, "d"));
-			int month = Integer.parseInt(DateUtil.getDateTimeFormat(now, "M"));
-			int year = Integer.parseInt(DateUtil.getDateTimeFormat(now, "Y"));
-			int day = Integer.parseInt(DateUtil.getDateTimeFormat(now, "u"));	// 曜日の番号(1 =月曜、...、7 =日曜)
-			Integer[] nowParts = new Integer[] {minute, hour, date, month, year, day};
-			long nowTime = now.getTime();
-
-			// バッチジョブの現在からの実行範囲(秒)
-			int batchjobExecRangeSec = BatchJobUtil.getBatchjobExecRangeSec();
-			Date rangeDate = DateUtil.addTime(now, 0, 0, 0, 0, 0, batchjobExecRangeSec, 0);
-			String rangeDateStr = DateUtil.getDateTimeFormat(rangeDate, "yyyyMMddHHmm");
+			// 現在時刻情報
+			NowInfo nowInfo = getNowInfo();
 
 			// サービスごとにバッチジョブを実行
 			// 実行するバッチジョブが1個見つかったら、あとは行わないでバッチジョブサーバにリクエストを投げる。
 			// (負荷分散のため)
 			for (String serviceName : validNamespaces.keySet()) {
 				List<BatchJobFuture> futures = execBatchJobByService(podName,
-						now, nowParts, nowTime, rangeDateStr,
+						nowInfo.now, nowInfo.nowParts, nowInfo.nowTime, nowInfo.rangeDateStr,
 						serviceName, requestInfo, connectionInfo);
 				if (futures != null && !futures.isEmpty()) {
 					BatchJobUtil.setBatchJobFutureList(serviceName, futures);
@@ -130,6 +115,101 @@ public class BatchJobBlogic {
 
 		if (isEnabledAccessLog()) {
 			logger.info("[BatchJobBlogic] exec end.");
+		}
+	}
+
+	/**
+	 * バッチジョブ実行管理処理 (サービス単位).
+	 * <p>
+	 * サービスごとのリクエスト ({@code PUT ?_check}) から呼び出される。
+	 * {@link #execManagement} と異なり、全サービスのループや自己再リクエスト
+	 * ({@link BatchJobUtil#requestBatchJob()}) は行わず、指定サービスのみを処理する。
+	 * サービス設定は呼び出し元 ({@link BatchJobServlet#doPut}) の {@code initService} で
+	 * すでにロード済みであることを前提とする。
+	 * </p>
+	 * @param serviceName サービス名
+	 * @param podName Pod名
+	 * @param systemContext 対象サービスの SystemContext (サービス管理者権限)
+	 */
+	public void execManagementByService(String serviceName, String podName,
+			SystemContext systemContext) {
+		if (StringUtils.isBlank(serviceName)) {
+			throw new IllegalStateException("Service name is required.");
+		}
+		if (StringUtils.isBlank(podName)) {
+			throw new IllegalStateException("Pod name is required.");
+		}
+
+		if (isEnabledAccessLog()) {
+			logger.info(getLoggerPrefix("execManagementByService", serviceName) +
+					"start. podName=" + podName);
+		}
+		RequestInfo requestInfo = systemContext.getRequestInfo();
+		ConnectionInfo connectionInfo = systemContext.getConnectionInfo();
+		try {
+			// Redisの正常起動確認
+			checkRedis(systemContext);
+
+			// 現在時刻情報
+			NowInfo nowInfo = getNowInfo();
+
+			List<BatchJobFuture> futures = execBatchJobByService(podName,
+					nowInfo.now, nowInfo.nowParts, nowInfo.nowTime, nowInfo.rangeDateStr,
+					serviceName, requestInfo, connectionInfo);
+			if (futures != null && !futures.isEmpty()) {
+				BatchJobUtil.setBatchJobFutureList(serviceName, futures);
+			}
+
+		} catch (IOException | TaggingException e) {
+			throw new RuntimeException(e);
+		}
+
+		if (isEnabledAccessLog()) {
+			logger.info(getLoggerPrefix("execManagementByService", serviceName) + "end.");
+		}
+	}
+
+	/**
+	 * 現在時刻に関する情報を取得.
+	 * @return 現在時刻情報
+	 */
+	private NowInfo getNowInfo() {
+		Date now = new Date();
+		int minute = Integer.parseInt(DateUtil.getDateTimeFormat(now, "m"));
+		int hour = Integer.parseInt(DateUtil.getDateTimeFormat(now, "H"));
+		int date = Integer.parseInt(DateUtil.getDateTimeFormat(now, "d"));
+		int month = Integer.parseInt(DateUtil.getDateTimeFormat(now, "M"));
+		int year = Integer.parseInt(DateUtil.getDateTimeFormat(now, "Y"));
+		int day = Integer.parseInt(DateUtil.getDateTimeFormat(now, "u"));	// 曜日の番号(1 =月曜、...、7 =日曜)
+		Integer[] nowParts = new Integer[] {minute, hour, date, month, year, day};
+		long nowTime = now.getTime();
+
+		// バッチジョブの現在からの実行範囲(秒)
+		int batchjobExecRangeSec = BatchJobUtil.getBatchjobExecRangeSec();
+		Date rangeDate = DateUtil.addTime(now, 0, 0, 0, 0, 0, batchjobExecRangeSec, 0);
+		String rangeDateStr = DateUtil.getDateTimeFormat(rangeDate, "yyyyMMddHHmm");
+
+		return new NowInfo(now, nowParts, nowTime, rangeDateStr);
+	}
+
+	/**
+	 * バッチジョブ実行時刻算出に必要な現在時刻情報.
+	 */
+	private static class NowInfo {
+		/** 現在時刻 */
+		private final Date now;
+		/** 現在時刻の[0]分[1]時[2]日[3]月[4]年[5]曜日 */
+		private final Integer[] nowParts;
+		/** 現在時刻のミリ秒表現 */
+		private final long nowTime;
+		/** 現在時刻にジョブ実行範囲秒を加えた日時のyyyyMMddHHmm形式文字列 */
+		private final String rangeDateStr;
+
+		private NowInfo(Date now, Integer[] nowParts, long nowTime, String rangeDateStr) {
+			this.now = now;
+			this.nowParts = nowParts;
+			this.nowTime = nowTime;
+			this.rangeDateStr = rangeDateStr;
 		}
 	}
 
@@ -398,9 +478,10 @@ public class BatchJobBlogic {
 				return null;
 			}
 
-			// セッション付き認証情報を生成
-			ReflexAuthentication serviceAdminAuth = createServiceAdminAuthWithSession(
-					pServiceAdminAuth, systemRequestInfo, connectionInfo);
+			// サービス管理者(疑似サービス管理者 UID=2)の認証情報。
+			// バッチジョブは node.js サーバ(runner)へのリクエストで実行されるため、
+			// 実行コンテキストにセッションは不要。
+			ReflexAuthentication serviceAdminAuth = pServiceAdminAuth;
 			// リクエスト
 			ReflexRequest req = BatchJobRequestUtil.createRequest(pathinfoAndQuerystring,
 					serviceAdminAuth, systemRequestInfo, connectionInfo);
@@ -470,58 +551,24 @@ public class BatchJobBlogic {
 
 	/**
 	 * サービス管理者の認証情報を生成.
+	 * <p>
+	 * バッチジョブ実行者は、実在するサービス管理者ではなく疑似サービス管理者
+	 * (UID={@link AuthenticationConst#UID_SERVICEADMIN} / アカウント
+	 * {@link AuthenticationConst#ACCOUNT_SERVICEADMIN})とする。
+	 * 実行者本人でない処理のログに実サービス管理者アカウントが記録されるのを防ぐため。
+	 * 付与するグループはサービス管理者グループ({@code /_group/$admin})のみ。
+	 * </p>
 	 * @param systemContext SystemContext
 	 * @return サービス管理者の認証情報
 	 */
-	private ReflexAuthentication createServiceAdminAuth(SystemContext systemContext)
-	throws IOException, TaggingException {
+	private ReflexAuthentication createServiceAdminAuth(SystemContext systemContext) {
 		String serviceName = systemContext.getServiceName();
 		AuthenticationManager authManager = TaggingEnvUtil.getAuthenticationManager();
-		// サービス管理者のUIDを取得
-		FeedBase feed = systemContext.getFeed(Constants.URI_GROUP_ADMIN);
-		if (feed != null && feed.entry != null && !feed.entry.isEmpty()) {
-			String uri = feed.entry.get(0).getMyUri();
-			String uid = TaggingEntryUtil.getSelfidUri(uri);
-			String sessionId = null;	// このメソッドではセッションを生成しない。
-
-			UserManager userManager = TaggingEnvUtil.getUserManager();
-			String account = userManager.getAccountByUid(uid, systemContext);
-			ReflexAuthentication auth = authManager.createAuth(account, uid, sessionId,
-					Constants.AUTH_TYPE_SYSTEM, serviceName);
-			// グループ追加
-			List<String> groups = userManager.getGroupsByUid(uid, systemContext);
-			if (groups != null) {
-				for (String group : groups) {
-					auth.addGroup(group);
-				}
-			}
-			return auth;
-		}
-		return null;
-	}
-
-	/**
-	 * セッション付きサービス管理者の認証情報を生成.
-	 * @param serviceAdminAuth サービス管理者の認証情報
-	 * @param systemContext SystemContext
-	 * @return サービス管理者の認証情報
-	 */
-	private ReflexAuthentication createServiceAdminAuthWithSession(
-			ReflexAuthentication serviceAdminAuth, RequestInfo requestInfo,
-			ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
-		// セッション付き認証情報を作成
-		SessionBlogic sessionBlogic = new SessionBlogic();
-		ReflexAuthentication auth = sessionBlogic.createSession(
-				serviceAdminAuth.getAccount(), serviceAdminAuth.getUid(), serviceAdminAuth.getAuthType(),
-				serviceAdminAuth.getServiceName(), requestInfo, connectionInfo);
-		// グループ追加
-		List<String> groups = serviceAdminAuth.getGroups();
-		if (groups != null) {
-			for (String group : groups) {
-				auth.addGroup(group);
-			}
-		}
+		ReflexAuthentication auth = authManager.createAuth(
+				ServiceAuthenticationConst.ACCOUNT_SERVICEADMIN,
+				ServiceAuthenticationConst.UID_SERVICEADMIN, null,
+				Constants.AUTH_TYPE_SYSTEM, serviceName);
+		auth.addGroup(Constants.URI_GROUP_ADMIN);
 		return auth;
 	}
 

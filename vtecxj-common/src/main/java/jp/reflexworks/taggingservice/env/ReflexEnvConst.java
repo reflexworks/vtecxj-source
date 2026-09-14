@@ -88,9 +88,9 @@ public interface ReflexEnvConst {
 	/** スーパーユーザ デフォルト */
 	public static final String SUPER_USER_DEFAULT = "reflexworks";
 	/** 非同期処理プール数 (バッチジョブ用) デフォルト */
-	public static final int TASKQUEUE_POOLSIZE_BATCHJOB_DEFAULT = 500;
+	public static final int TASKQUEUE_POOLSIZE_BATCHJOB_DEFAULT = 20;
 	/** 非同期処理プール数 (内部処理用) デフォルト */
-	public static final int TASKQUEUE_POOLSIZE_SYSTEM_DEFAULT = 1000;
+	public static final int TASKQUEUE_POOLSIZE_SYSTEM_DEFAULT = 50;
 	/** キーの階層数上限 デフォルト */
 	public static final int MAXNUM_KEY_HIERARCHIES_DEFAULT = 10;
 	/** JSON出力においてfeed.entryを省略するかどうか デフォルト */

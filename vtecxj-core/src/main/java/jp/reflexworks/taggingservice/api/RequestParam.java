@@ -73,6 +73,8 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_CHECK_MQ = "_check_mq";
 	/** URLパラメータ : BDBQリトライチェック */
 	public static final String PARAM_CHECK_BDBQ = "_check_bdbq";
+	/** URLパラメータ : サービス単位の定期チェック統合 (メッセージキュー未送信チェック・BDBQリトライチェック・バッチジョブ実行管理) */
+	public static final String PARAM_CHECK = "_check";
 	/** URLパラメータ : 既存ユーザとソーシャルログインユーザの紐付けリクエスト(確認コード送信) */
 	public static final String PARAM_MERGEOAUTHUSER = "_mergeoauthuser";
 	/** URLパラメータ : 既存ユーザとソーシャルログインユーザの紐付け実行(確認コード照合) */
@@ -109,6 +111,8 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_CREATESESSION = "_createsession";
 	/** URLパラメータ : タイプ */
 	public static final String PARAM_TYPE = "_type";
+	/** URLパラメータ : バッチジョブ実行者(UID=2)のアクセスキー変更オプション (サービス管理者が実行) */
+	public static final String PARAM_ACCESSKEY_INTERNALADMIN = "_accesskeyInternalAdmin";
 
 	/**
 	 * Entry検索かどうか返却します.

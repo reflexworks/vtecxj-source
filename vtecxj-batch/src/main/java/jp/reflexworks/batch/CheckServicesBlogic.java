@@ -32,12 +32,23 @@ import jp.sourceforge.reflex.util.Requester;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
- * メッセージキュー未送信チェック処理のリクエスト処理.
- *  ・有効なサービス一覧を取得
- *  ・バッチジョブサーバにリクエストする
+ * サービス単位の定期チェック処理のリクエスト処理.
+ * <p>
+ *  ・有効なサービス一覧を1回だけ取得する。
+ *  ・サービスごとにバッチジョブサーバへ {@code PUT ?_check} リクエストする。
+ *    バッチジョブサーバ側の {@code BatchJobServlet.doPut} で以下を実行する。
+ *    <ul>
+ *      <li>メッセージキュー未送信チェック</li>
+ *      <li>BDBQ (BDB + BigQuery) リトライチェック</li>
+ *      <li>バッチジョブ実行管理 (実行対象ジョブの検知・スケジュール)</li>
+ *    </ul>
+ * </p>
+ * <p>
+ * (旧 {@code CheckMessageQueueBlogic}。バッチジョブ実行管理をサービス単位リクエストに合流させたことに伴い改称。)
+ * </p>
  */
-public class CheckMessageQueueBlogic implements ReflexBlogic<ReflexContext, Boolean> {
-	
+public class CheckServicesBlogic implements ReflexBlogic<ReflexContext, Boolean> {
+
 	/** バッチジョブサーバリクエスト Method */
 	static final String REQUEST_METHOD = Constants.PUT;
 	/** バッチジョブサーバリクエスト URL設定 */
@@ -74,19 +85,15 @@ public class CheckMessageQueueBlogic implements ReflexBlogic<ReflexContext, Bool
 				FeedBase serviceFeed = systemContext.getFeed(requestUri);
 				cursorStr = TaggingEntryUtil.getCursorFromFeed(serviceFeed);
 				if (serviceFeed != null && serviceFeed.entry != null) {
-					// サービスごとにアクセスカウンタのバッチ処理を行う。
+					// サービスごとにチェックリクエストを送信する。
 					for (EntryBase serviceEntry : serviceFeed.entry) {
-						// メッセージキューチェック
 						Future<Boolean> future = execForEachService(systemContext, serviceEntry);
-						futures.add(future);
-						// BDBQリトライチェック
-						future = execForEachService2(systemContext, serviceEntry);
 						futures.add(future);
 					}
 				}
 
 			} while (!StringUtils.isBlank(cursorStr));
-			
+
 			// 終了確認 (全ての対象サービスのリクエストを送信できれば終了)
 			for (Future<Boolean> future : futures) {
 				try {
@@ -109,9 +116,13 @@ public class CheckMessageQueueBlogic implements ReflexBlogic<ReflexContext, Bool
 		}
 		return true;
 	}
-	
+
 	/**
-	 * サービス一覧取得URIを取得
+	 * サービス一覧取得URIを取得.
+	 * <p>
+	 * バッチジョブ実行管理と対象を揃えるため、有効なサービスステータス
+	 * ({@code creating,staging,production,blocked}) を対象とする。
+	 * </p>
 	 * @return サービス一覧取得URI
 	 */
 	private String getRequestUriBase() {
@@ -123,44 +134,35 @@ public class CheckMessageQueueBlogic implements ReflexBlogic<ReflexContext, Bool
 		sb.append(Condition.REGEX);
 		sb.append("-");
 		sb.append("^");
-		sb.append(Constants.SERVICE_STATUS_PRODUCTION);
+		sb.append(Constants.SERVICE_STATUS_CREATING);
 		sb.append("$|^");
 		sb.append(Constants.SERVICE_STATUS_STAGING);
+		sb.append("$|^");
+		sb.append(Constants.SERVICE_STATUS_PRODUCTION);
+		sb.append("$|^");
+		sb.append(Constants.SERVICE_STATUS_BLOCKED);
 		sb.append("$");
 		return sb.toString();
 	}
 
 	/**
-	 * サービスごとの処理
+	 * サービスごとの処理.
+	 * チェックリクエストの送信をTaskQueueに登録する。
 	 * @param systemContext SystemContext
 	 * @param serviceEntry サービスエントリー
 	 */
 	private Future<Boolean> execForEachService(SystemContext systemContext, EntryBase serviceEntry)
 	throws IOException, TaggingException {
 		String serviceName = TaggingServiceUtil.getServiceNameFromServiceUri(serviceEntry.getMyUri());
-		CheckMessageQueueCallable callable = new CheckMessageQueueCallable(serviceName);
+		CheckServicesCallable callable = new CheckServicesCallable(serviceName);
 		return (Future<Boolean>)TaskQueueUtil.addTask(
-				callable, 0, systemContext.getAuth(), systemContext.getRequestInfo(), 
+				callable, 0, systemContext.getAuth(), systemContext.getRequestInfo(),
 				systemContext.getConnectionInfo());
 	}
 
 	/**
-	 * サービスごとの処理
-	 * BDBQリトライ処理のチェックリクエストを送信
-	 * @param systemContext SystemContext
-	 * @param serviceEntry サービスエントリー
-	 */
-	private Future<Boolean> execForEachService2(SystemContext systemContext, EntryBase serviceEntry)
-	throws IOException, TaggingException {
-		String serviceName = TaggingServiceUtil.getServiceNameFromServiceUri(serviceEntry.getMyUri());
-		CheckRetryBdbqCallable callable = new CheckRetryBdbqCallable(serviceName);
-		return (Future<Boolean>)TaskQueueUtil.addTask(
-				callable, 0, systemContext.getAuth(), systemContext.getRequestInfo(), 
-				systemContext.getConnectionInfo());
-	}
-
-	/**
-	 * バッチジョブサーバへリクエスト
+	 * バッチジョブサーバへリクエスト.
+	 * @param serviceName サービス名
 	 */
 	void request(String serviceName) throws IOException {
 		Requester requester = new Requester();
@@ -168,14 +170,14 @@ public class CheckMessageQueueBlogic implements ReflexBlogic<ReflexContext, Bool
 		String method = REQUEST_METHOD;
 		Map<String, String> reqHeader = new HashMap<>();
 		reqHeader.put(Constants.HEADER_SERVICENAME, serviceName);
-		
+
 		int timeoutMillis = BDBRequesterUtil.getBDBRequestTimeoutMillis();
 		int numRetries = BDBRequesterUtil.getBDBRequestRetryCount();
 		int waitMillis = BDBRequesterUtil.getBDBRequestRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
 			try {
 				// リクエスト
-				HttpURLConnection http = requester.prepare(urlStr, method, 
+				HttpURLConnection http = requester.prepare(urlStr, method,
 						reqHeader, timeoutMillis);
 
 				int status = http.getResponseCode();
@@ -188,6 +190,7 @@ public class CheckMessageQueueBlogic implements ReflexBlogic<ReflexContext, Bool
 					sb.append(status);
 					logger.debug(sb.toString());
 				}
+				return;
 
 			} catch (IOException e) {
 				if (logger.isDebugEnabled()) {
@@ -227,17 +230,17 @@ public class CheckMessageQueueBlogic implements ReflexBlogic<ReflexContext, Bool
 			}
 		}
 	}
-	
+
 	/**
-	 * バッチジョブURLを取得.
-	 * @return バッチジョブURL
+	 * チェックリクエストURLを取得.
+	 * @return チェックリクエストURL
 	 */
 	private String getUrl() {
 		String urlBatchjob = TaggingEnvUtil.getSystemProp(URL_BATCHJOB, null);
 		if (StringUtils.isBlank(urlBatchjob)) {
 			throw new IllegalStateException("No BatchJob URL setting.");
 		}
-		return UrlUtil.addParam(urlBatchjob, RequestParam.PARAM_CHECK_MQ, null);
+		return UrlUtil.addParam(urlBatchjob, RequestParam.PARAM_CHECK, null);
 	}
 
 }

@@ -19,6 +19,7 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.SecretManager;
 import jp.reflexworks.taggingservice.plugin.def.UserManagerDefaultConst;
+import jp.reflexworks.taggingservice.service.ServiceAdminUserUtil;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
@@ -172,6 +173,9 @@ public class InitializeSystemBlogic implements ReflexBlogic<ReflexContext, FeedB
 		feed = TaggingEntryUtil.createFeed(systemService);
 		feed.entry = adminuserEntries;
 		retFeed = reflexContext.put(feed);
+
+		// バッチジョブ実行者(疑似サービス管理者 UID=2)のユーザ情報を登録
+		ServiceAdminUserUtil.registerServiceAdminUser(reflexContext);
 
 		return retFeed;
 	}

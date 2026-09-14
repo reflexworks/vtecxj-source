@@ -771,6 +771,15 @@ public class TaggingServlet extends ReflexServletBase {
 				userBlogic.changeAccessKey(reflexContext);
 				retObj = createMessageFeed(msgManager.getMsgChangeAccesskey(reflexContext.getAuth(), serviceName), serviceName);
 
+			} else if (param.getOption(RequestParam.PARAM_ACCESSKEY_INTERNALADMIN) != null) {
+				// バッチジョブ実行者(UID=2)のアクセスキー更新
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_accesskeyInternalAdmin");
+				}
+				UserBlogic userBlogic = new UserBlogic();
+				userBlogic.changeAccessKeyInternalAdmin(reflexContext);
+				retObj = createMessageFeed(msgManager.getMsgChangeAccesskey(reflexContext.getAuth(), serviceName), serviceName);
+
 			} else if (param.getOption(RequestParam.PARAM_CREATESERVICE) != null) {
 				// サービス登録
 				if (logger.isInfoEnabled()) {

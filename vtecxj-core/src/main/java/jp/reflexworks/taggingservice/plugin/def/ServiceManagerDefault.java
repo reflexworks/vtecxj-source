@@ -30,7 +30,6 @@ import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.ReflexStatic;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
-import jp.reflexworks.taggingservice.auth.AuthenticationConst;
 import jp.reflexworks.taggingservice.blogic.ContentBlogic;
 import jp.reflexworks.taggingservice.blogic.SecurityConst;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
@@ -50,6 +49,8 @@ import jp.reflexworks.taggingservice.plugin.NamespaceManager;
 import jp.reflexworks.taggingservice.plugin.PaymentManager;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.plugin.UserManager;
+import jp.reflexworks.taggingservice.service.ServiceAdminUserUtil;
+import jp.reflexworks.taggingservice.service.ServiceAuthenticationConst;
 import jp.reflexworks.taggingservice.service.ServiceConst;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
 import jp.reflexworks.taggingservice.sys.SystemContext;
@@ -745,6 +746,9 @@ public class ServiceManagerDefault implements ServiceManager {
 		// サービス管理ユーザに権限設定
 		FeedBase postGroupFeed = editGroupEntry(newUid, newServiceName);
 		newSystemContext.post(postGroupFeed);
+
+		// バッチジョブ実行者(疑似サービス管理者 UID=2)のユーザ情報を登録
+		ServiceAdminUserUtil.registerServiceAdminUser(newSystemContext);
 	}
 
 	/**
@@ -1474,8 +1478,8 @@ public class ServiceManagerDefault implements ServiceManager {
 	public ReflexAuthentication createServiceAdminAuth(String serviceName) {
 		AuthenticationManager authManager = TaggingEnvUtil.getAuthenticationManager();
 		ReflexAuthentication auth = authManager.createAuth(
-				AuthenticationConst.ACCOUNT_SERVICEADMIN,
-				AuthenticationConst.UID_SERVICEADMIN, null,
+				ServiceAuthenticationConst.ACCOUNT_SERVICEADMIN,
+				ServiceAuthenticationConst.UID_SERVICEADMIN, null,
 				Constants.AUTH_TYPE_SYSTEM, serviceName);
 		auth.addGroup(Constants.URI_GROUP_ADMIN);
 		auth.addGroup(Constants.URI_GROUP_CONTENT);
