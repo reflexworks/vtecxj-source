@@ -1,12 +1,14 @@
 package jp.reflexworks.taggingservice.plugin.def;
 
+import jp.reflexworks.taggingservice.service.SystemServiceSettingConst;
+
 /**
  * サービス管理の定数クラス
  */
 public interface ServiceManagerDefaultConst {
 
 	/** サービスの予約語設定 "_service.reserved.{連番}={予約語} */
-	public static final String PROP_SERVICE_RESERVED_PREFIX = "_service.reserved.";
+	public static final String PROP_SERVICE_RESERVED_PREFIX = SystemServiceSettingConst.SERVICE_RESERVED_PREFIX;
 	/** 設定 : アクセスカウンタの有効時間(時) */
 	public static final String PROP_ACCESSCOUNT_EXPIRE_HOUR = "_accesscount.expire.hour";
 	/** 設定 : 削除済みサービス(サービスステータス=deleted)のサービスエントリー削除待ち日数(日) */
