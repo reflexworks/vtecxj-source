@@ -65,6 +65,7 @@ public class BatchJobBlogic {
 	 * @param podName Pod名
 	 * @param reflexContext ReflexContext (システム管理サービス)
 	 */
+	/*
 	public void execManagement(String podName, ReflexContext reflexContext) {
 		if (StringUtils.isBlank(podName)) {
 			throw new IllegalStateException("Pod name is required.");
@@ -117,6 +118,7 @@ public class BatchJobBlogic {
 			logger.info("[BatchJobBlogic] exec end.");
 		}
 	}
+	*/
 
 	/**
 	 * バッチジョブ実行管理処理 (サービス単位).

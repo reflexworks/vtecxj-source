@@ -1048,9 +1048,6 @@ public class BatchJobUtil {
 		BatchJobCallable callable = new BatchJobCallable(BatchJobConst.PODNAME, jsFunction,
 				batchJobTimeEntry, req, resp);
 		// コネクション情報の引き継ぎなし
-		//ConnectionInfo dummyConnectionInfo = new ConnectionInfoImpl(null, requestInfo);
-		//return (Future<Boolean>)TaskQueueUtil.addTask(callable, delay,
-		//		req.getAuth(), requestInfo, dummyConnectionInfo);
 		return (Future<Boolean>)TaskQueueUtil.addTaskByMainThread(callable, delay, 
 				req.getAuth(), requestInfo, null);
 	}
@@ -1080,8 +1077,7 @@ public class BatchJobUtil {
 			List<BatchJobFuture> deleteList = new ArrayList<>();
 			for (BatchJobFuture future : currentFutures) {
 				String batchJobStatus = future.getBatchJobStatus();
-				if (!BatchJobConst.JOB_STATUS_WAITING.equals(batchJobStatus) &&
-						!BatchJobConst.JOB_STATUS_RUNNING.equals(batchJobStatus)) {
+				if (!BatchJobConst.JOB_STATUS_WAITING.equals(batchJobStatus)) {
 					deleteList.add(future);
 				}
 			}

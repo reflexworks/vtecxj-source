@@ -149,8 +149,8 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 		// リクエストがnullの場合はエラー
 		if (req == null) {
 			String msg = "Captcha verify failed: The request is null.";
-			if (logger.isDebugEnabled()) {
-				logger.debug("[verify] " + msg);
+			if (logger.isTraceEnabled()) {
+				logger.info("[verify] " + msg);
 			}
 			AuthenticationException ae = new AuthenticationException();
 			ae.setSubMessage(msg);
@@ -160,8 +160,8 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 		String serviceName = req.getServiceName();
 		RequestInfo requestInfo = req.getRequestInfo();
 		ConnectionInfo connectionInfo = req.getConnectionInfo();
-		if (logger.isDebugEnabled()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[verify] start.");
+		if (logger.isTraceEnabled()) {
+			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[verify] start.");
 		}
 
 		boolean isV2 = false;
@@ -192,14 +192,14 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 			return;
 		}
 
-		if (logger.isInfoEnabled()) {
+		if (logger.isTraceEnabled()) {
 			logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[verify] reCAPTCHA Enterprise check start.");
 		}
 
 		if (StringUtils.isBlank(recaptchaResponse)) {
 			String msg = "Captcha verify failed: recaptcha response parameter is null.";
-			if (logger.isDebugEnabled()) {
-				logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[verify] " + msg);
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[verify] " + msg);
 			}
 			AuthenticationException ae = new AuthenticationException();
 			ae.setSubMessage(msg);
@@ -234,8 +234,8 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 				if (!response.getTokenProperties().getValid()) {
 					String msg = "The CreateAssessment call failed because the token was: "
 							+ response.getTokenProperties().getInvalidReason().name();
-					if (logger.isDebugEnabled()) {
-						logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[verify] " + msg);
+					if (logger.isTraceEnabled()) {
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[verify] " + msg);
 					}
 					AuthenticationException ae = new AuthenticationException();
 					ae.setSubMessage(msg);
@@ -264,7 +264,7 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
 					sb.append("[verify] The reCAPTCHA score is: ");
 					sb.append(score);
-					logger.debug(sb.toString());
+					logger.info(sb.toString());
 				}
 				// スコアによるしきい値以下はエラーとする。
 				double scoreThreshold = TaggingEnvUtil.getSystemPropDouble(
@@ -273,8 +273,8 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 				if (score <= scoreThreshold) {
 					// エラー
 					String msg = "Captcha verify failed: The captcha score is lower than the threshold. " + score;
-					if (logger.isDebugEnabled()) {
-						logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[verify] " + msg);
+					if (logger.isTraceEnabled()) {
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[verify] " + msg);
 					}
 					AuthenticationException ae = new AuthenticationException();
 					ae.setSubMessage(msg);
@@ -330,7 +330,7 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 			sb.append(serviceName);
 			sb.append(", service secretkey=");
 			sb.append(TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_SITEKEY, null));
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 		return TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_SITEKEY, null); 
 	}
@@ -347,7 +347,7 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 			sb.append(serviceName);
 			sb.append(", service secretkey=");
 			sb.append(TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_SITEKEY_V2, null));
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 		return TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_SITEKEY_V2, null); 
 	}
@@ -431,7 +431,7 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 			sb.append(serviceName);
 			sb.append(", service secretkey=");
 			sb.append(TaggingEnvUtil.getProp(serviceName, ReCaptchaSettingConst.RECAPTCHA_SITEKEY_V2, null));
-			logger.debug(sb.toString());
+			logger.info(sb.toString());
 		}
 		
 		// まずサービスアカウントを取得

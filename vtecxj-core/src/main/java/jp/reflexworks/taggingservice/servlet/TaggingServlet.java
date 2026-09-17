@@ -28,6 +28,7 @@ import jp.reflexworks.taggingservice.blogic.IncrementBlogic;
 import jp.reflexworks.taggingservice.blogic.LogBlogic;
 import jp.reflexworks.taggingservice.blogic.MonitorBlogic;
 import jp.reflexworks.taggingservice.blogic.RefreshBlogic;
+import jp.reflexworks.taggingservice.blogic.SecurityBlogic;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.blogic.UserBlogic;
 import jp.reflexworks.taggingservice.context.ReflexContextUtil;
@@ -336,6 +337,15 @@ public class TaggingServlet extends ReflexServletBase {
 				// グループ参加判定
 				boolean isGroupMember = reflexContext.isGroupMember(param.getUri());
 				retObj = createMessageFeed(String.valueOf(isGroupMember), serviceName);
+
+			} else if (param.getOption(RequestParam.PARAM_VERIFYRECAPTCHA) != null) {
+				// reCAPTCHA検証
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_verifyrecaptcha");
+				}
+				String recaptchaAction = param.getOption(RequestParam.PARAM_VERIFYRECAPTCHA);
+				SecurityBlogic securityBlogic = new SecurityBlogic();
+				retObj = securityBlogic.verifyRecaptcha(req, recaptchaAction, serviceName);
 
 			} else if (param.getOption(RequestParam.PARAM_NO_GROUP_MEMBER) != null) {
 				// グループの配下のキーのエントリーで署名のないものを返す

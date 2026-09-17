@@ -73,6 +73,8 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_CHECK_MQ = "_check_mq";
 	/** URLパラメータ : BDBQリトライチェック */
 	public static final String PARAM_CHECK_BDBQ = "_check_bdbq";
+	/** URLパラメータ : バッチジョブ実行管理チェック */
+	public static final String PARAM_CHECK_BATCHJOB = "_check_batchjob";
 	/** URLパラメータ : サービス単位の定期チェック統合 (メッセージキュー未送信チェック・BDBQリトライチェック・バッチジョブ実行管理) */
 	public static final String PARAM_CHECK = "_check";
 	/** URLパラメータ : 既存ユーザとソーシャルログインユーザの紐付けリクエスト(確認コード送信) */
@@ -113,6 +115,8 @@ public interface RequestParam extends RequestType {
 	public static final String PARAM_TYPE = "_type";
 	/** URLパラメータ : バッチジョブ実行者(UID=2)のアクセスキー変更オプション (サービス管理者が実行) */
 	public static final String PARAM_ACCESSKEY_INTERNALADMIN = "_accesskeyInternalAdmin";
+	/** URLパラメータ : reCAPTCHA検証 */
+	public static final String PARAM_VERIFYRECAPTCHA = "_verifyrecaptcha";
 
 	/**
 	 * Entry検索かどうか返却します.

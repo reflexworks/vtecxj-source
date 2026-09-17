@@ -14,13 +14,11 @@ import org.slf4j.LoggerFactory;
 import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
-import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.blogic.BigQueryBlogic;
 import jp.reflexworks.taggingservice.blogic.MessageQueueBlogic;
 import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
-import jp.reflexworks.taggingservice.context.ReflexContextUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.AuthenticationException;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
@@ -76,25 +74,36 @@ public class BatchJobServlet extends HttpServlet {
 			logger.info("[doPost] start");
 		}
 
-		// バッチジョブ実行サーバからの終了通知
-		if (httpReq.getParameter(BatchJobConst.PARAM_BATCHJOBRESULT) != null) {
-			try {
-				new BatchJobResultBlogic().receive(httpReq);
-				httpResp.setStatus(HttpStatus.SC_OK);
-				writeResponseData(httpResp, "BatchJob result is accepted.");
-			} catch (AuthenticationException e) {
-				logger.warn("[doPost] BatchJob result auth error. " + e.getMessage());
-				httpResp.setStatus(HttpStatus.SC_UNAUTHORIZED);
-			} catch (IllegalParameterException e) {
-				logger.warn("[doPost] BatchJob result bad request. " + e.getMessage());
-				httpResp.setStatus(HttpStatus.SC_BAD_REQUEST);
-			} catch (Throwable e) {
-				logger.error("[doPost] BatchJob result error occured.", e);
-				httpResp.setStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+		try {
+			// バッチジョブ実行サーバからの終了通知
+			if (httpReq.getParameter(BatchJobConst.PARAM_BATCHJOBRESULT) != null) {
+				try {
+					new BatchJobResultBlogic().receive(httpReq);
+					httpResp.setStatus(HttpStatus.SC_OK);
+					writeResponseData(httpResp, "BatchJob result is accepted.");
+				} catch (AuthenticationException e) {
+					logger.warn("[doPost] BatchJob result auth error. " + e.getMessage());
+					httpResp.setStatus(HttpStatus.SC_UNAUTHORIZED);
+				} catch (IllegalParameterException e) {
+					logger.warn("[doPost] BatchJob result bad request. " + e.getMessage());
+					httpResp.setStatus(HttpStatus.SC_BAD_REQUEST);
+				} catch (Throwable e) {
+					logger.error("[doPost] BatchJob result error occured.", e);
+					httpResp.setStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+				}
+				return;
+	
+			} else {
+				// その他は無効
+				throw new MethodNotAllowedException("Invalid parameter.");
 			}
-			return;
+
+		} catch (Throwable e) {
+			logger.error("[doPost] Error occured.", e);
+			httpResp.setStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR);
 		}
 
+		/*
 		// バッチジョブ管理処理をTaskQueueに登録してレスポンスする。
 		String serviceName = TaggingEnvUtil.getSystemService();
 		// 認証情報
@@ -135,6 +144,7 @@ public class BatchJobServlet extends HttpServlet {
 				}
 			}
 		}
+		*/
 	}
 
 	/**
@@ -242,7 +252,19 @@ public class BatchJobServlet extends HttpServlet {
 				// 戻り値
 				httpResp.setStatus(HttpStatus.SC_OK);
 				writeResponseData(httpResp, "Check retry bdbq completed: " + serviceName);
-				
+
+			} else if (httpReq.getParameter(RequestParam.PARAM_CHECK_BATCHJOB) != null) {
+				if (isEnabledAccessLog()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_batchjob");
+				}
+				// バッチジョブ実行管理チェック
+				new BatchJobBlogic().execManagementByService(serviceName,
+						BatchJobConst.PODNAME, systemContext);
+
+				// 戻り値
+				httpResp.setStatus(HttpStatus.SC_OK);
+				writeResponseData(httpResp, "Check batchjob completed: " + serviceName);
+
 			} else {
 				// その他は無効
 				throw new MethodNotAllowedException("Invalid parameter.");
