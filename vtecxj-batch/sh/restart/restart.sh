@@ -9,18 +9,22 @@ source ./restart_settings.txt
 
 # APサーバ再起動
 #   1. Dockerイメージtags
+#   2. deployment.yaml ファイル名
+#   3. deployment名
 function restart() {
   REV=$1
+  YAML=$2
+  DEPLOYMENT=$3
   echo '[restart] REV='$REV
 
   #echo '** deployment.yaml にタグを設定'
-  sed -i s/XXX/$REV/ vtecx-deployment.yaml
+  sed -i s/XXX/$REV/ $YAML
 
   #echo '** rollout restart'
-  kubectl rollout restart deployments/$DEPLOYMENT_VTECX
+  kubectl rollout restart deployments/$DEPLOYMENT
 
   #echo '** deployment.yaml のタグを元に戻す'
-  sed -i s/$REV/XXX/ vtecx-deployment.yaml
+  sed -i s/$REV/XXX/ $YAML
 }
 
 cnt=0
@@ -31,7 +35,8 @@ do
   cnt=$((cnt+1))
 
   if [[ $cnt = 2 ]] ; then
-  	restart $tags
+  	restart $tags $YAML_VTECX_BASE $DEPLOYMENT_VTECX_BASE
+  	restart $tags $YAML_VTECX_BURST $DEPLOYMENT_VTECX_BURST
   	exit
   fi
 done

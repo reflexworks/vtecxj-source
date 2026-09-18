@@ -21,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.batch.BatchJobConst.CronTimeUnit;
-import jp.reflexworks.js.JsExec;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.ReflexContext;
@@ -944,15 +943,13 @@ public class BatchJobUtil {
 	}
 
 	/**
-	 * バッチジョブ実行タイムアウト(秒)を取得
-	 * @param serviceName サービス名
-	 * @param requestInfo リクエスト情報
-	 * @param connectionInfo コネクション情報
-	 * @return バッチジョブ実行タイムアウト(秒)
+	 * バッチジョブ実行リクエストタイムアウト(ミリ秒)を取得
+	 * @return バッチジョブ実行タイムアウト(ミリ秒)
 	 */
-	public static int getJsTimeout(String serviceName, RequestInfo requestInfo,
-			ConnectionInfo connectionInfo) {
-		return JsExec.getTimeout(serviceName, requestInfo, connectionInfo);
+	public static int getBatchjobExecRequestTimeoutMillis() {
+		return TaggingEnvUtil.getSystemPropInt(
+				BatchJobConst.PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS,
+				BatchJobConst.BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS_DEFAULT);
 	}
 
 	/**
@@ -1051,9 +1048,6 @@ public class BatchJobUtil {
 		BatchJobCallable callable = new BatchJobCallable(BatchJobConst.PODNAME, jsFunction,
 				batchJobTimeEntry, req, resp);
 		// コネクション情報の引き継ぎなし
-		//ConnectionInfo dummyConnectionInfo = new ConnectionInfoImpl(null, requestInfo);
-		//return (Future<Boolean>)TaskQueueUtil.addTask(callable, delay,
-		//		req.getAuth(), requestInfo, dummyConnectionInfo);
 		return (Future<Boolean>)TaskQueueUtil.addTaskByMainThread(callable, delay, 
 				req.getAuth(), requestInfo, null);
 	}
@@ -1083,8 +1077,7 @@ public class BatchJobUtil {
 			List<BatchJobFuture> deleteList = new ArrayList<>();
 			for (BatchJobFuture future : currentFutures) {
 				String batchJobStatus = future.getBatchJobStatus();
-				if (!BatchJobConst.JOB_STATUS_WAITING.equals(batchJobStatus) &&
-						!BatchJobConst.JOB_STATUS_RUNNING.equals(batchJobStatus)) {
+				if (!BatchJobConst.JOB_STATUS_WAITING.equals(batchJobStatus)) {
 					deleteList.add(future);
 				}
 			}
@@ -1299,9 +1292,7 @@ public class BatchJobUtil {
 
 		try {
 			Requester requester = new Requester();
-			int timeoutMillis = TaggingEnvUtil.getSystemPropInt(
-					BatchJobConst.PROP_BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS,
-					BatchJobConst.BATCHJOB_EXEC_REQUEST_TIMEOUT_MILLIS_DEFAULT);
+			int timeoutMillis = getBatchjobExecRequestTimeoutMillis();
 			if (logger.isDebugEnabled()) {
 				logger.debug("[requestBatchJob] Request URL: " + url);
 			}

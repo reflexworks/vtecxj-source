@@ -11,11 +11,14 @@ import jp.reflexworks.taggingservice.taskqueue.ReflexCallable;
 import jp.reflexworks.taggingservice.util.LogUtil;
 
 /**
- * メッセージキュー未送信チェック処理のリクエスト処理.
+ * サービス単位の定期チェック処理のリクエスト処理.
  * サービスごとに行う処理
- *  ・バッチジョブサーバにリクエストする
+ *  ・バッチジョブサーバへ {@code PUT ?_check} リクエストする
+ *    (メッセージキュー未送信チェック・BDBQリトライチェック・バッチジョブ実行管理を統合)
+ *
+ * (旧 {@code CheckMessageQueueCallable} / {@code CheckRetryBdbqCallable} を統合。)
  */
-public class CheckMessageQueueCallable extends ReflexCallable<Boolean> {
+public class CheckServicesCallable extends ReflexCallable<Boolean> {
 
 	/** サービス名 */
 	private String serviceName;
@@ -27,7 +30,7 @@ public class CheckMessageQueueCallable extends ReflexCallable<Boolean> {
 	 * コンストラクタ
 	 * @param serviceName サービス名
 	 */
-	public CheckMessageQueueCallable(String serviceName) {
+	public CheckServicesCallable(String serviceName) {
 		this.serviceName = serviceName;
 	}
 
@@ -38,11 +41,11 @@ public class CheckMessageQueueCallable extends ReflexCallable<Boolean> {
 	public Boolean call() throws IOException, TaggingException {
 		RequestInfo requestInfo = getRequestInfo();
 		if (logger.isTraceEnabled()) {
-			logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "[CheckMessageQueueCallable] start. serviceName=" + serviceName);
+			logger.debug(LogUtil.getRequestInfoStr(requestInfo)
+					+ "[CheckServicesCallable] start. serviceName=" + serviceName);
 		}
-		
-		CheckMessageQueueBlogic blogic = new CheckMessageQueueBlogic();
-		blogic.request(serviceName);
+
+		new CheckServicesBlogic().request(serviceName);
 
 		return true;
 	}

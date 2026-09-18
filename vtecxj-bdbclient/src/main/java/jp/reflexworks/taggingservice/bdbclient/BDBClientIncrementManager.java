@@ -22,6 +22,7 @@ import jp.reflexworks.taggingservice.requester.BDBClientServerConst.BDBServerTyp
 import jp.reflexworks.taggingservice.requester.BDBRequester;
 import jp.reflexworks.taggingservice.requester.BDBRequesterUtil;
 import jp.reflexworks.taggingservice.util.Constants;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -39,6 +40,10 @@ public class BDBClientIncrementManager implements IncrementManager {
 	private static final String METHOD_SETRANGE = Constants.PUT;
 	/** getrange実行メソッド */
 	private static final String METHOD_GETRANGE = Constants.GET;
+	/** getidsList実行メソッド */
+	private static final String METHOD_GETIDSLIST = Constants.GET;
+	/** delete実行メソッド */
+	private static final String METHOD_DELETE = Constants.PUT;
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -245,16 +250,61 @@ public class BDBClientIncrementManager implements IncrementManager {
 	}
 
 	/**
-	 * 全ての加算情報を削除.
-	 * サービス削除時に使用
-	 * @param serviceName サービス名
+	 * 加算値一覧.
+	 * @param uri URI
+	 * @param limit 最大取得件数
+	 * @param cursorStr カーソル
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 加算値一覧
+	 */
+	public FeedBase getidsList(String uri, int limit, String cursorStr, 
+			ReflexAuthentication auth,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		String serviceName = auth.getServiceName();
+		String method = METHOD_GETIDSLIST;
+		String serverUrl = getServerUrl(uri, serviceName, requestInfo, connectionInfo);
+
+		// リクエスト情報
+		String uriStr = getGetidsListUri(serviceName, uri, limit, cursorStr);
+		FeedTemplateMapper mapper = TaggingEnvUtil.getAtomResourceMapper();
+
+		BDBRequester<FeedBase> requester = new BDBRequester<>(BDBResponseType.FEED);
+		BDBResponseInfo<FeedBase> respInfo = requester.request(
+				serverUrl, uriStr, method, null, mapper, serviceName,
+				requestInfo, connectionInfo);
+	
+		return respInfo.data;
+	}
+
+	/**
+	 * 加算情報を削除.
+	 * @param feed 削除情報
+	 *             feed.linkリストの`_$href`に削除対象キー
+	 * @param auth 認証情報
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	public void deleteAll(String serviceName,
+	public void delete(FeedBase feed, ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
-		// Do nothing.
+		String serviceName = auth.getServiceName();
+		// リクエスト情報
+		String uriStr = getDeleteUri(serviceName);
+		String method = METHOD_DELETE;
+		// 割り当てサーバはサービスで1箇所である前提
+		String serverUrl = getServerUrl("/", serviceName, requestInfo, connectionInfo);
+		FeedTemplateMapper mapper = TaggingEnvUtil.getAtomResourceMapper();
+		// Feedオブジェクトは上記のmapperで作成
+		FeedBase paramFeed = TaggingEntryUtil.createFeed(mapper);
+		paramFeed.link = feed.link;
+
+		BDBRequester<FeedBase> requester = new BDBRequester<>(BDBResponseType.FEED);
+		BDBResponseInfo<FeedBase> respInfo = requester.request(
+				serverUrl, uriStr, method, paramFeed, mapper, serviceName,
+				requestInfo, connectionInfo);
 	}
 
 	/**
@@ -347,17 +397,6 @@ public class BDBClientIncrementManager implements IncrementManager {
 	}
 
 	/**
-	 * URLエンコード
-	 * @param str 文字列
-	 * @return URLエンコードした文字列
-	 */
-	/*
-	private String urlEncode(String str) {
-		return BDBClientUtil.urlEncode(str);
-	}
-	*/
-
-	/**
 	 * キーの担当サーバURLを取得.
 	 * @param uri URI
 	 * @param serviceName サービス名
@@ -372,6 +411,46 @@ public class BDBClientIncrementManager implements IncrementManager {
 				requestInfo, connectionInfo);
 		return BDBRequesterUtil.assignServer(BDBServerType.ALLOCIDS, serverUrls, uri,
 				serviceName, connectionInfo);
+	}
+
+	/**
+	 * getidsListリクエストURLを編集.
+	 * @param serviceName サービス名
+	 * @param uri URI
+	 * @param limit 最大取得件数
+	 * @param cursorStr カーソル
+	 * @return リクエストURL
+	 */
+	private String getGetidsListUri(String serviceName, String uri, int limit, String cursorStr)
+	throws IOException, TaggingException {
+		StringBuilder sb = new StringBuilder();
+		sb.append(uri);
+		sb.append("?");
+		sb.append(RequestParam.PARAM_GETIDSLIST);
+		sb.append("&");
+		sb.append(RequestParam.PARAM_LIMIT);
+		sb.append("=");
+		sb.append(limit);
+		if (!StringUtils.isBlank(cursorStr)) {
+			sb.append("&");
+			sb.append(RequestParam.PARAM_NEXT);
+			sb.append("=");
+			sb.append(cursorStr);
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * deleteリクエストURLを編集.
+	 * @param serviceName サービス名
+	 * @return リクエストURL
+	 */
+	private String getDeleteUri(String serviceName)
+	throws IOException, TaggingException {
+		StringBuilder sb = new StringBuilder();
+		sb.append("?");
+		sb.append(RequestParam.PARAM_DELETE);
+		return sb.toString();
 	}
 
 }

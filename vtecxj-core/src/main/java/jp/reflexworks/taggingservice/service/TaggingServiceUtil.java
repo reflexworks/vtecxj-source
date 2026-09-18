@@ -1,5 +1,11 @@
 package jp.reflexworks.taggingservice.service;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +24,8 @@ public class TaggingServiceUtil {
 	private static final String URI_SERVICE_SLASH = Constants.URI_SERVICE + "/";
 	/** サービスエントリーURI + "/" の長さ */
 	private static final int URI_SERVICE_SLASH_LEN = URI_SERVICE_SLASH.length();
+	/** yyyyMM */
+	private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
 
 	/** ロガー. */
 	private static Logger logger = LoggerFactory.getLogger(TaggingServiceUtil.class);
@@ -62,6 +70,21 @@ public class TaggingServiceUtil {
 		StringBuilder sb = new StringBuilder();
 		sb.append(getServiceUri(serviceName));
 		sb.append(ServiceConst.URI_LAYER_ACCESS_COUNT);
+		return sb.toString();
+	}
+
+	/**
+	 * アクセスカウンタのキーを取得
+	 *   /_service/{サービス名}/access_count/{yyyyMM}
+	 * @param serviceName サービス名
+	 * @param ym yyyyMM
+	 * @return アクセスカウンタのキー
+	 */
+	public static String getAccessCountYmUri(String serviceName, String ym) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(getAccessCountUri(serviceName));
+		sb.append("/");
+		sb.append(ym);
 		return sb.toString();
 	}
 
@@ -143,6 +166,30 @@ public class TaggingServiceUtil {
 	 */
 	public static boolean isBaaS() {
 		return TaggingEnvUtil.getSystemPropBoolean(ServiceConst.PROP_ENABLE_BAAS, false);
+	}
+
+	/**
+	 * 現在日付から指定された日数までの年月パターンリストを返却.
+	 * @param daysAgo 日数
+	 * @return yyyyMMパターンリスト
+	 */
+	public static List<String> getYearMonthList(int daysAgo) {
+		LocalDate today = LocalDate.now();
+		LocalDate from = today.minusDays(daysAgo);
+
+		YearMonth startMonth = YearMonth.from(from);
+		YearMonth endMonth = YearMonth.from(today);
+
+		List<String> list = new ArrayList<>();
+
+		for (YearMonth month = startMonth;
+				!month.isAfter(endMonth);
+				month = month.plusMonths(1)) {
+
+			list.add(month.format(YYYYMM));
+		}
+
+		return list;
 	}
 
 }

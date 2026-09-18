@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.atom.entry.Link;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
@@ -543,9 +544,9 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 	 */
 	private Map<String, Object> convertBqBatchjob(EntryBase entry)
 	throws ParseException, java.text.ParseException {
-		String[] tmp = dividePodCloudrunjob(entry.subtitle);
-		String pod = tmp[0];
-		String jobId = tmp[1];
+		// (2026.8.28) POD名はlinkのrel="via"のhref、ジョブ実行IDはsubtitleに格納。
+		String pod = getPodName(entry);
+		String jobId = entry.subtitle;
 		Map<String, Object> rowMap = new LinkedHashMap<String, Object>();
 		rowMap.put(BatchBDBConst.BQ_LOG_KEY, entry.getMyUri());
 		rowMap.put(BatchBDBConst.BQ_BATCHJOB_STATUS, entry.title);
@@ -555,30 +556,28 @@ public class MoveLogToBigQueryCallable extends ReflexCallable<Boolean> {
 			rowMap.put(BatchBDBConst.BQ_BATCHJOB_POD, pod);
 		}
 		if (!StringUtils.isBlank(jobId)) {
-			rowMap.put(BatchBDBConst.BQ_BATCHJOB_CLOUDRUNJOB, jobId);
+			rowMap.put(BatchBDBConst.BQ_BATCHJOB_JOBID, jobId);
 		}
 		rowMap.put(BatchBDBConst.BQ_LOG_UPDATED, convertDate(entry.updated));
 		return rowMap;
 	}
 	
 	/**
-	 * subtitleからPod名とCloudRunJob実行IDを分離する
-	 * @param subtitle {Pod名}[,{CloudRunJob実行ID}]
-	 * @return [0]Pod名、[1]CloudRunJob実行ID
+	 * バッチジョブ履歴エントリーからPod名を取得する.
+	 * Pod名はlinkのrel="via"のhrefに格納されている。
+	 * @param entry バッチジョブ履歴エントリー
+	 * @return Pod名。無い場合は空文字。
 	 */
-	private String[] dividePodCloudrunjob(String subtitle) {
-		String pod = "";
-		String jobId = "";
-		if (!StringUtils.isBlank(subtitle)) {
-			int idx = subtitle.indexOf(",");
-			if (idx > 0) {
-				pod = subtitle.substring(0, idx);
-				jobId = subtitle.substring(idx + 1);
-			} else {
-				pod = subtitle;
+	private String getPodName(EntryBase entry) {
+		if (entry != null && entry.link != null) {
+			for (Link link : entry.link) {
+				if (link != null && Link.REL_VIA.equals(link._$rel) &&
+						!StringUtils.isBlank(link._$href)) {
+					return link._$href;
+				}
 			}
 		}
-		return new String[]{pod, jobId};
+		return "";
 	}
 
 	/**

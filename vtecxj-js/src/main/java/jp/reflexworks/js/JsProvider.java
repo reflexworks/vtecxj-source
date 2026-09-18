@@ -2,12 +2,13 @@ package jp.reflexworks.js;
 
 import java.io.IOException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.js.async.JsAsync;
 import jp.reflexworks.servlet.HttpStatus;
@@ -15,7 +16,6 @@ import jp.reflexworks.servlet.ReflexServletUtil;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.ReflexServletBase;
-import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.plugin.MessageManager;
 import jp.reflexworks.taggingservice.util.MessageUtil;
@@ -30,7 +30,6 @@ import jp.reflexworks.taggingservice.util.MessageUtil;
  *
  * </p>
  */
-@SuppressWarnings("serial")
 public class JsProvider extends ReflexServletBase {
 
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -110,12 +109,13 @@ public class JsProvider extends ReflexServletBase {
 		String func = req.getPathInfo().substring(1);
 
 		// 非同期処理かどうか判定
-		RequestParam param = (RequestParam)req.getRequestType();
-		if (param.getOption(RequestParam.PARAM_ASYNC) != null) {
-			doAsync(req, resp, func, method);
-		} else {
+		// (2026.9.2)バッチジョブサーバへの非同期処理リクエストを廃止。
+		//RequestParam param = (RequestParam)req.getRequestType();
+		//if (param.getOption(RequestParam.PARAM_ASYNC) != null) {
+		//	doAsync(req, resp, func, method);
+		//} else {
 			doExecResponse(req, resp, func, method);
-		}
+		//}
 	}
 
 	/**

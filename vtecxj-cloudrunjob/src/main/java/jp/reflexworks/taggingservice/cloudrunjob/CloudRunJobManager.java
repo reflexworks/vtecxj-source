@@ -90,10 +90,12 @@ public class CloudRunJobManager implements JobManager {
 	 * バッチジョブの実行.
 	 * Cloud Run Job を実行する。
 	 * @param scriptName サーバサイドJS名
+	 * @param batchJobTimeEntry バッチジョブ管理テーブル (このクラスでは未使用)
 	 * @param reflexContext ReflexContext
 	 */
 	@Override
-	public Future runJob(String scriptName, ReflexContext reflexContext) 
+	public Future runJob(String scriptName, EntryBase batchJobTimeEntry,
+			ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		String serviceName = reflexContext.getServiceName();
 		RequestInfo requestInfo = reflexContext.getRequestInfo();

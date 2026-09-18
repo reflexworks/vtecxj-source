@@ -356,7 +356,7 @@ public class NamespaceManagerDefault implements NamespaceManager {
 	 * @param serviceName サービス名
 	 * @return 名前空間設定EntryのURI
 	 */
-	private String getNamespaceUri(String serviceName) {
+	public String getNamespaceUri(String serviceName) {
 		return PARENT_URI_NAMESPACE + serviceName;
 	}
 

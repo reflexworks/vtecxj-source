@@ -15,6 +15,7 @@ import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.plugin.ServiceManager;
 import jp.reflexworks.taggingservice.requester.BDBClientServerConst.BDBResponseType;
 import jp.reflexworks.taggingservice.requester.BDBRequester;
 import jp.reflexworks.taggingservice.requester.BDBRequesterUtil;
@@ -40,15 +41,18 @@ public class BDBClientMonitorManager {
 	throws IOException, TaggingException {
 		// テーブル内容取得のリクエスト
 		RequestParam param = (RequestParam)req.getRequestType();
-		String monitor = param.getOption(RequestParam.PARAM_MONITOR);
+		String monitor = param.getOption(RequestParam.PARAM_TYPE);	// サーバタイプ
 		String targetService = param.getOption(BDBClientConst.PARAM_SERVICE);
-		String server = param.getOption(RequestParam.PARAM_SERVER);
+		String server = param.getOption(RequestParam.PARAM_SERVER);	// サーバ名
 		CheckUtil.checkNotNull(targetService, "list servicename (" + BDBClientConst.PARAM_SERVICE + ")");
 
 		// BDBサーバにリクエスト
 		RequestInfo requestInfo = req.getRequestInfo();
 		ConnectionInfo connectionInfo = req.getConnectionInfo();
 		try {
+			ServiceManager serviceManager = TaggingEnvUtil.getServiceManager();
+			serviceManager.settingServiceIfAbsent(targetService, requestInfo, connectionInfo);
+			
 			// リクエスト情報設定
 			String uriStr = getMonitorUri(req);
 			String method = METHOD_GET;

@@ -87,10 +87,17 @@ public class SecretBlogic {
 				// Secret Managerに登録がない
 				secretVal = null;
 			} else if (!StringUtils.isBlank(versionId)) {
-				// シークレットのlatestバージョンが取得できた場合
-				secretVal = getSecretKeyFromStatic(secretId, versionId, requestInfo, connectionInfo);
+				// Redisからlatestバージョンが取得できた場合、Static情報のバージョンと比較する
+				String staticVersionId = getLatestVersionFromStatic(secretId);
+				if (versionId.equals(staticVersionId)) {
+					// バージョンが同じ場合、「バージョン指定がある場合」の処理を行う
+					secretVal = getSecretKeyFromStatic(secretId, versionId, requestInfo, connectionInfo);
+				} else {
+					// バージョンが異なる場合、SecretManagerからlatestバージョンで再取得する
+					secretVal = getSecretKeyByLatest(secretId, systemContext);
+				}
 			} else {
-				// シークレットのlatestバージョンが取得できなかった場合
+				// Redisからlatestのバージョンが取得できなかった場合
 				secretVal = getSecretKeyByLatest(secretId, systemContext);
 			}
 		}
@@ -264,10 +271,59 @@ public class SecretBlogic {
 	 * @param systemContext SystemContext
 	 * @return latestのバージョン
 	 */
-	private String getVersionIdFromCache(String secretId, SystemContext systemContext) 
+	private String getVersionIdFromCache(String secretId, SystemContext systemContext)
 	throws IOException, TaggingException {
 		String uri = getUriSecretVersionCache(secretId);
 		return systemContext.getCacheString(uri);
+	}
+
+	/**
+	 * static領域からシークレットlatestバージョン格納Mapを取得.
+	 * @return シークレットlatestバージョン格納Map
+	 *	  キー: シークレットのキー
+	 *	  値: latestバージョン
+	 */
+	private Map<String, String> getSecretLatestVersionStaticMap()
+	throws IOException {
+		Map<String, String> staticMap = (Map<String, String>)ReflexStatic.getStatic(
+				SecretConst.STATIC_NAME_SECRET_LATEST_VERSION);
+		if (staticMap == null) {
+			try {
+				staticMap = new ConcurrentHashMap<String, String>();
+				ReflexStatic.setStatic(SecretConst.STATIC_NAME_SECRET_LATEST_VERSION, staticMap);
+
+			} catch (StaticDuplicatedException e) {
+				// Do nothing.
+				if (logger.isInfoEnabled()) {
+					logger.info("[getSecretLatestVersionStaticMap] StaticDuplicatedException: " + e.getMessage());
+				}
+				staticMap = (Map<String, String>)ReflexStatic.getStatic(
+						SecretConst.STATIC_NAME_SECRET_LATEST_VERSION);
+			}
+		}
+		return staticMap;
+	}
+
+	/**
+	 * Static領域からシークレットのlatestバージョンを取得.
+	 * @param secretId シークレットのキー
+	 * @return Static領域に保存されているlatestバージョン。未保存の場合null
+	 */
+	private String getLatestVersionFromStatic(String secretId)
+	throws IOException {
+		Map<String, String> staticMap = getSecretLatestVersionStaticMap();
+		return staticMap.get(secretId);
+	}
+
+	/**
+	 * Static領域にシークレットのlatestバージョンを保存.
+	 * @param secretId シークレットのキー
+	 * @param versionId latestバージョン
+	 */
+	private void setLatestVersionToStatic(String secretId, String versionId)
+	throws IOException {
+		Map<String, String> staticMap = getSecretLatestVersionStaticMap();
+		staticMap.put(secretId, versionId);
 	}
 	
 	/**
@@ -291,6 +347,8 @@ public class SecretBlogic {
 		} else {
 			secretValue = secretResult[0];
 			cacheVersionId = secretResult[1];
+			// Static領域にlatestバージョンを保存する。
+			setLatestVersionToStatic(secretId, cacheVersionId);
 		}
 		// Redisにlatestのバージョンを登録する。
 		String uri = getUriSecretVersionCache(secretId);

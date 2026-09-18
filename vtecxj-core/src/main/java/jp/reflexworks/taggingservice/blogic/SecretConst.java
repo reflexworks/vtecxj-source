@@ -20,6 +20,8 @@ public interface SecretConst {
 
 	/** メモリ上のstaticオブジェクト格納キー : シークレットのバージョンと値 */
 	static final String STATIC_NAME_SECRET_STATIC = "_secret_static";
+	/** メモリ上のstaticオブジェクト格納キー : シークレットのlatestバージョン */
+	static final String STATIC_NAME_SECRET_LATEST_VERSION = "_secret_latest_version";
 
 	/** シークレットに値が登録されていない場合の値 */
 	static final String SECRET_NOVALUE = "*null*";

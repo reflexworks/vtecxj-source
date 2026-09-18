@@ -28,6 +28,7 @@ import jp.reflexworks.taggingservice.blogic.IncrementBlogic;
 import jp.reflexworks.taggingservice.blogic.LogBlogic;
 import jp.reflexworks.taggingservice.blogic.MonitorBlogic;
 import jp.reflexworks.taggingservice.blogic.RefreshBlogic;
+import jp.reflexworks.taggingservice.blogic.SecurityBlogic;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.blogic.UserBlogic;
 import jp.reflexworks.taggingservice.context.ReflexContextUtil;
@@ -284,6 +285,13 @@ public class TaggingServlet extends ReflexServletBase {
 				}
 				retObj = reflexContext.getids(param.getUri());
 
+			} else if (param.getOption(RequestParam.PARAM_GETIDSLIST) != null) {
+				// 現在番号リスト取得
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_getidslist");
+				}
+				retObj = reflexContext.getidsList(param);
+
 			} else if (param.getOption(RequestParam.PARAM_REFRESHCACHE) != null) {
 				// データストアキャッシュリフレッシュ
 				if (logger.isInfoEnabled()) {
@@ -329,6 +337,15 @@ public class TaggingServlet extends ReflexServletBase {
 				// グループ参加判定
 				boolean isGroupMember = reflexContext.isGroupMember(param.getUri());
 				retObj = createMessageFeed(String.valueOf(isGroupMember), serviceName);
+
+			} else if (param.getOption(RequestParam.PARAM_VERIFYRECAPTCHA) != null) {
+				// reCAPTCHA検証
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_verifyrecaptcha");
+				}
+				String recaptchaAction = param.getOption(RequestParam.PARAM_VERIFYRECAPTCHA);
+				SecurityBlogic securityBlogic = new SecurityBlogic();
+				retObj = securityBlogic.verifyRecaptcha(req, recaptchaAction, serviceName);
 
 			} else if (param.getOption(RequestParam.PARAM_NO_GROUP_MEMBER) != null) {
 				// グループの配下のキーのエントリーで署名のないものを返す
@@ -764,6 +781,15 @@ public class TaggingServlet extends ReflexServletBase {
 				userBlogic.changeAccessKey(reflexContext);
 				retObj = createMessageFeed(msgManager.getMsgChangeAccesskey(reflexContext.getAuth(), serviceName), serviceName);
 
+			} else if (param.getOption(RequestParam.PARAM_ACCESSKEY_INTERNALADMIN) != null) {
+				// バッチジョブ実行者(UID=2)のアクセスキー更新
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_accesskeyInternalAdmin");
+				}
+				UserBlogic userBlogic = new UserBlogic();
+				userBlogic.changeAccessKeyInternalAdmin(reflexContext);
+				retObj = createMessageFeed(msgManager.getMsgChangeAccesskey(reflexContext.getAuth(), serviceName), serviceName);
+
 			} else if (param.getOption(RequestParam.PARAM_CREATESERVICE) != null) {
 				// サービス登録
 				if (logger.isInfoEnabled()) {
@@ -867,6 +893,15 @@ public class TaggingServlet extends ReflexServletBase {
 				String range = IncrementBlogic.getRange(feed);
 				reflexContext.rangeids(param.getUri(), range);
 				retObj = createMessageFeed(msgManager.getMsgRangeids(serviceName), serviceName);
+
+			} else if (param.getOption(RequestParam.PARAM_DELETEIDS) != null) {
+				// 加算値削除
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_deleteids");
+				}
+				FeedBase feed = req.getFeed();
+				reflexContext.deleteids(feed);
+				retObj = createMessageFeed(msgManager.getMsgDelete(serviceName), serviceName);
 
 			} else if (param.getOption(RequestParam.PARAM_CACHEFEED) != null) {
 				// Feed形式キャッシュ更新

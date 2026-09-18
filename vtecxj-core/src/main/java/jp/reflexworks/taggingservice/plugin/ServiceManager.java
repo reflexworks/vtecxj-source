@@ -287,5 +287,11 @@ public interface ServiceManager extends SettingService {
 	public void checkBatchjobExecTime(String serviceName, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
+	
+	/**
+	 * deletedサービスの物理削除猶予日数を取得
+	 * @return deletedサービスの物理削除猶予日数
+	 */
+	public int getServicePendingDeletionDay();
 
 }

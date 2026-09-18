@@ -80,4 +80,12 @@ public interface ContentManager extends ReflexPlugin {
 	public long getStorageUsage(String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException;
 
+	/**
+	 * サービスのコンテンツ格納先情報を保持するエントリーのキーを取得.
+	 * 登録先はシステム管理サービス
+	 * @param serviceName サービス名
+	 * @return サービスのコンテンツ格納先情報を保持するエントリーのキー
+	 */
+	public String getContentUri(String serviceName);
+	
 }

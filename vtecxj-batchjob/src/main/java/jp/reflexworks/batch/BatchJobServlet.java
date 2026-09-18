@@ -11,18 +11,17 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jp.reflexworks.js.JsExec;
 import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
-import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.blogic.BigQueryBlogic;
 import jp.reflexworks.taggingservice.blogic.MessageQueueBlogic;
 import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
-import jp.reflexworks.taggingservice.context.ReflexContextUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
+import jp.reflexworks.taggingservice.exception.AuthenticationException;
+import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.MethodNotAllowedException;
 import jp.reflexworks.taggingservice.model.RequestInfoImpl;
 import jp.reflexworks.taggingservice.plugin.ServiceManager;
@@ -46,10 +45,7 @@ public class BatchJobServlet extends HttpServlet {
 	 */
 	@Override
 	public void init() {
-		if (logger.isTraceEnabled()) {
-			logger.info("[init] start.");
-		}
-		JsExec.init();
+		// Do nothing.
 	}
 
 	/**
@@ -78,6 +74,36 @@ public class BatchJobServlet extends HttpServlet {
 			logger.info("[doPost] start");
 		}
 
+		try {
+			// バッチジョブ実行サーバからの終了通知
+			if (httpReq.getParameter(BatchJobConst.PARAM_BATCHJOBRESULT) != null) {
+				try {
+					new BatchJobResultBlogic().receive(httpReq);
+					httpResp.setStatus(HttpStatus.SC_OK);
+					writeResponseData(httpResp, "BatchJob result is accepted.");
+				} catch (AuthenticationException e) {
+					logger.warn("[doPost] BatchJob result auth error. " + e.getMessage());
+					httpResp.setStatus(HttpStatus.SC_UNAUTHORIZED);
+				} catch (IllegalParameterException e) {
+					logger.warn("[doPost] BatchJob result bad request. " + e.getMessage());
+					httpResp.setStatus(HttpStatus.SC_BAD_REQUEST);
+				} catch (Throwable e) {
+					logger.error("[doPost] BatchJob result error occured.", e);
+					httpResp.setStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+				}
+				return;
+	
+			} else {
+				// その他は無効
+				throw new MethodNotAllowedException("Invalid parameter.");
+			}
+
+		} catch (Throwable e) {
+			logger.error("[doPost] Error occured.", e);
+			httpResp.setStatus(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+		}
+
+		/*
 		// バッチジョブ管理処理をTaskQueueに登録してレスポンスする。
 		String serviceName = TaggingEnvUtil.getSystemService();
 		// 認証情報
@@ -118,6 +144,7 @@ public class BatchJobServlet extends HttpServlet {
 				}
 			}
 		}
+		*/
 	}
 
 	/**
@@ -162,7 +189,47 @@ public class BatchJobServlet extends HttpServlet {
 			BatchJobBlogic batchJobBlogic = new BatchJobBlogic();
 			batchJobBlogic.initService(serviceName, requestInfo, connectionInfo);
 			
-			if (httpReq.getParameter(RequestParam.PARAM_CHECK_MQ) != null) {
+			if (httpReq.getParameter(RequestParam.PARAM_CHECK) != null) {
+				if (isEnabledAccessLog()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check");
+				}
+				// サービス単位の定期チェック統合.
+				//  (1) バッチジョブ実行管理 (実行対象ジョブの検知・スケジュール)
+				//  (2) メッセージキュー未送信チェック
+				//  (3) BDBQリトライチェック
+				// いずれか1つが失敗しても他の処理は継続する。
+				StringBuilder resultSb = new StringBuilder();
+
+				try {
+					new BatchJobBlogic().execManagementByService(serviceName,
+							BatchJobConst.PODNAME, systemContext);
+					resultSb.append(" batchjob=ok");
+				} catch (Throwable e) {
+					logger.error("[doPut] _check batchjob management error. serviceName=" + serviceName, e);
+					resultSb.append(" batchjob=error(").append(e.getClass().getSimpleName()).append(")");
+				}
+
+				try {
+					new MessageQueueBlogic().checkMessageQueue(systemContext);
+					resultSb.append(" mq=ok");
+				} catch (Throwable e) {
+					logger.warn("[doPut] _check message queue error. serviceName=" + serviceName, e);
+					resultSb.append(" mq=error(").append(e.getClass().getSimpleName()).append(")");
+				}
+
+				try {
+					new BigQueryBlogic().checkRetryBdbq(systemContext);
+					resultSb.append(" bdbq=ok");
+				} catch (Throwable e) {
+					logger.warn("[doPut] _check retry bdbq error. serviceName=" + serviceName, e);
+					resultSb.append(" bdbq=error(").append(e.getClass().getSimpleName()).append(")");
+				}
+
+				// 戻り値 (個々のチェックのエラーはログ出力済み。処理自体は受け付けたため200を返す。)
+				httpResp.setStatus(HttpStatus.SC_OK);
+				writeResponseData(httpResp, "Check completed: " + serviceName + " -" + resultSb.toString());
+
+			} else if (httpReq.getParameter(RequestParam.PARAM_CHECK_MQ) != null) {
 				if (isEnabledAccessLog()) {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_mq");
 				}
@@ -173,7 +240,7 @@ public class BatchJobServlet extends HttpServlet {
 				// 戻り値
 				httpResp.setStatus(HttpStatus.SC_OK);
 				writeResponseData(httpResp, "Check message queue completed: " + serviceName);
-				
+
 			} else if (httpReq.getParameter(RequestParam.PARAM_CHECK_BDBQ) != null) {
 				if (isEnabledAccessLog()) {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_bdbq");
@@ -185,7 +252,19 @@ public class BatchJobServlet extends HttpServlet {
 				// 戻り値
 				httpResp.setStatus(HttpStatus.SC_OK);
 				writeResponseData(httpResp, "Check retry bdbq completed: " + serviceName);
-				
+
+			} else if (httpReq.getParameter(RequestParam.PARAM_CHECK_BATCHJOB) != null) {
+				if (isEnabledAccessLog()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_check_batchjob");
+				}
+				// バッチジョブ実行管理チェック
+				new BatchJobBlogic().execManagementByService(serviceName,
+						BatchJobConst.PODNAME, systemContext);
+
+				// 戻り値
+				httpResp.setStatus(HttpStatus.SC_OK);
+				writeResponseData(httpResp, "Check batchjob completed: " + serviceName);
+
 			} else {
 				// その他は無効
 				throw new MethodNotAllowedException("Invalid parameter.");

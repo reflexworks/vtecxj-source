@@ -17,8 +17,10 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.PermissionException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.plugin.AccessTokenManager;
 import jp.reflexworks.taggingservice.plugin.OAuthManager;
 import jp.reflexworks.taggingservice.plugin.UserManager;
+import jp.reflexworks.taggingservice.service.ServiceAuthenticationConst;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.CheckUtil;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -309,6 +311,32 @@ public class UserBlogic {
 
 		UserManager userManager = TaggingEnvUtil.getUserManager();
 		userManager.changeAccessKey(reflexContext);
+	}
+
+	/**
+	 * バッチジョブ実行者(疑似サービス管理者 UID=2 / {@code _serviceadmin_})のアクセスキー更新.
+	 * <p>
+	 * UID=2 のアクセストークンが漏洩した場合の対応として、サービス管理者が実行する。
+	 * サービス管理者グループ({@code /_group/$admin})参加ユーザのみ実行可能。
+	 * 対象サービスの名前空間の {@code /_user/2/accesskey} を新しいランダムキーで更新する。
+	 * </p>
+	 * @param reflexContext ReflexContext
+	 */
+	public void changeAccessKeyInternalAdmin(ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		// 認証情報のチェック
+		checkAuth(reflexContext.getAuth());
+		// サービス管理者かどうか
+		AclBlogic aclBlogic = new AclBlogic();
+		aclBlogic.checkAuthedGroup(reflexContext.getAuth(), Constants.URI_GROUP_ADMIN);
+
+		// SystemContextで対象サービスの /_user/2/accesskey を更新する。
+		SystemContext systemContext = new SystemContext(reflexContext.getServiceName(),
+				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
+		AccessTokenManager accessTokenManager = TaggingEnvUtil.getAccessTokenManager();
+		String accessKey = accessTokenManager.createAccessKeyStr();
+		accessTokenManager.putAccessKey(ServiceAuthenticationConst.UID_SERVICEADMIN, 
+				accessKey, systemContext);
 	}
 
 	/**

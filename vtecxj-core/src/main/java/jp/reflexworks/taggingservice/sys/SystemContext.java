@@ -286,6 +286,24 @@ public class SystemContext implements ReflexContext {
 	}
 
 	@Override
+	public FeedBase getidsList(String uri)
+	throws IOException, TaggingException {
+		return reflexContext.getidsList(uri);
+	}
+
+	@Override
+	public FeedBase getidsList(RequestParam param)
+	throws IOException, TaggingException {
+		return reflexContext.getidsList(param);
+	}
+
+	@Override
+	public FeedBase getidsList(RequestParam param, String targetServiceName, String targetApiKey)
+	throws IOException, TaggingException {
+		return reflexContext.getidsList(param, targetServiceName, targetApiKey);
+	}
+
+	@Override
 	public FeedBase setids(String uri, long value) throws IOException, TaggingException {
 		return reflexContext.setids(uri, value);
 	}
@@ -303,6 +321,11 @@ public class SystemContext implements ReflexContext {
 	@Override
 	public FeedBase getRangeids(String uri) throws IOException, TaggingException {
 		return reflexContext.getRangeids(uri);
+	}
+
+	@Override
+	public void deleteids(FeedBase feed) throws IOException, TaggingException {
+		reflexContext.deleteids(feed);
 	}
 
 	@Override

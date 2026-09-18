@@ -13,6 +13,7 @@ import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.servlet.HttpStatus;
 import jp.reflexworks.servlet.ReflexServlet;
+import jp.reflexworks.taggingservice.api.RequestType;
 import jp.reflexworks.taggingservice.conn.ReflexBDBConnectionInfo;
 import jp.reflexworks.taggingservice.context.AllocidsContext;
 import jp.reflexworks.taggingservice.env.BDBEnvUtil;
@@ -97,6 +98,7 @@ public class AllocidsServlet extends ReflexServlet {
 			// 採番 : GET /b{キー}?_allocids={採番数}
 			// インクリメントの現在値取得 : GET /b{キー}?_getids
 			// 加算枠取得 : GET /b{キー}?_rangeids
+			// 階層キー配下のデータ一覧取得 : GET /b{キー}?_getidslist&l={最大件数}&p={カーソル}
 			// BDBデータ確認 (管理用) : GET /b/?_list={テーブル名}
 			// BDBの統計情報取得 (管理用) : GET /b/?_stats
 
@@ -138,6 +140,18 @@ public class AllocidsServlet extends ReflexServlet {
 				}
 
 				FeedBase feed = reflexContext.getList(param);
+				retObj = feed;
+				if (retObj == null) {
+					status = HttpStatus.SC_NO_CONTENT;
+				}
+
+			} else if (param.getOption(RequestType.PARAM_GETIDSLIST) != null) {
+				// 階層キー配下のデータ一覧取得
+				if (logger.isTraceEnabled()) {
+					logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "_getidslist");
+				}
+
+				FeedBase feed = reflexContext.getIdsList(param);
 				retObj = feed;
 				if (retObj == null) {
 					status = HttpStatus.SC_NO_CONTENT;
@@ -231,6 +245,7 @@ public class AllocidsServlet extends ReflexServlet {
 			// インクリメント : PUT /b{キー}?_addids={加算数}
 			// 加算値設定 : PUT /b{キー}?_setids={値}
 			// 加算枠設定 : PUT /b{キー}?_rangeids={加算枠}
+			// 削除 : PUT /b?_delete
 			// BDBバックアップ : PUT /b/?_backup
 
 			if (param.getOption(AllocidsRequestParam.PARAM_ADDIDS) != null) {
@@ -268,6 +283,17 @@ public class AllocidsServlet extends ReflexServlet {
 				reflexContext.backupBDB(storageUrl);
 
 				retObj = createMessageFeed("Backup complete. " + storageUrl);
+
+			} else if (param.getOption(RequestType.PARAM_DELETE) != null) {
+				// 削除
+				if (logger.isTraceEnabled()) {
+					logger.debug(LogUtil.getRequestInfoStr(requestInfo) + "_delete");
+				}
+
+				FeedBase feed = req.getFeed();
+				reflexContext.deleteIds(feed);
+
+				retObj = createMessageFeed("Deleted.");
 
 			} else {
 				throw new MethodNotAllowedException("Invalid parameter.");

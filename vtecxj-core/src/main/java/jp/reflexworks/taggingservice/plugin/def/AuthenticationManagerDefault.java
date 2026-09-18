@@ -25,6 +25,7 @@ import jp.reflexworks.taggingservice.blogic.SessionBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.AuthenticationException;
+import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.NotInServiceException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.AccessTokenManager;
@@ -108,7 +109,7 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 				// uidが取得できなかった場合はエラー
 				if (StringUtils.isBlank(uid)) {
 					String msg = "AccessToken uid is required. AccessToken=" + MaskUtil.maskToken(accessToken);
-					if (logger.isInfoEnabled()) {
+					if (logger.isTraceEnabled()) {
 						logger.info(LogUtil.getRequestInfoStr(requestInfo) +
 								"[authenticate] " + msg);
 					}
@@ -118,7 +119,19 @@ public class AuthenticationManagerDefault implements AuthenticationManager {
 				}
 
 				// UIDよりユーザ情報取得
-				authenticationSetting(uid, userManager, systemContext);
+				try {
+					authenticationSetting(uid, userManager, systemContext);
+				} catch (IllegalParameterException e) {
+					// このエラーがスローされた場合、UIDの形式不正
+					String msg = "AccessToken uid is invalid. " + e.getMessage();
+					if (logger.isTraceEnabled()) {
+						logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+								"[authenticate] " + msg);
+					}
+					AuthenticationException ae = new AuthenticationException();
+					ae.setSubMessage(msg);
+					throw ae;
+				}
 
 				// IPアドレスのチェック(UIDをキーとする)(ブラックリストチェック)
 				authCountUser = uid;

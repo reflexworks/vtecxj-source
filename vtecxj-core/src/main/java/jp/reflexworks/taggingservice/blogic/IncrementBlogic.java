@@ -1,13 +1,17 @@
 package jp.reflexworks.taggingservice.blogic;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.atom.entry.Link;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
 import jp.reflexworks.taggingservice.api.RequestInfo;
+import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
@@ -224,6 +228,113 @@ public class IncrementBlogic {
 	 */
 	private void checkGetRangeids(String uri) {
 		CheckUtil.checkUri(uri);
+	}
+
+	/**
+	 * 加算処理の一覧取得
+	 * @param param キー、最大取得件数、カーソル
+	 * @param targetServiceName 対象サービス名
+	 * @param targetServiceKey 対象サービスのサービスキー
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return titleにインクリメント後の数を設定。
+	 */
+	public FeedBase getidsList(RequestParam param,
+			String targetServiceName, String targetServiceKey,
+			ReflexAuthentication auth, RequestInfo requestInfo,
+			ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		String serviceName = auth.getServiceName();
+		// キー入力チェック
+		CheckUtil.checkRequestParam(param);
+		String uri = param.getUri();
+		CheckUtil.checkCommonUri(uri, serviceName);
+
+		// 対象サービス指定の場合、対象サービス認証を行う。
+		ServiceBlogic serviceBlogic = new ServiceBlogic();
+		ReflexAuthentication tmpAuth = serviceBlogic.authenticateByCooperationService(
+				targetServiceName, targetServiceKey, auth, requestInfo, connectionInfo);
+
+		// ACLチェック
+		AclBlogic aclBlogic = new AclBlogic();
+		String action = AclConst.ACL_TYPE_RETRIEVE;
+		aclBlogic.checkAcl(uri, action, tmpAuth, requestInfo, connectionInfo);
+
+		// 加算処理の一覧取得
+		int limit = getLimit(param, serviceName);
+		String cursorStr = param.getOption(RequestParam.PARAM_NEXT);
+		IncrementManager incrementManager = TaggingEnvUtil.getIncrementManager();
+		return incrementManager.getidsList(uri, limit, cursorStr, tmpAuth,
+				requestInfo, connectionInfo);
+	}
+	
+	/**
+	 * 最大取得件数を取得.
+	 *   ・パラメータが指定されていればその値。ただし最大値を超えていれば最大値。
+	 *   ・パラメータが指定されていなければデフォルト値。
+	 * @param param パラメータ
+	 * @param serviceName サービス名
+	 * @return 最大取得件数
+	 */
+	private int getLimit(RequestParam param, String serviceName) {
+		String limitStr = param.getOption(RequestParam.PARAM_LIMIT);
+		if (!StringUtils.isBlank(limitStr) && StringUtils.isPositiveNumber(limitStr) &&
+				StringUtils.isInteger(limitStr)) {
+			int tmpLimit = StringUtils.intValue(limitStr);
+			int maxLimit = TaggingEnvUtil.getEntryNumberLimit();
+			if (tmpLimit > maxLimit) {
+				return maxLimit;
+			} else {
+				return tmpLimit;
+			}
+		}
+		return TaggingEnvUtil.getEntryNumberDefault(serviceName);
+	}
+
+	/**
+	 * 加算カウンタ削除
+	 * @param feed 削除情報
+	 *             feed.linkリストの`_$href`に削除対象キー
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 */
+	public void deleteids(FeedBase feed,
+			ReflexAuthentication auth, RequestInfo requestInfo,
+			ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		// 入力チェック
+		List<String> uris = checkDelete(feed);
+
+		// ACLチェック
+		AclBlogic aclBlogic = new AclBlogic();
+		String action = AclConst.ACL_TYPE_DELETE;
+		for (String uri : uris) {
+			aclBlogic.checkAcl(uri, action, auth, requestInfo, connectionInfo);
+		}
+
+		// 加算カウンタ削除処理
+		IncrementManager incrementManager = TaggingEnvUtil.getIncrementManager();
+		incrementManager.delete(feed, auth,
+				requestInfo, connectionInfo);
+	}
+	
+	/**
+	 * 加算カウンタ削除時の入力チェック
+	 * @param feed 入力値
+	 * @return キーリスト
+	 */
+	private List<String> checkDelete(FeedBase feed) {
+		if (feed == null || feed.link == null || feed.link.isEmpty()) {
+			throw new IllegalParameterException("Key list is required.");
+		}
+		List<String> uris = new ArrayList<>();
+		for (Link link : feed.link) {
+			CheckUtil.checkUri(link._$href);
+			uris.add(link._$href);
+		}
+		return uris;
 	}
 
 	/**

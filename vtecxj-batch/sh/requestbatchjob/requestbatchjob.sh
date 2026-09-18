@@ -14,15 +14,13 @@ function getProperty() {
 
 URL=`getProperty '_url.batchjob'`
 
-# バッチジョブ実行管理
-#echo "[request batchjob] "`curl --version`
-#echo "[request batchjob] curl -X POST "$URL
-# -o "/dev/null" をつけるとレスポンスを出力しない。
-#curl -X POST -s $URL
-#curl -fsS -X POST -s $URL > /dev/null
-curl --fail-with-body -X POST -s $URL > /dev/null
+# バッチジョブ実行管理 (旧方式: 1 Pod で全サービスを処理)
+# 移行期間中の後方互換のため残置。checkservices.sh の per-service 方式が
+# 安定稼働したら、この POST は削除する。
+##curl --fail-with-body -X POST -s $URL > /dev/null
 
-# メッセージキュー未送信チェック
-#echo "[request batchjob] check message queue start."
-./checkmessagequeue.sh
-#echo "[request batchjob] check message queue end."
+# サービス単位の定期チェック
+# (メッセージキュー未送信チェック・BDBQリトライチェック・バッチジョブ実行管理を統合)
+#echo "[request batchjob] check services start."
+./checkservices.sh
+#echo "[request batchjob] check services end."

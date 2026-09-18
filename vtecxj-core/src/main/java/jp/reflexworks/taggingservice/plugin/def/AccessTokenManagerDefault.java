@@ -20,6 +20,7 @@ import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.AccessTokenManager;
 import jp.reflexworks.taggingservice.plugin.UserManager;
+import jp.reflexworks.taggingservice.service.ServiceAuthenticationConst;
 import jp.reflexworks.taggingservice.util.CheckUtil;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
@@ -276,9 +277,20 @@ public class AccessTokenManagerDefault implements AccessTokenManager {
 
 		Contributor contributor = null;
 		if (accesskeyEntry.contributor != null) {
+			// アクセスキー更新
 			contributor = getAccessKeyContributor(accesskeyEntry);
 		} else {
+			// 新規登録
 			accesskeyEntry.contributor = new ArrayList<Contributor>();
+			// ユーザのCRUD権限を設定する。
+			// ただし予約済みUIDの場合、サービス管理者のCRUD権限を設定する。
+			if (ServiceAuthenticationConst.UID_RESERVED.contains(uid)) {
+				accesskeyEntry.addContributor(TaggingEntryUtil.getAclContributor(
+						Constants.URI_GROUP_ADMIN, Constants.ACL_TYPE_CRUD));
+			} else {
+				accesskeyEntry.addContributor(TaggingEntryUtil.getAclContributor(
+						uid, Constants.ACL_TYPE_CRUD));
+			}
 		}
 		if (contributor == null) {
 			contributor = new Contributor();

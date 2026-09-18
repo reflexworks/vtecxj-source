@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
+import jp.reflexworks.atom.entry.Link;
 import jp.reflexworks.atom.mapper.FeedTemplateMapper;
 import jp.reflexworks.taggingservice.api.BaseReflexContext;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
@@ -20,9 +21,11 @@ import jp.reflexworks.taggingservice.bdb.AllocidsManager;
 import jp.reflexworks.taggingservice.bdb.IncrementManager;
 import jp.reflexworks.taggingservice.conn.ReflexBDBConnectionInfo;
 import jp.reflexworks.taggingservice.env.BDBEnvUtil;
+import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.model.AllocidsRequestParam;
 import jp.reflexworks.taggingservice.model.FetchInfo;
+import jp.reflexworks.taggingservice.model.IncrementInfo;
 import jp.reflexworks.taggingservice.model.ReflexBDBRequestInfo;
 import jp.reflexworks.taggingservice.taskqueue.AllocidsTaskQueueUtil;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -247,6 +250,81 @@ public class AllocidsContext implements BaseReflexContext {
 			return null;
 		}
 		return retFeed;
+	}
+
+	/**
+	 * 階層キー配下のデータを一覧取得.
+	 * @param param キーと最大件数、カーソル
+	 * @return 一覧
+	 */
+	public FeedBase getIdsList(AllocidsRequestParam param)
+	throws IOException, TaggingException {
+		// GET /b{キー}?_getidslist&l={最大件数}&p={カーソル}
+		String uri = param.getUri();
+		// 入力チェック
+		ReflexCheckUtil.checkUri(uri);
+
+		IncrementManager bdbManager = new IncrementManager();
+		FetchInfo<IncrementInfo> fetchInfo = bdbManager.getidsList(namespace, param, uri,
+				requestInfo, connectionInfo);
+		if (fetchInfo == null ||
+				((fetchInfo.getResult() == null || fetchInfo.getResult().isEmpty()) &&
+				StringUtils.isBlank(fetchInfo.getPointerStr()))) {
+			return null;
+		}
+
+		List<EntryBase> retEntries = new ArrayList<EntryBase>();
+		Map<String, IncrementInfo> result = fetchInfo.getResult();
+		for (Map.Entry<String, IncrementInfo> mapEntry : result.entrySet()) {
+			IncrementInfo incrInfo = mapEntry.getValue();
+			EntryBase entry = TaggingEntryUtil.createAtomEntry();
+			entry.title = mapEntry.getKey();                    // キー
+			entry.summary = String.valueOf(incrInfo.getNum());  // 値(num)
+			entry.subtitle = incrInfo.getRange();                // 採番枠(range)
+			retEntries.add(entry);
+		}
+
+		FeedBase retFeed = TaggingEntryUtil.createAtomFeed();
+		retFeed.entry = retEntries;
+
+		// カーソル
+		boolean setOption = false;
+		if (!StringUtils.isBlank(fetchInfo.getPointerStr())) {
+			TaggingEntryUtil.setCursorToFeed(fetchInfo.getPointerStr(), retFeed);
+			setOption = true;
+		}
+		// フェッチ制限超えの場合印を付加
+		if (fetchInfo.isFetchExceeded()) {
+			retFeed.rights = Constants.MARK_FETCH_LIMIT;
+			setOption = true;
+		}
+		if (!setOption && retEntries.isEmpty()) {
+			// データが何もない場合はnullで返す
+			return null;
+		}
+		return retFeed;
+	}
+
+	/**
+	 * データ削除.
+	 * @param feed linkの_$hrefに削除対象キーを指定したFeed
+	 */
+	public void deleteIds(FeedBase feed)
+	throws IOException, TaggingException {
+		// PUT /b?_delete
+		if (feed == null || feed.link == null || feed.link.isEmpty()) {
+			throw new IllegalParameterException("Feed.link is required.");
+		}
+		List<String> uris = new ArrayList<String>();
+		for (Link link : feed.link) {
+			String uri = link._$href;
+			// 入力チェック
+			ReflexCheckUtil.checkUri(uri);
+			uris.add(uri);
+		}
+
+		IncrementManager bdbManager = new IncrementManager();
+		bdbManager.deleteids(namespace, uris, serviceName, requestInfo, connectionInfo);
 	}
 
 	/**

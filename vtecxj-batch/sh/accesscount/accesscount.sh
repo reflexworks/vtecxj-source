@@ -11,5 +11,5 @@ ACCESSCOUNT_CLASS="jp.reflexworks.batch.AccessCountApp"
 
 # アクセスカウンタ集計、ストレージ容量取得
 echo '[accesscount] 開始'
-java -cp $CLASSPATH $JAVA_OPTIONS $ACCESSCOUNT_CLASS $GSUTIL_DIR
+java -cp $CLASSPATH $JAVA_OPTIONS $ACCESSCOUNT_CLASS $GCLOUD_DIR
 echo '[accesscount] 終了'

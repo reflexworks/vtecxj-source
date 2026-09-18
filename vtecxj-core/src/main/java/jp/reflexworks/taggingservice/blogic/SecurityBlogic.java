@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.servlet.util.AuthTokenUtil;
 import jp.reflexworks.servlet.util.WsseAuth;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
@@ -13,11 +14,14 @@ import jp.reflexworks.taggingservice.api.SettingConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.AuthenticationException;
+import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.plugin.CaptchaManager;
 import jp.reflexworks.taggingservice.plugin.ReflexSecurityManager;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.LogUtil;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
+import jp.sourceforge.reflex.util.StringUtils;
 
 /**
  * セキュリティチェック.
@@ -184,6 +188,47 @@ public class SecurityBlogic {
 	throws IOException, TaggingException {
 		CaptchaManager captchaManager = TaggingEnvUtil.getCaptchaManager();
 		captchaManager.verify(req, action);
+	}
+
+	/**
+	 * reCAPTCHA検証 (単体検証API用).
+	 * 検証結果をFeedのtitle(true/false)、subtitle(失敗時のエラーメッセージ)にセットして返します。
+	 * @param req リクエスト
+	 * @param action アクション
+	 * @param serviceName サービス名
+	 * @return 検証結果を格納したFeed
+	 */
+	public FeedBase verifyRecaptcha(ReflexRequest req, String action, String serviceName)
+	throws IOException, TaggingException {
+		// 入力チェック
+		if (StringUtils.isBlank(action)) {
+			throw new IllegalParameterException("action is required.");
+		}
+		String token = req.getParameter(SecurityConst.REQUEST_PARAM_RECAPTCHA_TOKEN);
+		if (StringUtils.isBlank(token)) {
+			throw new IllegalParameterException("g-recaptcha-token is required.");
+		}
+
+		// reCAPTCHA検証リクエスト
+		boolean result = true;
+		String errMsg = null;
+		try {
+			checkCaptcha(req, action);
+		} catch (AuthenticationException e) {
+			result = false;
+			errMsg = e.getSubMessage();
+			if (StringUtils.isBlank(errMsg)) {
+				errMsg = e.getMessage();
+			}
+		}
+
+		// 結果をレスポンス
+		FeedBase feed = TaggingEntryUtil.createFeed(serviceName);
+		feed.setTitle(String.valueOf(result));
+		if (!StringUtils.isBlank(errMsg)) {
+			feed.setSubtitle(errMsg);
+		}
+		return feed;
 	}
 
 	/**

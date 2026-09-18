@@ -15,17 +15,11 @@ public interface JobManager extends ReflexPlugin {
 	/**
 	 * ジョブ実行処理.
 	 * @param jobName ジョブ名
+	 * @param batchJobTimeEntry バッチジョブ管理テーブル
 	 * @param reflexContext ReflexContext
 	 */
-	public Future runJob(String jobName, ReflexContext reflexContext)
-	throws IOException, TaggingException;
-	
-	/**
-	 * ジョブの情報をバッチジョブ管理テーブルに設定.
-	 * @param future ジョブ実行Future
-	 * @param entry バッチジョブ管理テーブル
-	 */
-	public void setJobInfo(Future future, EntryBase entry)
+	public Future runJob(String jobName, EntryBase batchJobTimeEntry,
+			ReflexContext reflexContext)
 	throws IOException, TaggingException;
 
 }

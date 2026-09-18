@@ -23,6 +23,7 @@ import jp.reflexworks.taggingservice.storage.CloudStorage;
 import jp.reflexworks.taggingservice.storage.CloudStorageException;
 import jp.reflexworks.taggingservice.storage.CloudStorageUtil;
 import jp.reflexworks.taggingservice.sys.SystemContext;
+import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -154,11 +155,23 @@ public class CleanStorageBlogic implements ReflexBlogic<ReflexContext, Boolean> 
 					logger.warn("[delete bucket] failed. " + bucketName);
 				}
 				
-				// バケット情報を持つエントリーを削除(エイリアス除去)
+				// バケット情報を持つエントリーを削除
 				String bucketUri = CloudStorageUtil.getBucketUri(bucketName);
 				try {
-					systemContext.delete(bucketUri);
-					logger.info("[delete bucket entry] succeeded. " + bucketName);
+					// まずエントリーを取得
+					EntryBase delBucketEntry = systemContext.getEntry(bucketUri);
+					if (delBucketEntry != null) {
+						// エントリーが存在する場合削除
+						String delBucketUri = TaggingEntryUtil.getUriById(delBucketEntry.id);
+						systemContext.delete(delBucketUri);
+						
+						StringBuilder sb = new StringBuilder();
+						sb.append("[delete bucket entry] succeeded. bucket=");
+						sb.append(bucketName);
+						sb.append(" uri=");
+						sb.append(delBucketUri);
+						logger.info(sb.toString());
+					}
 				} catch (TaggingException te) {
 					// loggerに出力し、処理を続ける。
 					StringBuilder sb = new StringBuilder();

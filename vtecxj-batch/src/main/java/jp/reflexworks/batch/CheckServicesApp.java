@@ -6,12 +6,13 @@ import org.slf4j.LoggerFactory;
 import jp.reflexworks.taggingservice.api.ReflexApplication;
 
 /**
- * メッセージキュー未送信チェック処理のリクエスト処理.
+ * サービス単位の定期チェック処理のリクエスト処理.
  *  ・有効なサービス一覧を取得
- *  ・バッチジョブサーバにリクエストする
+ *  ・サービスごとにバッチジョブサーバへ {@code PUT ?_check} リクエストする
+ *    (メッセージキュー未送信チェック・BDBQリトライチェック・バッチジョブ実行管理を統合)
  */
-public class CheckMessageQueueApp {
-	
+public class CheckServicesApp {
+
 	/**
 	 * バッチ用起動メソッド.
 	 * @param args (1) プロパティファイル
@@ -25,31 +26,31 @@ public class CheckMessageQueueApp {
 	/** システムサービス名 */
 	public static final String SYSTEM_SERVICE = "admin";
 	/** ビジネスロジッククラス名 */
-	public static final String CLASS_NAME = "jp.reflexworks.batch.CheckMessageQueueBlogic";
+	public static final String CLASS_NAME = "jp.reflexworks.batch.CheckServicesBlogic";
 
-	/** テスト名 */
-	public static final String APP_NAME = "[CheckMessageQueueApp]";
-	
+	/** アプリケーション名 */
+	public static final String APP_NAME = "[CheckServicesApp]";
+
 	/** ロガー. */
-	private static Logger logger = LoggerFactory.getLogger(CheckMessageQueueApp.class);
-	
+	private static Logger logger = LoggerFactory.getLogger(CheckServicesApp.class);
+
 	/**
 	 * main
 	 * @param args 引数
 	 */
 	public static void main(String[] args) {
 		try {
-			String[] blogicArgs = new String[]{PROPERTY_FILE_NAME, SYSTEM_SERVICE, 
+			String[] blogicArgs = new String[]{PROPERTY_FILE_NAME, SYSTEM_SERVICE,
 					CLASS_NAME};
-			
+
 			ReflexApplication<Boolean> reflexApp = new ReflexApplication<Boolean>();
 			reflexApp.exec(blogicArgs);
-			
+
 		} catch (Throwable e) {
 			logger.error(APP_NAME + " Error occured. " + e.getClass().getName(), e);
 		}
 
 		System.exit(0);
 	}
-	
+
 }
