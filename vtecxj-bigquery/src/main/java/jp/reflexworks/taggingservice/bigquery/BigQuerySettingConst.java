@@ -25,6 +25,11 @@ public interface BigQuerySettingConst {
 	public static final String BIGQUERY_LOCATION = "_bigquery.location";
 	/** BigQueryのサービスアカウント(Email形式) */
 	public static final String BIGQUERY_SERVICEACCOUNT = "_bigquery.serviceaccount";
+	/** BigQueryのクエリ実行時最大バイト数 */
+	public static final String BIGQUERY_MAXIMUM_BYTES_BILLED = "_bigquery.maximumBytesBilled";
+
+	/** 設定デフォルト値: BigQueryのクエリ実行時最大バイト数 */
+	public static final long BIGQUERY_MAXIMUM_BYTES_BILLED＿DEFAULT = 10L * 1024 * 1024 * 1024; // 10 GiB
 
 	/**
 	 * サービスの情報のみ使用し、システムの情報を無視する設定一覧.

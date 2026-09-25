@@ -421,7 +421,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 				logger.info("[deleteBq] check SQL: " + sql);
 			}
 			List<Map<String, Object>> result = queryBqProc(bigQuery, datasetId, location, 
-					sql, requestInfo);
+					sql, serviceName, requestInfo);
 			if (result != null && !result.isEmpty()) {
 				List<String> keys = new ArrayList<String>();
 				for (Map<String, Object> row : result) {
@@ -516,7 +516,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 				requestInfo, connectionInfo);
 
 		// 検索処理
-		return queryBqProc(bigQuery, datasetId, location, sql, requestInfo);
+		return queryBqProc(bigQuery, datasetId, location, sql, serviceName, requestInfo);
 	}
 
 	/**
@@ -661,18 +661,23 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 * @param datasetId データセットID
 	 * @param location ロケーション
 	 * @param sql SQL
+	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @return 検索結果
 	 */
 	private List<Map<String, Object>> queryBqProc(BigQueryConnection bigQuery, 
-			String datasetId, String location, String sql, RequestInfo requestInfo)
-					throws IOException, TaggingException {
+			String datasetId, String location, String sql, String serviceName,
+			RequestInfo requestInfo)
+	throws IOException, TaggingException {
+		long maximumBytesBilled = getMaximumBytesBilled(serviceName);
+		
 		// クエリを生成
 		QueryJobConfiguration queryConfig =
 				QueryJobConfiguration.newBuilder(sql)
 				// Use standard SQL syntax for queries.
 				// See: https://cloud.google.com/bigquery/sql-reference/
 				.setUseLegacySql(false)
+				.setMaximumBytesBilled(maximumBytesBilled)
 				.build();
 
 		// リトライ回数
@@ -1895,6 +1900,20 @@ public class ReflexBigQueryManager implements BigQueryManager {
 	 */
 	private BigQueryEnv getBigQueryEnv() {
 		return (BigQueryEnv)ReflexStatic.getStatic(BigQueryConst.STATIC_NAME_BIGQUERY_ENV);
+	}
+	
+	/**
+	 * クエリの最大バイト数を取得.
+	 * @param serviceName サービス名
+	 * @return クエリの最大バイト数
+	 */
+	private long getMaximumBytesBilled(String serviceName) 
+	throws InvalidServiceSettingException {
+		return TaggingEnvUtil.getPropLong(serviceName, 
+				BigQuerySettingConst.BIGQUERY_MAXIMUM_BYTES_BILLED, 
+				TaggingEnvUtil.getSystemPropLong(
+						BigQuerySettingConst.BIGQUERY_MAXIMUM_BYTES_BILLED, 
+						BigQuerySettingConst.BIGQUERY_MAXIMUM_BYTES_BILLED＿DEFAULT));
 	}
 
 }
