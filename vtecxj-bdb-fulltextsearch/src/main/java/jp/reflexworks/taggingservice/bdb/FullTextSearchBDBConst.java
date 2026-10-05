@@ -18,6 +18,8 @@ public class FullTextSearchBDBConst {
 	static final String DB_DISTKEY_ITEM = "DBDistkeyItem";
 	/** `DBAllocids` : 採番テーブル */
 	static final String DB_ALLOCIDS = "DBAllocids";
+	/** `DBFullTextIndexVersion` : 全文検索インデックスに反映済みのEntryの版(updated + revision) */
+	static final String DB_FULL_TEXT_INDEX_VERSION = "DBFullTextIndexVersion";
 
 	/** テーブル名リスト */
 	public static final List<String> DB_NAMES = new CopyOnWriteArrayList<String>();
@@ -27,10 +29,16 @@ public class FullTextSearchBDBConst {
 		DB_NAMES.add(DB_FULL_TEXT_INDEX_ITEM);
 		DB_NAMES.add(DB_DISTKEY_ITEM);
 		DB_NAMES.add(DB_ALLOCIDS);
+		DB_NAMES.add(DB_FULL_TEXT_INDEX_VERSION);
 	}
 
 	/** 短縮値のキー */
 	public static final String KEY_SHORTENING = "item";
+
+	/** 同一IDの全文検索インデックス更新を直列化するロックの分割数 */
+	static final int UPDATE_LOCK_STRIPES = 4096;
+	/** 1トランザクションでまとめて更新するIDの最大数 */
+	static final int UPDATE_BATCH_SIZE = 20;
 
 	/** 全文検索条件の検索済みキー格納キー */
 	static final String SESSION_FULLTEXTSEARCH = "_FTGET_";

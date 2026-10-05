@@ -31,6 +31,8 @@ public class AfterCommitCallable extends ReflexCallable<Boolean> {
 	private List<UpdatedInfo> updatedInfos;
 	/** 実行元サービス名 */
 	private String originalServiceName;
+	/** インデックス・全文検索インデックス更新を呼び出し元でまとめて行う場合true */
+	private boolean isDeferredIndex;
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -41,8 +43,20 @@ public class AfterCommitCallable extends ReflexCallable<Boolean> {
 	 * @param originalServiceName 実行元サービス名
 	 */
 	public AfterCommitCallable(List<UpdatedInfo> updatedInfos, String originalServiceName) {
+		this(updatedInfos, originalServiceName, false);
+	}
+
+	/**
+	 * コンストラクタ
+	 * @param updatedInfos 更新情報リスト
+	 * @param originalServiceName 実行元サービス名
+	 * @param isDeferredIndex インデックス・全文検索インデックス更新を呼び出し元でまとめて行う場合true
+	 */
+	public AfterCommitCallable(List<UpdatedInfo> updatedInfos, String originalServiceName,
+			boolean isDeferredIndex) {
 		this.updatedInfos = updatedInfos;
 		this.originalServiceName = originalServiceName;
+		this.isDeferredIndex = isDeferredIndex;
 	}
 
 	/**
@@ -80,26 +94,24 @@ public class AfterCommitCallable extends ReflexCallable<Boolean> {
 				new BDBClientDeletePrevEntryCallable(updatedInfos);
 		deletePrevEntryCallable.addTask(auth, requestInfo, connectionInfo);
 
-		// インデックス登録更新スレッド実行
-		InnerIndexPutCallable innerIndexPutCallable = new InnerIndexPutCallable(
-				updatedInfos);
-		innerIndexPutCallable.addTask(auth, requestInfo, connectionInfo);
+		// フォルダ削除の場合、インデックス更新は呼び出し元(DeleteFolderIndexBuffer)でまとめて行う。
+		if (!isDeferredIndex) {
+			// インデックス登録更新スレッド実行
+			InnerIndexPutCallable innerIndexPutCallable = new InnerIndexPutCallable(
+					updatedInfos);
+			innerIndexPutCallable.addTask(auth, requestInfo, connectionInfo);
 
-		// 全文検索インデックス登録更新スレッド実行
-		FullTextIndexPutCallable fullTextIndexPutCallable = new FullTextIndexPutCallable(
-				updatedInfos);
-		fullTextIndexPutCallable.addTask(auth, requestInfo, connectionInfo);
+			// 全文検索インデックス登録更新スレッド実行
+			FullTextIndexPutCallable fullTextIndexPutCallable = new FullTextIndexPutCallable(
+					updatedInfos);
+			fullTextIndexPutCallable.addTask(auth, requestInfo, connectionInfo);
+		}
 
 		// リクエスト・メインスレッドキャッシュの更新スレッド実行
 		BDBClientInitMainThreadAfterCommitCallable initMainThreadCallable =
 				new BDBClientInitMainThreadAfterCommitCallable(updatedInfos,
 						originalServiceName);
 		initMainThreadCallable.addTask(auth, requestInfo, connectionInfo);
-		
-		// 削除Entryのコンテンツ削除
-		BDBClientDeleteContentCallable deleteContentCallable = 
-				new BDBClientDeleteContentCallable(updatedInfos);
-		deleteContentCallable.addTask(auth, requestInfo, connectionInfo);
 		
 		// エントリー更新後に呼び出されるプラグイン
 		List<CallingAfterCommit> callingAfterCommitList = TaggingEnvUtil.getCallingAfterCommitList();

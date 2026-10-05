@@ -10,7 +10,6 @@ import jp.reflexworks.taggingservice.api.ReflexContentInfo;
 import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.exception.TaggingException;
-import jp.reflexworks.taggingservice.sys.SystemContext;
 
 /**
  * コンテンツ管理インタフェース.
@@ -48,14 +47,6 @@ public interface ContentManager extends ReflexPlugin {
 	 * @return コンテンツEntry。存在しない場合はnullを返す。
 	 */
 	public EntryBase delete(String uri, ReflexContext reflexContext)
-	throws IOException, TaggingException;
-	
-	/**
-	 * エントリー削除後のコンテンツ削除
-	 * @param prevEntry 削除されたエントリー
-	 * @param systemContext SystemContext
-	 */
-	public void afterDeleteEntry(EntryBase prevEntry, SystemContext systemContext)
 	throws IOException, TaggingException;
 
 	/**

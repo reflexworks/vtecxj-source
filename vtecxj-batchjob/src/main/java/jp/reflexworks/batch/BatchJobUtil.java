@@ -997,41 +997,6 @@ public class BatchJobUtil {
 	}
 
 	/**
-	 * バッチジョブ管理処理をTaskQueueに登録する.
-	 * @param auth 認証情報
-	 * @param requestInfo リクエスト情報
-	 * @param connectionInfo コネクション情報 (ReadEntryMapを利用)
-	 * @return Future
-	 */
-	public static Future<Boolean> addTaskOfManagement(ReflexAuthentication auth,
-			RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
-		// コネクション情報の引き継ぎなし。sharing情報を使用。
-		return addTaskOfManagement(0, auth, requestInfo, connectionInfo);
-	}
-
-	/**
-	 * バッチジョブ管理処理をTaskQueueに登録する.
-	 * @param intervalSec TaskQueue実行までの待ち時間(秒)。リクエスト実行の場合は0を指定。
-	 * @param auth 認証情報
-	 * @param requestInfo リクエスト情報
-	 * @param connectionInfo connectionInfo
-	 * @return Future
-	 */
-	public static Future<Boolean> addTaskOfManagement(int intervalSec,
-			ReflexAuthentication auth, RequestInfo requestInfo, ConnectionInfo connectionInfo)
-	throws IOException, TaggingException {
-		BatchJobManagementCallable callable = new BatchJobManagementCallable(BatchJobConst.PODNAME);
-		if (logger.isTraceEnabled()) {
-			logger.debug("[addTaskOfManagement] intervalSec=" + intervalSec);
-		}
-		int intervalMilliSec = intervalSec * 1000;
-		Future<Boolean> future = (Future<Boolean>)TaskQueueUtil.addTask(callable,
-				intervalMilliSec, auth, requestInfo, connectionInfo);
-		return future;
-	}
-
-	/**
 	 * バッチジョブ処理をTaskQueueに登録する.
 	 * @param jsFunction サーバサイドJS名
 	 * @param batchJobTimeEntry バッチジョブ管理エントリー

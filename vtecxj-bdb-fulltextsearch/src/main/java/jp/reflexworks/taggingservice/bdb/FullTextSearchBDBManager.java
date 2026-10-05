@@ -1,13 +1,18 @@
 package jp.reflexworks.taggingservice.bdb;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +44,7 @@ import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.PointerUtil;
 import jp.reflexworks.taggingservice.util.ReflexBDBLogUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
+import jp.sourceforge.reflex.util.DateUtil;
 import jp.sourceforge.reflex.util.StringUtils;
 
 /**
@@ -51,6 +57,11 @@ public class FullTextSearchBDBManager {
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
 	/** KEY_SHORTENING採番の排他ロック */
 	private static final Object SHORTENING_ALLOCIDS_LOCK = new Object();
+	/**
+	 * 同一IDの全文検索インデックス更新を直列化するロック.
+	 * 同一IDの更新が並行するとDBFullTextIndexでデッドロックが発生するため、ID URIごとに直列化する。
+	 */
+	private static final ReentrantLock[] UPDATE_LOCKS = createUpdateLocks();
 
 	/**
 	 * 全文検索インデックス登録・更新
@@ -70,6 +81,8 @@ public class FullTextSearchBDBManager {
 
 		// キー: ID、値: インデックス値
 		Map<String, Set<String>> putIndexes = new LinkedHashMap<>();
+		// キー: ID、値: Entryの更新日時(updated)
+		Map<String, String> updatedMap = new HashMap<>();
 		// 全文検索インデックス項目名の短縮値 一度取得したものを格納するMap
 		Map<String, String> indexItemMap = new HashMap<>();
 		// DISTKEYの項目名の短縮値 一度取得したものを格納するMap
@@ -104,6 +117,9 @@ public class FullTextSearchBDBManager {
 
 			// IDチェック
 			FullTextSearchCheckUtil.checkId(id);
+			if (!StringUtils.isBlank(entry.updated) && !updatedMap.containsKey(id)) {
+				updatedMap.put(id, entry.updated);
+			}
 
 			if (!isDelete || isPartial) {
 				// 登録更新、部分削除
@@ -148,6 +164,7 @@ public class FullTextSearchBDBManager {
 			}
 		}
 
+		List<IndexUpdateTarget> targets = new ArrayList<>(putIndexes.size());
 		for (Map.Entry<String, Set<String>> mapEntry : putIndexes.entrySet()) {
 			String id = mapEntry.getKey();
 			List<String> indexes = null;
@@ -156,43 +173,72 @@ public class FullTextSearchBDBManager {
 				indexes = new ArrayList<>(values.size());
 				indexes.addAll(values);
 			}
-			updateIndexes(namespace, id, indexes, isPartial, isDelete,
-					requestInfo, connectionInfo);
+			String updated = updatedMap.get(id);
+			IndexVersion newVersion = IndexVersion.create(id, updated, isDelete && !isPartial);
+			if (newVersion == null && !StringUtils.isBlank(updated)) {
+				logger.warn(LogUtil.getRequestInfoStr(requestInfo) +
+						"[put] updated is invalid. id=" + id + ", updated=" + updated);
+			}
+			targets.add(new IndexUpdateTarget(id, newVersion, indexes));
+		}
+
+		// 複数IDをまとめて1トランザクションで更新する
+		int batchSize = FullTextSearchBDBConst.UPDATE_BATCH_SIZE;
+		for (int i = 0; i < targets.size(); i += batchSize) {
+			updateIndexes(namespace, targets.subList(i, Math.min(i + batchSize, targets.size())),
+					isPartial, isDelete, requestInfo, connectionInfo);
 		}
 	}
 
 	/**
 	 * 全文検索インデックスを更新.
+	 * 指定された複数IDを1トランザクションで更新する。
+	 * 同一IDの更新はサーバ内で直列化する。
 	 * @param namespace 名前空間
-	 * @param id ID
-	 * @param newIndexes インデックスリスト
+	 * @param targets 更新対象リスト
 	 * @param isPartial 指定されたキー・項目のみの更新の場合true
 	 * @param isDelete 削除の場合true
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 */
-	private void updateIndexes(String namespace, String id, List<String> newIndexes,
+	private void updateIndexes(String namespace, List<IndexUpdateTarget> targets,
 			boolean isPartial, boolean isDelete,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		String ids = getIdsStr(targets);
 		// test
 		if (logger.isTraceEnabled()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
-			sb.append("[updateIndexes] start. id=");
-			sb.append(id);
+			sb.append("[updateIndexes] start. ids=");
+			sb.append(ids);
 			logger.info(sb.toString());
 		}
-		
+
+		// ロックはスロット番号の昇順で取得する。(リクエスト間でロック待ちが循環しないようにするため)
+		Set<Integer> lockIndexes = new TreeSet<>();
+		for (IndexUpdateTarget target : targets) {
+			lockIndexes.add(getUpdateLockIndex(namespace, TaggingEntryUtil.getUriById(target.id())));
+		}
+
 		int numRetries = BDBEnvUtil.getBDBRetryCount();
 		int waitMillis = BDBEnvUtil.getBDBRetryWaitmillis();
 		for (int r = 0; r <= numRetries; r++) {
+			// リトライ待ちの間はロックを保持しない
+			List<ReentrantLock> acquiredLocks = new ArrayList<>(lockIndexes.size());
 			try {
+				for (int lockIndex : lockIndexes) {
+					ReentrantLock updateLock = UPDATE_LOCKS[lockIndex];
+					updateLock.lock();
+					acquiredLocks.add(updateLock);
+				}
+
 				// BDB環境情報取得
 				BDBEnv bdbEnv = getBDBEnvByNamespace(namespace, true);
 
 				BDBDatabase dbIndex = bdbEnv.getDb(FullTextSearchBDBConst.DB_FULL_TEXT_INDEX);
 				BDBDatabase dbIndexAncestor = bdbEnv.getDb(FullTextSearchBDBConst.DB_FULL_TEXT_INDEX_ANCESTOR);
+				BDBDatabase dbIndexVersion = bdbEnv.getDb(FullTextSearchBDBConst.DB_FULL_TEXT_INDEX_VERSION);
 
 				BDBTransaction bdbTxn = null;
 				try {
@@ -200,8 +246,11 @@ public class FullTextSearchBDBManager {
 					bdbTxn = bdbEnv.beginTransaction();
 
 					// 全文検索indexを更新
-					updateIndexesProc(namespace, bdbTxn, dbIndex, dbIndexAncestor, id,
-							newIndexes, isPartial, isDelete, requestInfo, connectionInfo);
+					for (IndexUpdateTarget target : targets) {
+						updateIndexesProc(namespace, bdbTxn, dbIndex, dbIndexAncestor, dbIndexVersion,
+								target.id(), target.newVersion(), target.indexes(), isPartial, isDelete,
+								requestInfo, connectionInfo);
+					}
 
 					// コミット
 					bdbTxn.commit();
@@ -221,33 +270,59 @@ public class FullTextSearchBDBManager {
 
 			} catch (DatabaseException e) {
 				// リトライ判定、入力エラー判定
-				BDBUtil.convertError(e, id, requestInfo);
+				BDBUtil.convertError(e, ids, requestInfo);
 				if (r >= numRetries) {
 					// リトライ対象だがリトライ回数を超えた場合
-					BDBUtil.convertIOError(e, id);
+					BDBUtil.convertIOError(e, ids);
 				}
 				if (logger.isInfoEnabled()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
-					sb.append("[updateIndexes] id=");
-					sb.append(id);
+					sb.append("[updateIndexes] ids=");
+					sb.append(ids);
 					sb.append(" ");
 					sb.append(ReflexBDBLogUtil.getRetryLog(e, r));
 					logger.info(sb.toString());
 				}
-				BDBUtil.sleep(waitMillis + r * 10);
+			} finally {
+				for (int i = acquiredLocks.size() - 1; i >= 0; i--) {
+					acquiredLocks.get(i).unlock();
+				}
 			}
+			BDBUtil.sleep(waitMillis + r * 10);
 		}
 		throw new IllegalStateException("Unreachable code.");
 	}
 
 	/**
+	 * 更新対象のIDをログ・エラーメッセージ用に連結.
+	 * @param targets 更新対象リスト
+	 * @return IDを空白区切りで連結した文字列 (IDにカンマが含まれるため空白で区切る)
+	 */
+	private String getIdsStr(List<IndexUpdateTarget> targets) {
+		StringBuilder sb = new StringBuilder();
+		for (IndexUpdateTarget target : targets) {
+			if (sb.length() > 0) {
+				sb.append(" ");
+			}
+			sb.append(target.id());
+		}
+		return sb.toString();
+	}
+
+	/**
 	 * 全文検索インデックス情報を更新
+	 * <p>
+	 * ロックの取得順序を一定にするため、版情報・AncestorはRMWで先に取得し、
+	 * インデックスの登録・削除はキーの昇順で行う。
+	 * </p>
 	 * @param namespace 名前空間
 	 * @param bdbTxn トランザクション
 	 * @param db 全文検索インデックステーブル
 	 * @param dbAncestor 全文検索インデックスAncestor
+	 * @param dbVersion 全文検索インデックス版情報テーブル
 	 * @param id ID
+	 * @param newVersion 今回の版 (nullの場合は版の判定を行わない)
 	 * @param indexList インデックスリスト
 	 * @param isPartial 指定されたキー・項目のみの更新の場合true
 	 * @param isDelete 削除の場合true
@@ -255,10 +330,11 @@ public class FullTextSearchBDBManager {
 	 * @param connectionInfo コネクション情報
 	 */
 	private void updateIndexesProc(String namespace, BDBTransaction bdbTxn,
-			BDBDatabase db, BDBDatabase dbAncestor, String id,
-			List<String> indexList, boolean isPartial, boolean isDelete,
+			BDBDatabase db, BDBDatabase dbAncestor, BDBDatabase dbVersion, String id,
+			IndexVersion newVersion, List<String> indexList, boolean isPartial, boolean isDelete,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		BDBGet<String> bdbGetVersion = new BDBGet<>();
 		BDBGet<List<String>> bdbGetAncestor = new BDBGet<>();
 		BDBPut<String> bdbPutString = new BDBPut<>();
 		BDBPut<List<String>> bdbPutAncestor = new BDBPut<>();
@@ -267,18 +343,47 @@ public class FullTextSearchBDBManager {
 		ListBinding listBinding = new ListBinding();
 		StringBinding stringBinding = BDBUtil.getStringBinding();
 
-		// 現在のIndexを取得
 		String idUri = TaggingEntryUtil.getUriById(id);
+
+		// 反映済みの版を取得し、今回の版が古ければ何もしない
+		IndexVersion currentVersion = null;
+		if (newVersion != null) {
+			String currentVersionStr = bdbGetVersion.get(namespace, bdbTxn, dbVersion,
+					stringBinding, BDBUtil.getLockModeRMW(), idUri, requestInfo, connectionInfo);
+			currentVersion = IndexVersion.parse(currentVersionStr);
+			if (isOldVersion(currentVersion, newVersion, isPartial, isDelete)) {
+				if (logger.isInfoEnabled()) {
+					StringBuilder sb = new StringBuilder();
+					sb.append(LogUtil.getRequestInfoStr(requestInfo));
+					sb.append("[updateIndexesProc] skip old version. id=");
+					sb.append(id);
+					sb.append(", currentVersion=");
+					sb.append(currentVersion);
+					sb.append(", newVersion=");
+					sb.append(newVersion);
+					sb.append(", isPartial=");
+					sb.append(isPartial);
+					sb.append(", isDelete=");
+					sb.append(isDelete);
+					logger.info(sb.toString());
+				}
+				return;
+			}
+		}
+
+		// 現在のIndexを取得
 		List<String> currentIndexes = bdbGetAncestor.get(namespace, bdbTxn, dbAncestor,
-				listBinding, BDBUtil.getLockMode(), idUri, requestInfo, connectionInfo);
+				listBinding, BDBUtil.getLockModeRMW(), idUri, requestInfo, connectionInfo);
 
 		// 今回のIndexを生成
 		boolean isPutAncestor = false;
 		List<String> newIndexes = new ArrayList<>();
 		if (indexList != null && !isDelete) {
 			// 登録更新
-			for (String index : indexList) {
-				newIndexes.add(index);
+			newIndexes.addAll(indexList);
+			List<String> sortedIndexes = new ArrayList<>(indexList);
+			Collections.sort(sortedIndexes);
+			for (String index : sortedIndexes) {
 				// 登録
 				bdbPutString.put(namespace, bdbTxn, db, stringBinding, index, id,
 						requestInfo, connectionInfo);
@@ -293,6 +398,7 @@ public class FullTextSearchBDBManager {
 		// 除去されたインデックスを削除
 		if (currentIndexes != null) {
 			List<String> remainingCurrentIndexes = new ArrayList<>();
+			List<String> deleteIndexes = new ArrayList<>();
 			for (String currentIndex : currentIndexes) {
 				if (newIndexes.contains(currentIndex)) {
 					continue;
@@ -320,11 +426,15 @@ public class FullTextSearchBDBManager {
 				}
 
 				if (isDeleteCurrent) {
-					bdbDelete.delete(namespace, bdbTxn, db, currentIndex,
-							requestInfo, connectionInfo);
-					if (!isPutAncestor) {
-						isPutAncestor = true;
-					}
+					deleteIndexes.add(currentIndex);
+				}
+			}
+			Collections.sort(deleteIndexes);
+			for (String deleteIndex : deleteIndexes) {
+				bdbDelete.delete(namespace, bdbTxn, db, deleteIndex,
+						requestInfo, connectionInfo);
+				if (!isPutAncestor) {
+					isPutAncestor = true;
 				}
 			}
 			if (!remainingCurrentIndexes.isEmpty()) {
@@ -344,6 +454,37 @@ public class FullTextSearchBDBManager {
 						newIndexes, requestInfo, connectionInfo);
 			}
 		}
+
+		// 反映した版を保存
+		if (newVersion != null && !newVersion.equals(currentVersion)) {
+			bdbPutString.put(namespace, bdbTxn, dbVersion, stringBinding, idUri,
+					newVersion.toString(), requestInfo, connectionInfo);
+		}
+	}
+
+	/**
+	 * 今回の版が反映済みの版より古いかどうか.
+	 * @param currentVersion 反映済みの版 (nullの場合は判定しない)
+	 * @param newVersion 今回の版
+	 * @param isPartial 指定されたキー・項目のみの更新の場合true
+	 * @param isDelete 削除の場合true
+	 * @return 今回の版を反映しない場合true
+	 */
+	private boolean isOldVersion(IndexVersion currentVersion, IndexVersion newVersion,
+			boolean isPartial, boolean isDelete) {
+		if (currentVersion == null) {
+			return false;
+		}
+		int cmp = currentVersion.compareTo(newVersion);
+		if (cmp > 0) {
+			// 反映済みの版の方が新しい
+			return true;
+		}
+		if (cmp == 0 && currentVersion.deleted() && !(isDelete && !isPartial)) {
+			// 削除済みの版と同じ版の登録更新は、削除後に遅れて届いたものなので反映しない。
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -483,6 +624,9 @@ public class FullTextSearchBDBManager {
 				} else if (FullTextSearchBDBConst.DB_ALLOCIDS.equals(tableName)) {
 					db = bdbEnv.getDb(FullTextSearchBDBConst.DB_ALLOCIDS);
 					binding = BDBUtil.getIntegerBinding();
+				} else if (FullTextSearchBDBConst.DB_FULL_TEXT_INDEX_VERSION.equals(tableName)) {
+					db = bdbEnv.getDb(FullTextSearchBDBConst.DB_FULL_TEXT_INDEX_VERSION);
+					binding = BDBUtil.getStringBinding();
 
 				} else {
 					throw new IllegalArgumentException("The specified table does not exist. " + tableName);
@@ -1003,6 +1147,120 @@ public class FullTextSearchBDBManager {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * 同一IDの全文検索インデックス更新を直列化するロックを生成.
+	 * @return ロック配列
+	 */
+	private static ReentrantLock[] createUpdateLocks() {
+		ReentrantLock[] locks = new ReentrantLock[FullTextSearchBDBConst.UPDATE_LOCK_STRIPES];
+		for (int i = 0; i < locks.length; i++) {
+			locks[i] = new ReentrantLock();
+		}
+		return locks;
+	}
+
+	/**
+	 * 名前空間とID URIに対応するロックのスロット番号を取得.
+	 * @param namespace 名前空間
+	 * @param idUri ID URI (リビジョンを含まない)
+	 * @return ロック配列の添字
+	 */
+	private static int getUpdateLockIndex(String namespace, String idUri) {
+		int hash = (namespace + idUri).hashCode();
+		return Math.floorMod(hash, UPDATE_LOCKS.length);
+	}
+
+	/**
+	 * 全文検索インデックスの更新対象.
+	 * @param id ID
+	 * @param newVersion 今回の版 (nullの場合は版の判定を行わない)
+	 * @param indexes インデックスリスト
+	 */
+	private record IndexUpdateTarget(String id, IndexVersion newVersion, List<String> indexes) {}
+
+	/**
+	 * 全文検索インデックスに反映したEntryの版.
+	 * 削除後に再登録するとリビジョンが1から振り直されるため、updatedを優先して比較し、
+	 * updatedが等しい場合にリビジョンで比較する。
+	 * 保存形式: {updatedのエポックミリ秒},{リビジョン},{削除済みの場合1、それ以外0}
+	 * @param updatedTime updatedのエポックミリ秒
+	 * @param revision リビジョン
+	 * @param deleted 削除済みの場合true
+	 */
+	record IndexVersion(long updatedTime, int revision, boolean deleted)
+	implements Comparable<IndexVersion> {
+
+		/** 区切り文字 */
+		private static final String DELIMITER = ",";
+
+		/**
+		 * IDとupdatedから版を生成.
+		 * @param id ID
+		 * @param updated Entryの更新日時
+		 * @param deleted 削除の場合true
+		 * @return 版。updatedが未設定または不正な場合null
+		 */
+		static IndexVersion create(String id, String updated, boolean deleted) {
+			if (StringUtils.isBlank(updated)) {
+				return null;
+			}
+			try {
+				Date date = DateUtil.getDate(updated);
+				if (date == null) {
+					return null;
+				}
+				return new IndexVersion(date.getTime(),
+						TaggingEntryUtil.getRevisionById(id), deleted);
+			} catch (ParseException e) {
+				return null;
+			}
+		}
+
+		/**
+		 * 保存文字列から版を生成.
+		 * @param str 保存文字列
+		 * @return 版。未登録または形式が不正な場合null
+		 */
+		static IndexVersion parse(String str) {
+			if (StringUtils.isBlank(str)) {
+				return null;
+			}
+			String[] parts = str.split(DELIMITER);
+			if (parts.length != 3) {
+				return null;
+			}
+			try {
+				return new IndexVersion(Long.parseLong(parts[0]), Integer.parseInt(parts[1]),
+						"1".equals(parts[2]));
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		}
+
+		/**
+		 * 版を比較する. (削除済みかどうかは比較しない)
+		 * @param other 比較対象
+		 * @return この版が新しい場合正の値、古い場合負の値、等しい場合0
+		 */
+		@Override
+		public int compareTo(IndexVersion other) {
+			int cmp = Long.compare(updatedTime, other.updatedTime);
+			if (cmp != 0) {
+				return cmp;
+			}
+			return Integer.compare(revision, other.revision);
+		}
+
+		/**
+		 * 保存文字列を取得.
+		 * @return 保存文字列
+		 */
+		@Override
+		public String toString() {
+			return updatedTime + DELIMITER + revision + DELIMITER + (deleted ? "1" : "0");
+		}
 	}
 
 }

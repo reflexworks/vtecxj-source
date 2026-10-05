@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
@@ -20,7 +19,6 @@ import jp.reflexworks.taggingservice.api.ReflexContext;
 import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestInfo;
-import jp.reflexworks.taggingservice.bdbclient.BDBClientUtil;
 import jp.reflexworks.taggingservice.context.ReflexContextUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.EntryDuplicatedException;
@@ -44,81 +42,6 @@ public class BatchJobBlogic {
 
 	/** ロガー. */
 	private Logger logger = LoggerFactory.getLogger(this.getClass());
-
-	/**
-	 * バッチジョブ実行管理処理をTaskQueueに登録
-	 * @param reflexContext ReflexContext
-	 */
-	public void callManagement(ReflexContext reflexContext)
-	throws IOException, TaggingException {
-		// Redisの正常起動確認
-		checkRedis(reflexContext);
-		// バッチジョブ実行管理処理
-		ConnectionInfo sharingConnectionInfo = BDBClientUtil.copySharingConnectionInfo(
-				reflexContext.getRequestInfo(), reflexContext.getConnectionInfo());
-		BatchJobUtil.addTaskOfManagement(reflexContext.getAuth(),
-				reflexContext.getRequestInfo(), sharingConnectionInfo);
-	}
-
-	/**
-	 * バッチジョブ実行管理処理.
-	 * @param podName Pod名
-	 * @param reflexContext ReflexContext (システム管理サービス)
-	 */
-	/*
-	public void execManagement(String podName, ReflexContext reflexContext) {
-		if (StringUtils.isBlank(podName)) {
-			throw new IllegalStateException("Pod name is required.");
-		}
-
-		// サービス名がシステム管理サービスでなければエラー
-		String systemService = reflexContext.getServiceName();
-		if (!systemService.equals(TaggingEnvUtil.getSystemService())) {
-			throw new IllegalStateException("Please specify system service for the service name.");
-		}
-
-		if (isEnabledAccessLog()) {
-			logger.info("[BatchJobBlogic] exec start. podName=" + podName);
-		}
-		RequestInfo requestInfo = reflexContext.getRequestInfo();
-		ConnectionInfo connectionInfo = reflexContext.getConnectionInfo();
-		try {
-			// Redisの正常起動確認
-			checkRedis(reflexContext);
-
-			// 有効なサービス名・名前空間を取得
-			Map<String, String> validNamespaces = getNamespaceMap(reflexContext);
-			// 現在時刻情報
-			NowInfo nowInfo = getNowInfo();
-
-			// サービスごとにバッチジョブを実行
-			// 実行するバッチジョブが1個見つかったら、あとは行わないでバッチジョブサーバにリクエストを投げる。
-			// (負荷分散のため)
-			for (String serviceName : validNamespaces.keySet()) {
-				List<BatchJobFuture> futures = execBatchJobByService(podName,
-						nowInfo.now, nowInfo.nowParts, nowInfo.nowTime, nowInfo.rangeDateStr,
-						serviceName, requestInfo, connectionInfo);
-				if (futures != null && !futures.isEmpty()) {
-					BatchJobUtil.setBatchJobFutureList(serviceName, futures);
-
-					// バッチジョブサーバにリクエスト
-					BatchJobUtil.requestBatchJob();
-					// 続きはリクエスト先で実行
-					break;
-				}
-			}
-
-		} catch (IOException | TaggingException e) {
-			throw new RuntimeException(e);
-		} finally {
-			// Do nothing.
-		}
-
-		if (isEnabledAccessLog()) {
-			logger.info("[BatchJobBlogic] exec end.");
-		}
-	}
-	*/
 
 	/**
 	 * バッチジョブ実行管理処理 (サービス単位).
@@ -213,18 +136,6 @@ public class BatchJobBlogic {
 			this.nowTime = nowTime;
 			this.rangeDateStr = rangeDateStr;
 		}
-	}
-
-	/**
-	 * 名前空間一覧を取得
-	 * @param reflexContext ReflexContext
-	 * @return 名前空間一覧 (キー:サービス名、値:名前空間)
-	 */
-	private Map<String, String> getNamespaceMap(ReflexContext reflexContext)
-	throws IOException {
-		Set<String> validServiceStatuses = BatchJobUtil.getValidServiceStatuses();
-		WriteNamespacesBlogic namespacesBlogic = new WriteNamespacesBlogic();
-		return namespacesBlogic.getNamespaceMap(reflexContext, validServiceStatuses);
 	}
 
 	/**

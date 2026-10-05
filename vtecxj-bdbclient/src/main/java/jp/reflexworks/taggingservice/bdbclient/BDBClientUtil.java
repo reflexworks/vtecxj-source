@@ -24,6 +24,7 @@ import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.conn.ConnectionInfoImpl;
 import jp.reflexworks.taggingservice.conn.ReflexConnection;
 import jp.reflexworks.taggingservice.conn.ReflexConnectionUtil;
+import jp.reflexworks.taggingservice.env.ReflexEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.model.Value;
@@ -78,6 +79,22 @@ public class BDBClientUtil {
 	public static int getBulkPutRetryWaitmillis() {
 		return TaggingEnvUtil.getSystemPropInt(BDBClientConst.BULKPUT_RETRY_WAITMILLIS,
 				BDBClientConst.BULKPUT_RETRY_WAITMILLIS_DEFAULT);
+	}
+
+	/**
+	 * フォルダ削除で並列実行する子Entry削除処理の最大数を取得.
+	 * 未設定の場合は非同期処理プール数(内部処理用)の1/4。
+	 * 並列削除処理の中でさらに非同期処理を待つため、プールを使い切らないよう制限する。
+	 * @return フォルダ削除で並列実行する子Entry削除処理の最大数
+	 */
+	public static int getDeleteFolderParallelMax() {
+		int poolSize = TaggingEnvUtil.getSystemPropInt(ReflexEnvConst.TASKQUEUE_POOLSIZE_SYSTEM,
+				ReflexEnvConst.TASKQUEUE_POOLSIZE_SYSTEM_DEFAULT);
+		int defaultMax = Math.max(1,
+				poolSize / BDBClientConst.DELETEFOLDER_PARALLEL_POOLSIZE_DIVISOR);
+		int max = TaggingEnvUtil.getSystemPropInt(BDBClientConst.DELETEFOLDER_PARALLEL_MAX,
+				defaultMax);
+		return Math.max(1, max);
 	}
 
 	/**

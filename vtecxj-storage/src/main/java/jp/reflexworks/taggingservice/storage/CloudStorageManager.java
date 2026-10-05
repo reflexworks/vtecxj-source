@@ -52,6 +52,7 @@ import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.sys.SystemUtil;
 import jp.reflexworks.taggingservice.taskqueue.TaskQueueUtil;
 import jp.reflexworks.taggingservice.util.Constants;
+import jp.reflexworks.taggingservice.util.Constants.OperationType;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.sourceforge.reflex.util.DeflateUtil;
@@ -1259,40 +1260,6 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	}
 	
 	/**
-	 * エントリー削除後のコンテンツ削除
-	 * @param prevEntry 削除されたエントリー
-	 * @param systemContext SystemContext
-	 */
-	@Override
-	public void afterDeleteEntry(EntryBase prevEntry, SystemContext systemContext)
-	throws IOException, TaggingException {
-		// 削除されたエントリーのコンテンツがストレージに登録されていない場合は処理を抜ける。
-		if (!isContentSrcStorage(prevEntry)) {
-			return;
-		}
-		// エントリーを再度検索
-		String uri = TaggingEntryUtil.getUriById(prevEntry.id);
-		EntryBase entry = systemContext.getEntry(uri, false);
-		// 再検索されたエントリーが以下の場合は、コンテンツを削除する。
-		// ・エントリーが存在しない (削除されたままの状態)
-		// ・エントリーが存在するが「content.___src="_storage"」項目が無い
-		if (entry == null || !isContentSrcStorage(entry)) {
-			// コンテンツ削除
-			String serviceName = systemContext.getServiceName();
-			RequestInfo requestInfo = systemContext.getRequestInfo();
-			ConnectionInfo connectionInfo = systemContext.getConnectionInfo();
-			String namespace = systemContext.getNamespace();
-			deleteFromStorage(uri, namespace, serviceName, requestInfo, connectionInfo);
-			// ローカルキャッシュからもコンテンツ削除
-			if (useStorageCache()) {
-				LocalCacheManager localCacheManager = new LocalCacheManager();
-				localCacheManager.deleteFromCache(uri, serviceName, namespace,
-						requestInfo, connectionInfo);
-			}
-		}
-	}
-	
-	/**
 	 * コンテンツがストレージに格納されているかどうか取得.
 	 *  content.___src="_storage" の場合trueを返す。
 	 * @param entry エントリー
@@ -1415,10 +1382,139 @@ implements ContentManager, SettingService, CallingAfterCommit, ExecuteAtCreateSe
 	@Override
 	public void doAfterCommit(List<UpdatedInfo> updatedInfos, ReflexContext reflexContext) 
 	throws IOException, TaggingException {
+		IOException ie = null;
+		TaggingException te = null;
+		RuntimeException re = null;
+		Error er = null;
+		// 削除Entryのコンテンツ削除
+		try {
+			deleteContents(updatedInfos, reflexContext);
+		} catch (Throwable e) {
+			if (e instanceof IOException) {
+				ie = (IOException)e;
+			} else if (e instanceof TaggingException) {
+				te = (TaggingException)e;
+			} else if (e instanceof RuntimeException) {
+				re = (RuntimeException)e;
+				StringBuilder sb = new StringBuilder();
+				sb.append("[doAfterCommit - deleteContents] ");
+				sb.append(e.getClass().getName());
+				sb.append(": ");
+				sb.append(e.getMessage());
+				logger.warn(sb.toString(), e);
+			} else if (e instanceof Error) {
+				er = (Error)e;
+				StringBuilder sb = new StringBuilder();
+				sb.append("[doAfterCommit - deleteContents] ");
+				sb.append(e.getClass().getName());
+				sb.append(": ");
+				sb.append(e.getMessage());
+				logger.warn(sb.toString(), e);
+			}
+		}
+
+		// バケットのCORS設定
 		CloudStorageCorsManager corsManager = new CloudStorageCorsManager();
 		corsManager.doAfterCommit(updatedInfos, reflexContext, this);
+		
+		if (ie != null) {
+			throw ie;
+		} else if (te != null) {
+			throw te;
+		} else if (re != null) {
+			throw re;
+		} else if (er != null) {
+			throw er;
+		}
+	}
+
+	/**
+	 * 更新前Entryの削除処理.
+	 */
+	private void deleteContents(List<UpdatedInfo> updatedInfos, ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		RequestInfo requestInfo = reflexContext.getRequestInfo();
+		ConnectionInfo connectionInfo = reflexContext.getConnectionInfo();
+		ReflexAuthentication auth = reflexContext.getAuth();
+
+		SystemContext systemContext = new SystemContext(auth, requestInfo, connectionInfo);
+		IOException ie = null;
+		TaggingException te = null;
+		for (UpdatedInfo updatedInfo : updatedInfos) {
+			if (updatedInfo.getFlg() != OperationType.DELETE) {
+				continue;
+			}
+			EntryBase prevEntry = updatedInfo.getPrevEntry();
+			try {
+				// コンテンツが登録されていたかどうかは、contentManager内で判断する。
+				afterDeleteEntry(prevEntry, systemContext);
+				
+			// エラー発生時は、一旦全ての対象データを処理する。最後に例外をスローする。
+			} catch (IOException e) {
+				StringBuilder sb = new StringBuilder();
+				sb.append(LogUtil.getRequestInfoStr(requestInfo));
+				sb.append("[deleteContents] Error occured. ");
+				sb.append(e.getMessage());
+				sb.append(" id=");
+				sb.append(prevEntry.id);
+				logger.warn(sb.toString(), e);
+				if (ie == null) {
+					ie = e;
+				}
+			} catch (TaggingException e) {
+				StringBuilder sb = new StringBuilder();
+				sb.append(LogUtil.getRequestInfoStr(requestInfo));
+				sb.append("[deleteContents] Error occured. ");
+				sb.append(e.getMessage());
+				sb.append(" id=");
+				sb.append(prevEntry.id);
+				logger.warn(sb.toString(), e);
+				if (te == null) {
+					te = e;
+				}
+			}
+		}
+		if (ie != null) {
+			throw ie;
+		}
+		if (te != null) {
+			throw te;
+		}
 	}
 	
+	/**
+	 * エントリー削除後のコンテンツ削除
+	 * @param prevEntry 削除されたエントリー
+	 * @param systemContext SystemContext
+	 */
+	private void afterDeleteEntry(EntryBase prevEntry, SystemContext systemContext)
+	throws IOException, TaggingException {
+		// 削除されたエントリーのコンテンツがストレージに登録されていない場合は処理を抜ける。
+		if (!isContentSrcStorage(prevEntry)) {
+			return;
+		}
+		// エントリーを再度検索
+		String uri = TaggingEntryUtil.getUriById(prevEntry.id);
+		EntryBase entry = systemContext.getEntry(uri, false);
+		// 再検索されたエントリーが以下の場合は、コンテンツを削除する。
+		// ・エントリーが存在しない (削除されたままの状態)
+		// ・エントリーが存在するが「content.___src="_storage"」項目が無い
+		if (entry == null || !isContentSrcStorage(entry)) {
+			// コンテンツ削除
+			String serviceName = systemContext.getServiceName();
+			RequestInfo requestInfo = systemContext.getRequestInfo();
+			ConnectionInfo connectionInfo = systemContext.getConnectionInfo();
+			String namespace = systemContext.getNamespace();
+			deleteFromStorage(uri, namespace, serviceName, requestInfo, connectionInfo);
+			// ローカルキャッシュからもコンテンツ削除
+			if (useStorageCache()) {
+				LocalCacheManager localCacheManager = new LocalCacheManager();
+				localCacheManager.deleteFromCache(uri, serviceName, namespace,
+						requestInfo, connectionInfo);
+			}
+		}
+	}
+
 	/**
 	 * サービス登録時の処理
 	 * @param newServiceName サービス名

@@ -1,11 +1,14 @@
 package jp.reflexworks.taggingservice.index;
 
 import java.io.IOException;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
 import jp.reflexworks.taggingservice.api.ConnectionInfo;
 import jp.reflexworks.taggingservice.api.ReflexAuthentication;
@@ -67,9 +70,41 @@ public class IndexPutCallable extends ReflexCallable<Boolean> {
 		}
 
 		IndexCommonManager idxManager = new IndexCommonManager();
-		idxManager.requestPut(serverUrl, feed, getServiceName(),
-				requestInfo, getConnectionInfo());
+		try {
+			idxManager.requestPut(serverUrl, feed, getServiceName(),
+					requestInfo, getConnectionInfo());
+		} catch (IOException | TaggingException | RuntimeException e) {
+			// インデックスが反映されなかったIDを追跡できるようにログ出力する。
+			if (logger.isWarnEnabled()) {
+				StringBuilder sb = new StringBuilder();
+				sb.append(LogUtil.getRequestInfoStr(requestInfo));
+				sb.append("[IndexPut call] index put failed. serverUrl=");
+				sb.append(serverUrl);
+				sb.append(", ids=");
+				sb.append(getIds());
+				sb.append(" ");
+				sb.append(e.getClass().getName());
+				sb.append(": ");
+				sb.append(e.getMessage());
+				logger.warn(sb.toString());
+			}
+			throw e;
+		}
 		return true;
+	}
+
+	/**
+	 * インデックス情報のIDを取得.
+	 * @return IDのセット
+	 */
+	private Set<String> getIds() {
+		Set<String> ids = new LinkedHashSet<>();
+		if (feed != null && feed.entry != null) {
+			for (EntryBase entry : feed.entry) {
+				ids.add(entry.id);
+			}
+		}
+		return ids;
 	}
 
 }

@@ -100,6 +100,26 @@ public class BDBClientUpdateManager {
 			boolean isPost, String originalServiceName, ReflexAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		return update(entries, flgs, isPost, originalServiceName, null, auth,
+				requestInfo, connectionInfo);
+	}
+
+	/**
+	 * 更新処理.
+	 * @param entries Entryリスト。link selfのhrefはID URIが設定されている。
+	 * @param flgs 処理区分リスト。添字はEntryリストに紐づく。
+	 * @param isPost POSTの場合true
+	 * @param originalServiceName 実行元サービス名
+	 * @param indexBuffer インデックス更新をまとめて行う場合に指定するバッファ (nullの場合は更新ごとに行う)
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 登録したFeed. 引数のfeedオブジェクトに格納されるEntryと同一インスタンスです。
+	 */
+	public List<UpdatedInfo> update(List<EntryBase> entries, List<OperationType> flgs,
+			boolean isPost, String originalServiceName, DeleteFolderIndexBuffer indexBuffer,
+			ReflexAuthentication auth, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
 		String serviceName = auth.getServiceName();
 		String currentTime = MetadataUtil.getCurrentTime();
 		SystemContext systemContext = new SystemContext(auth, requestInfo, connectionInfo);
@@ -370,10 +390,14 @@ public class BDBClientUpdateManager {
 			// 登録完了後の非同期処理
 			// 認証情報はスーパーユーザ
 			AfterCommitCallable callable = new AfterCommitCallable(updatedInfos,
-					originalServiceName);
+					originalServiceName, indexBuffer != null);
 			ConnectionInfo sharingConnectionInfo = BDBClientUtil.copySharingConnectionInfo(
 					requestInfo, connectionInfo);
 			callable.addTask(systemContext.getAuth(), requestInfo, sharingConnectionInfo);
+			if (indexBuffer != null) {
+				// インデックス更新はバッファにためてまとめて行う
+				indexBuffer.add(updatedInfos);
+			}
 
 			return updatedInfos;
 
@@ -805,8 +829,34 @@ public class BDBClientUpdateManager {
 			String originalServiceName, SystemAuthentication systemAuth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
-		deleteFolderProc(entry, uri, noDeleteSelf, isParallel, deleteFolderIdUris, 
-				retrieveManager, originalServiceName, systemAuth, 
+		deleteFolder(entry, uri, noDeleteSelf, isParallel, deleteFolderIdUris,
+				retrieveManager, originalServiceName, null, systemAuth,
+				requestInfo, connectionInfo);
+	}
+
+	/**
+	 * フォルダ削除処理
+	 * @param entry Entry
+	 * @param uri URI
+	 * @param noDeleteSelf フォルダエントリー自体を削除しない場合true
+	 * @param isParallel 並列削除を行う場合true
+	 * @param deleteFolderIdUris 削除対象ID URIリスト
+	 * @param retrieveManager DatastoreRetrieveManager
+	 * @param originalServiceName 実行元サービス名
+	 * @param indexBuffer インデックス更新をまとめて行う場合に指定するバッファ (nullの場合は更新ごとに行う)
+	 * @param systemAuth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 */
+	public void deleteFolder(EntryBase entry, String uri, boolean noDeleteSelf,
+			boolean isParallel,Map<String, String> deleteFolderIdUris,
+			BDBClientRetrieveManager retrieveManager,
+			String originalServiceName, DeleteFolderIndexBuffer indexBuffer,
+			SystemAuthentication systemAuth,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		deleteFolderProc(entry, uri, noDeleteSelf, isParallel, deleteFolderIdUris,
+				retrieveManager, originalServiceName, indexBuffer, systemAuth,
 				requestInfo, connectionInfo);
 	}
 
@@ -819,17 +869,41 @@ public class BDBClientUpdateManager {
 	 * @param deleteFolderIdUris 削除対象ID URIリスト
 	 * @param retrieveManager 検索処理
 	 * @param originalServiceName 実行元サービス名
-	 * @param mapper FeedTemplateMapper
 	 * @param auth 認証情報
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 * @return 更新情報
 	 */
-	public UpdatedInfo deleteFolderProc(EntryBase entry, String uri, boolean noDeleteSelf, 
+	public UpdatedInfo deleteFolderProc(EntryBase entry, String uri, boolean noDeleteSelf,
 			boolean isParallel,Map<String, String> deleteFolderIdUris,
 			BDBClientRetrieveManager retrieveManager, String originalServiceName,
 			SystemAuthentication auth, RequestInfo requestInfo,
 			ConnectionInfo connectionInfo)
+	throws IOException, TaggingException {
+		return deleteFolderProc(entry, uri, noDeleteSelf, isParallel, deleteFolderIdUris,
+				retrieveManager, originalServiceName, null, auth, requestInfo, connectionInfo);
+	}
+
+	/**
+	 * 指定されたキー配下のEntryを検索し再帰的に本処理を実行、自Entryを削除する.
+	 * @param entry Entry
+	 * @param uri 削除対象URI
+	 * @param noDeleteSelf フォルダエントリー自体を削除しない場合true
+	 * @param isParallel 並列削除を行う場合true
+	 * @param deleteFolderIdUris 削除対象ID URIリスト
+	 * @param retrieveManager 検索処理
+	 * @param originalServiceName 実行元サービス名
+	 * @param indexBuffer インデックス更新をまとめて行う場合に指定するバッファ (nullの場合は更新ごとに行う)
+	 * @param auth 認証情報
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 更新情報
+	 */
+	public UpdatedInfo deleteFolderProc(EntryBase entry, String uri, boolean noDeleteSelf,
+			boolean isParallel,Map<String, String> deleteFolderIdUris,
+			BDBClientRetrieveManager retrieveManager, String originalServiceName,
+			DeleteFolderIndexBuffer indexBuffer, SystemAuthentication auth,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		String serviceName = auth.getServiceName();
 		// entryがnullの場合は処理を抜ける。
@@ -877,7 +951,7 @@ public class BDBClientUpdateManager {
 			if (aliases != null) {
 				for (String alias : aliases) {
 					List<Future<UpdatedInfo>> tmpFutures = deleteFeed(alias, isParallel,
-							deleteFolderIdUris, retrieveManager, originalServiceName, auth,
+							deleteFolderIdUris, retrieveManager, originalServiceName, indexBuffer, auth,
 							requestInfo, connectionInfo);
 					if (tmpFutures != null) {
 						futures.addAll(tmpFutures);
@@ -885,7 +959,7 @@ public class BDBClientUpdateManager {
 				}
 			}
 			List<Future<UpdatedInfo>> tmpFutures = deleteFeed(idUri, isParallel,
-					deleteFolderIdUris, retrieveManager, originalServiceName, auth,
+					deleteFolderIdUris, retrieveManager, originalServiceName, indexBuffer, auth,
 					requestInfo, connectionInfo);
 			if (tmpFutures != null) {
 				futures.addAll(tmpFutures);
@@ -893,7 +967,7 @@ public class BDBClientUpdateManager {
 		} else {
 			// 削除対象URIがエイリアスの場合、エイリアスのみ除去更新
 			List<Future<UpdatedInfo>> tmpFutures = deleteFeed(uri, isParallel,
-					deleteFolderIdUris, retrieveManager, originalServiceName, auth,
+					deleteFolderIdUris, retrieveManager, originalServiceName, indexBuffer, auth,
 					requestInfo, connectionInfo);
 			if (tmpFutures != null) {
 				futures.addAll(tmpFutures);
@@ -951,7 +1025,7 @@ public class BDBClientUpdateManager {
 			for (int r = 0; r <= numRetries; r++) {
 				try {
 					List<UpdatedInfo> tmpUpdatedInfos = update(entries, flgs, false,
-							originalServiceName, auth, requestInfo, connectionInfo);
+							originalServiceName, indexBuffer, auth, requestInfo, connectionInfo);
 					if (tmpUpdatedInfos != null && !tmpUpdatedInfos.isEmpty()) {
 						return tmpUpdatedInfos.get(0);	// 1件のみ
 					} else {
@@ -1011,6 +1085,7 @@ public class BDBClientUpdateManager {
 	 * @param deleteFolderIdUris 削除対象ID URIリスト
 	 * @param retrieveManager 検索処理
 	 * @param originalServiceName 実行元サービス名
+	 * @param indexBuffer インデックス更新をまとめて行う場合に指定するバッファ (nullの場合は更新ごとに行う)
 	 * @param auth 認証情報
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
@@ -1018,7 +1093,8 @@ public class BDBClientUpdateManager {
 	 */
 	private List<Future<UpdatedInfo>> deleteFeed(String uri, boolean isParallel,
 			Map<String, String> deleteFolderIdUris, BDBClientRetrieveManager retrieveManager,
-			String originalServiceName, SystemAuthentication auth,
+			String originalServiceName, DeleteFolderIndexBuffer indexBuffer,
+			SystemAuthentication auth,
 			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
 		String serviceName = auth.getServiceName();
@@ -1037,13 +1113,13 @@ public class BDBClientUpdateManager {
 					if (isParallel) {
 						// 並列削除指定の場合、TaskQueueで並列処理を行う。
 						DeleteFolderProcCallable callable = new DeleteFolderProcCallable(
-								entry, myUri, deleteFolderIdUris, originalServiceName);
+								entry, myUri, deleteFolderIdUris, originalServiceName, indexBuffer);
 						Future<UpdatedInfo> future = callable.addTask(auth, requestInfo, connectionInfo);
 						futures.add(future);
 					} else {
 						// 現スレッドでフォルダ削除処理を実行
 						deleteFolderProc(entry, myUri, false, isParallel, deleteFolderIdUris,
-								retrieveManager, originalServiceName, auth,
+								retrieveManager, originalServiceName, indexBuffer, auth,
 								requestInfo, connectionInfo);
 					}
 				}

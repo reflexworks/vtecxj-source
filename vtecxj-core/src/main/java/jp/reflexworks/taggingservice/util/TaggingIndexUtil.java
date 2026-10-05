@@ -1,8 +1,10 @@
 package jp.reflexworks.taggingservice.util;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,6 +14,9 @@ import jp.sourceforge.reflex.util.StringUtils;
  * インデックスユーティリティ
  */
 public class TaggingIndexUtil {
+
+	/** インデックス再作成で複数のインデックス項目を指定する場合の区切り文字 */
+	public static final String ITEM_NAMES_DELIMITER = ",";
 
 	/**
 	 * インデックスを使用するかどうかチェックする.
@@ -70,6 +75,25 @@ public class TaggingIndexUtil {
 			}
 		}
 		return items;
+	}
+
+	/**
+	 * インデックス再作成で指定されたインデックス項目(カンマ区切り)を分割.
+	 * 各項目の前後の空白は除去し、空の項目は無視する。重複は除く。(指定順を保持)
+	 * @param itemNamesStr インデックス項目 (カンマ区切りで複数指定可)
+	 * @return インデックス項目リスト。指定が無い場合は空のリスト。
+	 */
+	public static List<String> getSpecifiedItemNames(String itemNamesStr) {
+		Set<String> items = new LinkedHashSet<>();
+		if (!StringUtils.isBlank(itemNamesStr)) {
+			for (String itemName : itemNamesStr.split(ITEM_NAMES_DELIMITER)) {
+				String tmpItemName = itemName.trim();
+				if (!tmpItemName.isEmpty()) {
+					items.add(tmpItemName);
+				}
+			}
+		}
+		return new ArrayList<>(items);
 	}
 
 }
