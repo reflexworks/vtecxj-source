@@ -112,12 +112,14 @@ public class InnerIndexManager extends IndexCommonManager {
 		List<Category> distkeys = BDBClientIndexUtil.getDistkeysByUri(idUri, entry,
 				serviceName, requestInfo);
 		for (InnerIndex innerIndex : indexes) {
-			indexInfos.add(createInnerIndexInfo(innerIndex, distkeys, isDelete));
+			indexInfos.add(createInnerIndexInfo(innerIndex, distkeys, isDelete,
+					entry.updated));
 		}
 		// DISTKEYの指定があれば、DISTKEYのみのインデックスも作成する。
 		if (distkeys != null && !distkeys.isEmpty()) {
 			InnerIndex emptyInnerIndex = new InnerIndex(idUri, id);
-			indexInfos.add(createInnerIndexInfo(emptyInnerIndex, distkeys, isDelete));
+			indexInfos.add(createInnerIndexInfo(emptyInnerIndex, distkeys, isDelete,
+					entry.updated));
 		}
 		// alias
 		if (aliases != null) {
@@ -127,12 +129,14 @@ public class InnerIndexManager extends IndexCommonManager {
 				distkeys = BDBClientIndexUtil.getDistkeysByUri(alias, entry,
 						serviceName, requestInfo);
 				for (InnerIndex innerIndex : indexes) {
-					indexInfos.add(createInnerIndexInfo(innerIndex, distkeys, isDelete));
+					indexInfos.add(createInnerIndexInfo(innerIndex, distkeys, isDelete,
+							entry.updated));
 				}
 				// DISTKEYの指定があれば、DISTKEYのみのインデックスも作成する。
 				if (distkeys != null && !distkeys.isEmpty()) {
 					InnerIndex emptyInnerIndex = new InnerIndex(alias, id);
-					indexInfos.add(createInnerIndexInfo(emptyInnerIndex, distkeys, isDelete));
+					indexInfos.add(createInnerIndexInfo(emptyInnerIndex, distkeys, isDelete,
+							entry.updated));
 				}
 			}
 		}
@@ -152,6 +156,19 @@ public class InnerIndexManager extends IndexCommonManager {
 	 */
 	public EntryBase createInnerIndexInfo(InnerIndex innerIndex, List<Category> distkeys,
 			boolean isDelete) {
+		return createInnerIndexInfo(innerIndex, distkeys, isDelete, null);
+	}
+
+	/**
+	 * インデックス情報をEntry形式にして生成.
+	 * @param innerIndex インデックス情報
+	 * @param distkeys DISTKEYリスト
+	 * @param isDelete 削除の場合true
+	 * @param updated 元Entryの更新日時 (インデックスサーバで版の判定に使用)
+	 * @return インデックス情報をEntry形式にしたもの
+	 */
+	public EntryBase createInnerIndexInfo(InnerIndex innerIndex, List<Category> distkeys,
+			boolean isDelete, String updated) {
 		EntryBase entry = createAtomEntry();
 		// link rel="self"のhrefにキー
 		entry.setMyUri(innerIndex.getIndexUri());
@@ -175,6 +192,8 @@ public class InnerIndexManager extends IndexCommonManager {
 		}
 		// idにID
 		entry.id = innerIndex.getId();
+		// updatedに元Entryの更新日時
+		entry.updated = updated;
 
 		// DISTKEY
 		entry.category = distkeys;
@@ -217,12 +236,14 @@ public class InnerIndexManager extends IndexCommonManager {
 				if (indexes != null) {
 					// インデックス、またはDISTKEY+インデックス
 					for (InnerIndex innerIndex : indexes) {
-						tmpIndexInfos.add(createInnerIndexInfo(innerIndex, distkeys, isDelete));
+						tmpIndexInfos.add(createInnerIndexInfo(innerIndex, distkeys, isDelete,
+								entry.updated));
 					}
 				} else {
 					// DISTKEYのみのインデックス
 					InnerIndex emptyInnerIndex = new InnerIndex(uri, entry.id);
-					tmpIndexInfos.add(createInnerIndexInfo(emptyInnerIndex, distkeys, isDelete));
+					tmpIndexInfos.add(createInnerIndexInfo(emptyInnerIndex, distkeys, isDelete,
+							entry.updated));
 				}
 
 			} catch (IllegalParameterException e) {

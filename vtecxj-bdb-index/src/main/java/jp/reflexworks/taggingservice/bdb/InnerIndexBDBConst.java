@@ -18,6 +18,8 @@ public class InnerIndexBDBConst {
 	static final String DB_DISTKEY_ITEM = "DBDistkeyItem";
 	/** `DBAllocids` : 採番テーブル */
 	static final String DB_ALLOCIDS = "DBAllocids";
+	/** `DBInnerIndexVersion` : インデックスに反映済みのEntryの版(updated + revision) */
+	static final String DB_INNER_INDEX_VERSION = "DBInnerIndexVersion";
 
 	/** テーブル名リスト */
 	public static final List<String> DB_NAMES = new CopyOnWriteArrayList<String>();
@@ -27,9 +29,15 @@ public class InnerIndexBDBConst {
 		DB_NAMES.add(DB_INNER_INDEX_ITEM);
 		DB_NAMES.add(DB_DISTKEY_ITEM);
 		DB_NAMES.add(DB_ALLOCIDS);
+		DB_NAMES.add(DB_INNER_INDEX_VERSION);
 	}
 
 	/** 短縮値のキー */
 	public static final String KEY_SHORTENING = "item";
+
+	/** 同一IDのインデックス更新を直列化するロックの分割数 */
+	static final int UPDATE_LOCK_STRIPES = 4096;
+	/** 1トランザクションでまとめて更新するIDの最大数 */
+	static final int UPDATE_BATCH_SIZE = 50;
 
 }

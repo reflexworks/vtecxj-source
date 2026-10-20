@@ -85,6 +85,8 @@ public interface ProviderConst extends RequestParam {
 	public static final String MSG_PUSHNOTIFICATION = "The push notification has been sent.";
 	/** レスポンスメッセージ : メッセージキュー登録 */
 	public static final String MSG_POST_MESSAGEQUEUE = "Registered in the message queue.";
+	/** レスポンスメッセージ : メッセージキュー登録(グループ宛のため非同期) */
+	public static final String MSG_POST_MESSAGEQUEUE_ACCEPTED = "Registration in the message queue has been accepted.";
 	/** レスポンスメッセージ : メッセージキュー使用設定更新 */
 	public static final String MSG_PUT_MESSAGEQUEUE_STATUS = "Message queue status updated.";
 	/** レスポンスメッセージ : セッション値削除 */

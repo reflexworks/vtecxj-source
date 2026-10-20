@@ -187,10 +187,7 @@ public class MemorySortFilter implements Filter, ReflexServletConst {
 
 		} else if (responseCode != HttpStatus.SC_NO_CONTENT &&
 				responseCode != HttpStatus.SC_FORBIDDEN &&
-				responseCode != HttpStatus.SC_PRECONDITION_FAILED &&
-				!(responseCode == HttpStatus.SC_FAILED_DEPENDENCY &&
-						(NotInServiceException.MESSAGE_PREFIX.equals(message) ||
-								NotInServiceException.MESSAGE_NULL.equals(message)))) {
+				responseCode != HttpStatus.SC_PRECONDITION_FAILED) {
 			logBlogic.writeLogger(responseCode, message, LogLevel.INFO, e,
 					serviceName, requestInfo, connectionInfo);
 

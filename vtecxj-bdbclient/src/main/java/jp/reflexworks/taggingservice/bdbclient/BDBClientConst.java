@@ -24,6 +24,8 @@ public interface BDBClientConst {
 	public static final String BULKPUT_RETRY_COUNT = "_bulkput.retry.count";
 	/** 一括更新リトライ時のスリープ時間(ミリ秒) **/
 	public static final String BULKPUT_RETRY_WAITMILLIS = "_bulkput.retry.waitmillis";
+	/** フォルダ削除で並列実行する子Entry削除処理の最大数 (JVM全体) **/
+	public static final String DELETEFOLDER_PARALLEL_MAX = "_deletefolder.parallel.max";
 	/** 一括更新非同期処理終了待ちスリープ時間(ミリ秒) **/
 	public static final String BULKPUT_SYNC_WAITMILLIS = "_bulkput.sync.waitmillis";
 	/** BDBサーバEntry取得数 **/
@@ -67,6 +69,8 @@ public interface BDBClientConst {
 	static final int BULKPUT_RETRY_COUNT_DEFAULT = 30;
 	/** 設定デフォルト : 一括更新リトライ時のスリープ時間(ミリ秒) */
 	static final int BULKPUT_RETRY_WAITMILLIS_DEFAULT = 250;
+	/** 設定デフォルト : フォルダ削除の並列実行数を非同期処理プール数(内部処理用)の何分の1にするか */
+	static final int DELETEFOLDER_PARALLEL_POOLSIZE_DIVISOR = 4;
 	/** 設定デフォルト : 一括更新非同期処理終了待ち(ミリ秒) */
 	static final int BULKPUT_SYNC_WAITMILLIS_DEFAULT = 20;
 	/** 設定デフォルト : BDBサーバEntry取得数 */

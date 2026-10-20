@@ -10,6 +10,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import jp.reflexworks.atom.entry.Category;
 import jp.reflexworks.atom.entry.EntryBase;
 import jp.reflexworks.atom.entry.FeedBase;
@@ -22,6 +25,7 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.requester.BDBClientServerConst.BDBIndexType;
 import jp.reflexworks.taggingservice.sys.SystemContext;
+import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
 import jp.reflexworks.taggingservice.util.TaggingIndexUtil;
 import jp.sourceforge.reflex.util.StringUtils;
@@ -30,6 +34,9 @@ import jp.sourceforge.reflex.util.StringUtils;
  * インデックス登録・更新・削除　管理クラス
  */
 public class UpdateIndexManager {
+
+	/** ロガー. */
+	private Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	/**
 	 * インデックス更新非同期処理登録
@@ -114,8 +121,9 @@ public class UpdateIndexManager {
 				}
 			}
 
-			String itemName = indexEntry.title;
-			if (StringUtils.isBlank(itemName)) {
+			// インデックス項目 (カンマ区切りで複数指定可)
+			List<String> itemNames = TaggingIndexUtil.getSpecifiedItemNames(indexEntry.title);
+			if (itemNames.isEmpty()) {
 				if (distkeyItems == null) {
 					// インデックス項目・DISTKEYのいずれも設定されていない場合、すべてのインデックス項目が更新対象
 					isAllSet.add(indexEntry);
@@ -128,18 +136,18 @@ public class UpdateIndexManager {
 				}
 			} else {
 				// インデックス項目が指定されている場合
-				boolean hasIndex = TaggingIndexUtil.useIndex(parentUri, itemName, templateIndexMap);
-				boolean hasFulltextIndex = TaggingIndexUtil.useIndex(parentUri, itemName,
-						templateFullTextIndexMap);
-				// インデックス
-				if (hasIndex && !StringUtils.isBlank(itemName)) {
-					indexItems = new ArrayList<>();
-					indexItems.add(itemName);
-				}
-				// 全文検索インデックス
-				if (hasFulltextIndex && !StringUtils.isBlank(itemName)) {
-					fulltextIndexItems = new ArrayList<>();
-					fulltextIndexItems.add(itemName);
+				// 項目ごとにインデックス・全文検索インデックスに振り分ける
+				indexItems = new ArrayList<>();
+				fulltextIndexItems = new ArrayList<>();
+				for (String itemName : itemNames) {
+					// インデックス
+					if (TaggingIndexUtil.useIndex(parentUri, itemName, templateIndexMap)) {
+						indexItems.add(itemName);
+					}
+					// 全文検索インデックス
+					if (TaggingIndexUtil.useIndex(parentUri, itemName, templateFullTextIndexMap)) {
+						fulltextIndexItems.add(itemName);
+					}
 				}
 				// DISTKEYが指定されていない場合は、対象のDISTKEYをすべて更新
 				if (distkeyItems == null) {
@@ -237,6 +245,19 @@ public class UpdateIndexManager {
 					}
 				}
 			} while (!StringUtils.isBlank(cursorStr));
+		}
+
+		// インデックス再作成の場合、Entryが存在しないのに残っているインデックスを削除する
+		if (!isDelete) {
+			OrphanIndexCleaner orphanIndexCleaner = new OrphanIndexCleaner();
+			for (String parentUri : indexEntryMap.keySet()) {
+				int cnt = orphanIndexCleaner.deleteOrphanIndexes(parentUri, systemContext);
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+							"[putIndex] delete orphan indexes. parentUri=" + parentUri +
+							", count=" + cnt);
+				}
+			}
 		}
 	}
 

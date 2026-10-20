@@ -28,7 +28,6 @@ import jp.reflexworks.taggingservice.env.BDBEnvUtil;
 import jp.reflexworks.taggingservice.exception.ConnectionException;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.NoEntryException;
-import jp.reflexworks.taggingservice.exception.NotInServiceException;
 import jp.reflexworks.taggingservice.util.Constants.LogLevel;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.ReflexBDBLogUtil;
@@ -175,9 +174,6 @@ public class ManifestFilter implements Filter, ReflexServletConst {
 		} else if (responseCode != HttpStatus.SC_NO_CONTENT &&
 				responseCode != HttpStatus.SC_FORBIDDEN &&
 				responseCode != HttpStatus.SC_PRECONDITION_FAILED &&
-				!(responseCode == HttpStatus.SC_FAILED_DEPENDENCY &&
-						(NotInServiceException.MESSAGE_PREFIX.equals(message) ||
-								NotInServiceException.MESSAGE_NULL.equals(message))) &&
 				!(e instanceof IllegalParameterException)) {
 			ReflexBDBLogUtil.writeLogger(responseCode, message, LogLevel.INFO, e,
 					requestInfo);

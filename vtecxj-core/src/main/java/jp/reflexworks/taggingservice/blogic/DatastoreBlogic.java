@@ -1111,22 +1111,33 @@ public class DatastoreBlogic {
 			String parentUri = entry.getMyUri();
 			CheckUtil.checkUri(parentUri, "Parent key");
 			CheckUtil.checkCommonUri(parentUri, serviceName);
-			// 項目
-			String itemName = entry.title;
-			if (StringUtils.isBlank(itemName)) {
+			// 項目 (カンマ区切りで複数指定可)
+			String itemNamesStr = entry.title;
+			if (StringUtils.isBlank(itemNamesStr)) {
 				// すべての項目が対象
 			} else {
-				// インデックス対象かどうか
-				boolean hasIndex = TaggingIndexUtil.useIndex(parentUri, itemName, templateIndexMap);
-				boolean hasFulltextIndex = TaggingIndexUtil.useIndex(parentUri, itemName,
-						templateFullTextIndexMap);
-				if (!hasIndex && !hasFulltextIndex) {
+				List<String> itemNames = TaggingIndexUtil.getSpecifiedItemNames(itemNamesStr);
+				if (itemNames.isEmpty()) {
 					StringBuilder sb = new StringBuilder();
-					sb.append("The item and key are not defined. key=");
+					sb.append("The item name is invalid. key=");
 					sb.append(parentUri);
 					sb.append(", item=");
-					sb.append(itemName);
+					sb.append(itemNamesStr);
 					throw new IllegalParameterException(sb.toString());
+				}
+				for (String itemName : itemNames) {
+					// インデックス対象かどうか
+					boolean hasIndex = TaggingIndexUtil.useIndex(parentUri, itemName, templateIndexMap);
+					boolean hasFulltextIndex = TaggingIndexUtil.useIndex(parentUri, itemName,
+							templateFullTextIndexMap);
+					if (!hasIndex && !hasFulltextIndex) {
+						StringBuilder sb = new StringBuilder();
+						sb.append("The item and key are not defined. key=");
+						sb.append(parentUri);
+						sb.append(", item=");
+						sb.append(itemName);
+						throw new IllegalParameterException(sb.toString());
+					}
 				}
 			}
 			// DISTKEYが指定されている場合

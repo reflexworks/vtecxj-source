@@ -44,6 +44,12 @@ public interface BatchJobConst {
 	public static final String PROP_BATCHJOB_RUNNER_URL = "_batchjob.runner.url";
 	/** 設定 : バッチジョブ実行サーバからの終了通知リクエストURL (runnerへwebhook_urlとして渡す) */
 	public static final String PROP_BATCHJOB_RESPONSE_URL = "_batchjob.response.url";
+	/**
+	 * 設定 : バッチジョブ実行サーバがリクエストするAPサーバのURL (コンテキストパスまで)
+	 * クラスタ内部のAPサーバ内部リクエストポートを指定する。(例: http://vtecx-internal-svc:8081)
+	 * 指定がない場合は「_reflex.servercontextpath」から生成したサービスのURL。
+	 */
+	public static final String PROP_BATCHJOB_APSERVER_URL = "_batchjob.apserver.url";
 	/** 設定 : バッチジョブ実行サーバへのリクエストタイムアウト時間(ミリ秒) */
 	public static final String PROP_BATCHJOB_RUNNER_REQUEST_TIMEOUT_MILLIS = "_batchjob.runner.request.timeout.millis";
 	/** 設定 : バッチジョブ実行サーバへのリクエスト失敗時リトライ総数 */

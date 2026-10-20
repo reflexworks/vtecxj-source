@@ -23,6 +23,7 @@ import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
+import jp.reflexworks.taggingservice.exception.NoExistingEntryException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.model.UpdatedInfo;
 import jp.reflexworks.taggingservice.plugin.BigQueryManager;
@@ -421,18 +422,42 @@ public class BigQueryBlogic {
 	public void checkRetryBdbq(SystemContext systemContext) 
 	throws IOException, TaggingException {
 		// /_bdbq 配下にデータが存在する場合、BigQueryへリトライ登録を行う。
+		// 1件失敗しても他のエントリーのリトライは継続し、最後に最初のエラーをスローする。
+		Exception firstException = null;
 		String cursorStr = null;
 		do {
 			String requestUri = TaggingEntryUtil.addCursorToUri(BigQueryBdbqConst.URI_BDBQ, cursorStr);
 			FeedBase feed = systemContext.getFeed(requestUri);
 			cursorStr = TaggingEntryUtil.getCursorFromFeed(feed);
-			
+
 			if (TaggingEntryUtil.isExistData(feed)) {
 				for (EntryBase entry : feed.entry) {
-					retryBdbq(entry, systemContext);
+					try {
+						retryBdbq(entry, systemContext);
+					} catch (IOException | TaggingException | RuntimeException e) {
+						StringBuilder sb = new StringBuilder();
+						sb.append("[checkRetryBdbq] retry error. uri = ");
+						sb.append(entry.getMyUri());
+						sb.append(" ");
+						sb.append(e.getClass().getName());
+						sb.append(": ");
+						sb.append(e.getMessage());
+						logger.warn(sb.toString());
+						if (firstException == null) {
+							firstException = e;
+						}
+					}
 				}
 			}
 		} while (!StringUtils.isBlank(cursorStr));
+
+		if (firstException instanceof IOException) {
+			throw (IOException)firstException;
+		} else if (firstException instanceof TaggingException) {
+			throw (TaggingException)firstException;
+		} else if (firstException instanceof RuntimeException) {
+			throw (RuntimeException)firstException;
+		}
 	}
 	
 	// BigQueryへの登録または削除処理でエラーが発生した場合、
@@ -505,9 +530,26 @@ public class BigQueryBlogic {
 		}
 		if (!deleteUriList.isEmpty()) {
 			String[] uris = deleteUriList.toArray(new String[0]);
-			manager.deleteBq(uris, tableNames, false, auth, requestInfo, connectionInfo);
+			try {
+				manager.deleteBq(uris, tableNames, false, auth, requestInfo, connectionInfo);
+			} catch (NoExistingEntryException e) {
+				// BigQueryで削除済み、または対象データなし。
+				// 一括処理では1件の削除済みで他のキーも削除されないため、1件ずつ削除する。
+				if (uris.length == 1) {
+					logger.info("[retryBdbq] bigquery data is already deleted or nothing. " + e.getMessage());
+				} else {
+					for (String uri : uris) {
+						try {
+							manager.deleteBq(new String[]{uri}, tableNames, false,
+									auth, requestInfo, connectionInfo);
+						} catch (NoExistingEntryException ue) {
+							logger.info("[retryBdbq] bigquery data is already deleted or nothing. " + ue.getMessage());
+						}
+					}
+				}
+			}
 		}
-		
+
 		// BDBQリトライ情報の削除
 		systemContext.delete(bdbqEntry.getMyUri());
 	}

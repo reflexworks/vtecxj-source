@@ -60,6 +60,8 @@ public class ServiceManagerDefaultSetting {
 	private static final String STATIC_NAME_SERVICE_SERVERCONTEXTPATH ="_service_servercontextpath";
 	/** メモリ上のstaticオブジェクト格納キー : URLのサーバ名からコンテキストパスまでのPattern */
 	private static final String STATIC_NAME_SERVICE_SERVERCONTEXTPATH_PATTERN ="_service_servercontextpath_pattern";
+	/** メモリ上のstaticオブジェクト格納キー : 未登録・停止・削除済みサービスのネガティブキャッシュ (キー:サービス名、値:有効期限(ミリ秒)) */
+	private static final String STATIC_NAME_SERVICE_DISABLEDMAP ="_service_disabledmap";
 
 	/** APIKey格納接頭辞の長さ */
 	private static final int URN_PREFIX_APIKEY_LEN =
@@ -108,7 +110,14 @@ public class ServiceManagerDefaultSetting {
 		} catch (StaticDuplicatedException e) {
 			logger.warn("[init] StaticDuplicatedException: " + STATIC_NAME_SERVICE_APIKEYREVISIONMAP, e);
 		}
-		
+		// disabledMap
+		ConcurrentMap<String, Long> disabledMap = new ConcurrentHashMap<String, Long>();
+		try {
+			ReflexStatic.setStatic(STATIC_NAME_SERVICE_DISABLEDMAP, disabledMap);
+		} catch (StaticDuplicatedException e) {
+			logger.warn("[init] StaticDuplicatedException: " + STATIC_NAME_SERVICE_DISABLEDMAP, e);
+		}
+
 		// システム管理サービスの初期処理
 		try {
 			initSystemService();
@@ -441,6 +450,98 @@ public class ServiceManagerDefaultSetting {
 	private ConcurrentMap<String, String> getAPIKeyRevisionAndUpdatedMap() {
 		return (ConcurrentMap<String, String>)ReflexStatic.getStatic(
 				STATIC_NAME_SERVICE_APIKEYREVISIONMAP);
+	}
+
+	/**
+	 * static領域から未登録・停止・削除済みサービスのネガティブキャッシュを取得.
+	 * @return 未登録・停止・削除済みサービスのネガティブキャッシュ (キー:サービス名、値:有効期限(ミリ秒))
+	 */
+	private ConcurrentMap<String, Long> getDisabledMap() {
+		return (ConcurrentMap<String, Long>)ReflexStatic.getStatic(
+				STATIC_NAME_SERVICE_DISABLEDMAP);
+	}
+
+	/**
+	 * 指定されたサービスが、未登録・停止・削除済みとしてネガティブキャッシュされているかどうか.
+	 * @param serviceName サービス名
+	 * @return 有効期限内のネガティブキャッシュがある場合true
+	 */
+	boolean isDisabledCached(String serviceName) {
+		if (getDisabledCacheExpireSec() <= 0) {
+			return false;
+		}
+		ConcurrentMap<String, Long> disabledMap = getDisabledMap();
+		if (disabledMap == null) {
+			return false;
+		}
+		Long expireMillis = disabledMap.get(serviceName);
+		if (expireMillis == null) {
+			return false;
+		}
+		if (expireMillis < System.currentTimeMillis()) {
+			// 期限切れ
+			disabledMap.remove(serviceName, expireMillis);
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * 指定されたサービスを、未登録・停止・削除済みとしてネガティブキャッシュに格納.
+	 * 最大件数に達している場合、期限切れを削除してもなお満杯であれば格納しない。
+	 * @param serviceName サービス名
+	 */
+	void putDisabledCache(String serviceName) {
+		int expireSec = getDisabledCacheExpireSec();
+		if (expireSec <= 0) {
+			return;
+		}
+		ConcurrentMap<String, Long> disabledMap = getDisabledMap();
+		if (disabledMap == null) {
+			return;
+		}
+		long now = System.currentTimeMillis();
+		int maxSize = getDisabledCacheMaxsize();
+		if (disabledMap.size() >= maxSize) {
+			// 期限切れを削除
+			disabledMap.values().removeIf(expireMillis -> expireMillis < now);
+			if (disabledMap.size() >= maxSize) {
+				return;
+			}
+		}
+		disabledMap.put(serviceName, now + expireSec * 1000L);
+	}
+
+	/**
+	 * 指定されたサービスのネガティブキャッシュを削除.
+	 * @param serviceName サービス名
+	 */
+	void removeDisabledCache(String serviceName) {
+		ConcurrentMap<String, Long> disabledMap = getDisabledMap();
+		if (disabledMap == null) {
+			return;
+		}
+		disabledMap.remove(serviceName);
+	}
+
+	/**
+	 * 未登録・停止・削除済みサービスのネガティブキャッシュ有効時間(秒)を取得.
+	 * @return 未登録・停止・削除済みサービスのネガティブキャッシュ有効時間(秒)
+	 */
+	private int getDisabledCacheExpireSec() {
+		return TaggingEnvUtil.getSystemPropInt(
+				ServiceManagerDefaultConst.PROP_SERVICE_DISABLED_CACHE_EXPIRE_SEC,
+				ServiceManagerDefaultConst.SERVICE_DISABLED_CACHE_EXPIRE_SEC_DEFAULT);
+	}
+
+	/**
+	 * 未登録・停止・削除済みサービスのネガティブキャッシュ最大件数を取得.
+	 * @return 未登録・停止・削除済みサービスのネガティブキャッシュ最大件数
+	 */
+	private int getDisabledCacheMaxsize() {
+		return TaggingEnvUtil.getSystemPropInt(
+				ServiceManagerDefaultConst.PROP_SERVICE_DISABLED_CACHE_MAXSIZE,
+				ServiceManagerDefaultConst.SERVICE_DISABLED_CACHE_MAXSIZE_DEFAULT);
 	}
 
 	/**

@@ -25,6 +25,7 @@ import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.ResponseInfo;
 import jp.reflexworks.taggingservice.api.SettingConst;
 import jp.reflexworks.taggingservice.blogic.EMailBlogic;
+import jp.reflexworks.taggingservice.env.TaggingEnvConst;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.SubMessage;
 import jp.reflexworks.taggingservice.exception.TaggingException;
@@ -372,25 +373,28 @@ public class LogManagerDefault implements LogManager {
 		String protocol = req.getProtocol();
 		String requestHeadersString = getRequestHeadersString(req);
 		FeedBase feed = null;
-		String targetService = getTargetService(req);
-		try {
-			feed = req.getFeed(targetService);
-		} catch (Exception e) {
-			ResponseInfo<FeedBase> responseInfo = ReflexExceptionUtil.getStatus(
-					e, method, false, serviceName, requestInfo);
-			if (ExceptionUtil.getLevelError().equals(responseInfo.data.rights)) {
-				StringBuilder emsg = new StringBuilder();
-				emsg.append(getRequestInfoStr(requestInfo));
-				emsg.append("[writeAccessStart] ");
-				emsg.append(e.getClass().getName());
-				emsg.append(" ");
-				emsg.append(e.getMessage());
-				String msg = emsg.toString();
-				if (msg.indexOf("EOF") > -1 || msg.indexOf("Eof") > -1 ||
-						msg.indexOf("Close") > -1 || msg.indexOf("close") > -1) {
-					logger.warn(emsg.toString());
-				} else {
-					logger.warn(emsg.toString(), e);
+		// リクエストデータの内容は設定が有効な場合のみログ出力する。
+		if (isEnableRequestDataLog()) {
+			String targetService = getTargetService(req);
+			try {
+				feed = req.getFeed(targetService);
+			} catch (Exception e) {
+				ResponseInfo<FeedBase> responseInfo = ReflexExceptionUtil.getStatus(
+						e, method, false, serviceName, requestInfo);
+				if (ExceptionUtil.getLevelError().equals(responseInfo.data.rights)) {
+					StringBuilder emsg = new StringBuilder();
+					emsg.append(getRequestInfoStr(requestInfo));
+					emsg.append("[writeAccessStart] ");
+					emsg.append(e.getClass().getName());
+					emsg.append(" ");
+					emsg.append(e.getMessage());
+					String msg = emsg.toString();
+					if (msg.indexOf("EOF") > -1 || msg.indexOf("Eof") > -1 ||
+							msg.indexOf("Close") > -1 || msg.indexOf("close") > -1) {
+						logger.warn(emsg.toString());
+					} else {
+						logger.warn(emsg.toString(), e);
+					}
 				}
 			}
 		}
@@ -452,7 +456,7 @@ public class LogManagerDefault implements LogManager {
 			if (Constants.POST.equals(method) ||
 					Constants.PUT.equals(method) ||
 					Constants.DELETE.equals(method)) {
-				if (feed != null) {
+				if (feed != null && isEnableRequestDataLog()) {
 					sb.append(" [feed] ");
 					FeedTemplateMapper mapper = TaggingEnvUtil.getResourceMapper(serviceName);
 					String json = mapper.toJSON(feed);
@@ -794,6 +798,15 @@ public class LogManagerDefault implements LogManager {
 			targetServiceName = req.getServiceName();
 		}
 		return targetServiceName;
+	}
+
+	/**
+	 * リクエストデータの内容をアクセスログに出力するかどうかを取得.
+	 * @return リクエストデータの内容をアクセスログに出力する場合true
+	 */
+	private boolean isEnableRequestDataLog() {
+		return TaggingEnvUtil.getSystemPropBoolean(
+				TaggingEnvConst.REQUESTDATA_ENABLE_ACCESSLOG, false);
 	}
 
 }

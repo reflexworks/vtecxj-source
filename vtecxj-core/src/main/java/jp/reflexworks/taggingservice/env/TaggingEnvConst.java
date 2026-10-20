@@ -68,6 +68,8 @@ public interface TaggingEnvConst extends ReflexEnvConst {
 	public static final String REFLEX_SERVERCONTEXTPATH = "_reflex.servercontextpath";
 	/** リクエスト許可Host */
 	public static final String REQUEST_ALLOWORIGIN_PREFIX = "_request.alloworigin.";
+	/** 内部リクエスト受付ポート (クラスタ内部からのみ到達可能なポート) */
+	public static final String REFLEX_INTERNAL_PORT = "_reflex.internal.port";
 	/** サービス設定確認ロックに失敗したときのリトライ回数 **/
 	public static final String SERVICESETTINGS_RETRY_COUNT = "_servicesettings.retry.count";
 	/** サービス設定確認ロックリトライ時のスリープ時間(ミリ秒) **/
@@ -84,6 +86,8 @@ public interface TaggingEnvConst extends ReflexEnvConst {
 	public static final String FILTER_ENABLE_ACCESSLOG = "_filter.enable.accesslog";
 	/** 初期処理のアクセスログを出力するかどうか */
 	public static final String INIT_ENABLE_ACCESSLOG = "_init.enable.accesslog";
+	/** リクエストデータの内容をアクセスログに出力するかどうか */
+	public static final String REQUESTDATA_ENABLE_ACCESSLOG = "_requestdata.enable.accesslog";
 	/** シャットダウン処理待ち回数 */
 	public static final String SHUTDOWN_AWAIT_COUNT = "_shutdown.await.count";
 	/** シャットダウン処理待ち時のスリープ時間(ミリ秒) */

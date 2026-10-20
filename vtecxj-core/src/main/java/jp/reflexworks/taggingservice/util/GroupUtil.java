@@ -132,6 +132,9 @@ public class GroupUtil {
 	 */
 	public static boolean isValidGroupAdmin(EntryBase groupEntry, SystemContext systemContext)
 	throws IOException, TaggingException {
+		if (groupEntry == null) {
+			return false;
+		}
 		// グループEntryは「/{グループURI}/{参加者UID}」。
 		// グループURIとして、親URIを取得する。
 		String childIdUri = TaggingEntryUtil.getUriById(groupEntry.id);
@@ -273,7 +276,8 @@ public class GroupUtil {
 		List<String> uids = new ArrayList<String>();
 		String cursorStr = null;
 		do {
-			FeedBase feed = systemContext.getFeed(groupParentUri, true);
+			String tmpUri = TaggingEntryUtil.addCursorToUri(groupParentUri, cursorStr);
+			FeedBase feed = systemContext.getFeed(tmpUri, true);
 			cursorStr = TaggingEntryUtil.getCursorFromFeed(feed);
 			if (TaggingEntryUtil.isExistData(feed)) {
 				for (EntryBase groupEntry : feed.entry) {

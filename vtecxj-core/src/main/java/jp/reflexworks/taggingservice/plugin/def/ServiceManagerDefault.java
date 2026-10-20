@@ -57,6 +57,7 @@ import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.taskqueue.TaskQueueUtil;
 import jp.reflexworks.taggingservice.util.CheckUtil;
 import jp.reflexworks.taggingservice.util.Constants;
+import jp.reflexworks.taggingservice.util.InternalRequestUtil;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.ServiceCommonUtil;
 import jp.reflexworks.taggingservice.util.TaggingEntryUtil;
@@ -119,6 +120,18 @@ public class ServiceManagerDefault implements ServiceManager {
 		}
 		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
 		String systemService = env.getSystemService();
+		// 未登録・停止・削除済みのネガティブキャッシュがある場合false
+		ServiceManagerDefaultSetting serviceSetter = new ServiceManagerDefaultSetting();
+		if (!systemService.equals(serviceName) && serviceSetter.isDisabledCached(serviceName)) {
+			if (isEnableAccessLog()) {
+				StringBuilder sb = new StringBuilder();
+				sb.append(LogUtil.getRequestInfoStr(requestInfo));
+				sb.append("[isEnabled] return false (disabled cache). serviceName=");
+				sb.append(serviceName);
+				logger.info(sb.toString());
+			}
+			return false;
+		}
 		// サービス初期設定の前処理
 		DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
 		if (isEnableAccessLog()) {
@@ -140,8 +153,16 @@ public class ServiceManagerDefault implements ServiceManager {
 		// サービスエントリーを取得
 		String serviceStatus = null;
 		try {
-			serviceStatus = getServiceStatus(serviceName,
+			EntryBase serviceEntry = getServiceEntry(serviceName, true,
 					requestInfo, connectionInfo);
+			serviceStatus = getServiceStatus(serviceEntry);
+
+			// 未登録・停止・削除済みの場合はネガティブキャッシュに格納
+			if (serviceEntry == null ||
+					Constants.SERVICE_STATUS_BLOCKED.equals(serviceStatus) ||
+					Constants.SERVICE_STATUS_DELETED.equals(serviceStatus)) {
+				serviceSetter.putDisabledCache(serviceName);
+			}
 
 			// サービスの状態は以下の通り。subtitleに設定される。
 			//   creating : サービス新規作成中
@@ -290,8 +311,20 @@ public class ServiceManagerDefault implements ServiceManager {
 	throws IOException {
 
 		ReflexEnv env = (ReflexEnv)ReflexStatic.getEnv();
-		// URLのパターンからサービス名を取得
-		String serviceName = getPatternName(req);
+		String serviceName = null;
+		if (InternalRequestUtil.isInternalRequest(req)) {
+			// 内部リクエストの場合、X-SERVICENAMEからサービス名を取得
+			// (Hostはクラスタ内部のServiceホストのため、URLパターンからは取得できない)
+			serviceName = req.getHeader(HEADER_SERVICENAME);
+			if (logger.isTraceEnabled()) {
+				logger.trace(LogUtil.getRequestInfoStr(requestInfo) +
+						"MyServiceName by internal request header = " + serviceName);
+			}
+		}
+		if (StringUtils.isBlank(serviceName)) {
+			// URLのパターンからサービス名を取得
+			serviceName = getPatternName(req);
+		}
 		if (logger.isTraceEnabled()) {
 			logger.trace(LogUtil.getRequestInfoStr(requestInfo) +
 					"MyServiceName by url = " + serviceName);
@@ -630,6 +663,9 @@ public class ServiceManagerDefault implements ServiceManager {
 			// システム管理サービスに保持する、サービスステータスを「稼働中」にする。
 			setServiceStatus(entry, serviceStatus);
 			systemContext.put(entry);
+			// このサーバの未登録・削除済みのネガティブキャッシュを削除
+			ServiceManagerDefaultSetting serviceSetter = new ServiceManagerDefaultSetting();
+			serviceSetter.removeDisabledCache(newServiceName);
 
 		} catch (IOException | TaggingException | RuntimeException | Error e) {
 			// 失敗
@@ -1507,6 +1543,8 @@ public class ServiceManagerDefault implements ServiceManager {
 			String host = req.getHeader(ReflexServletConst.HEADER_HOST);
 			if (host != null && host.startsWith(SecurityConst.LOCALHOST_PREFIX)) {
 				// Do nothing.
+			} else if (InternalRequestUtil.isInternalRequest(req)) {
+				// 内部リクエスト(クラスタ内部のhttp通信)は処理を抜ける。
 			} else {
 				if (!ReflexServletConst.SCHEMA_HTTPS.equals(scheme)) {
 					// httpsリクエストでない場合

@@ -117,7 +117,8 @@ public class FullTextSearchManager extends IndexCommonManager {
 		List<Category> distkeys = BDBClientIndexUtil.getDistkeysByUri(idUri, entry,
 				serviceName, requestInfo);
 		for (InnerIndex innerIndex : indexes) {
-			indexInfos.add(createFullTextIndexInfo(innerIndex, distkeys, isDelete));
+			indexInfos.add(createFullTextIndexInfo(innerIndex, distkeys, isDelete,
+					entry.updated));
 		}
 		// alias
 		if (aliases != null) {
@@ -127,7 +128,8 @@ public class FullTextSearchManager extends IndexCommonManager {
 				distkeys = BDBClientIndexUtil.getDistkeysByUri(alias, entry,
 						serviceName, requestInfo);
 				for (InnerIndex innerIndex : indexes) {
-					indexInfos.add(createFullTextIndexInfo(innerIndex, distkeys, isDelete));
+					indexInfos.add(createFullTextIndexInfo(innerIndex, distkeys, isDelete,
+							entry.updated));
 				}
 			}
 		}
@@ -147,6 +149,19 @@ public class FullTextSearchManager extends IndexCommonManager {
 	 */
 	public EntryBase createFullTextIndexInfo(InnerIndex innerIndex, List<Category> distkeys,
 			boolean isDelete) {
+		return createFullTextIndexInfo(innerIndex, distkeys, isDelete, null);
+	}
+
+	/**
+	 * 全文検索インデックス情報をEntry形式にして生成.
+	 * @param innerIndex 全文検索インデックス情報
+	 * @param distkeys DISTKEY情報リスト
+	 * @param isDelete 削除の場合true
+	 * @param updated 元Entryの更新日時 (全文検索インデックスサーバで版の判定に使用)
+	 * @return 全文検索インデックス情報をEntry形式にしたもの
+	 */
+	public EntryBase createFullTextIndexInfo(InnerIndex innerIndex, List<Category> distkeys,
+			boolean isDelete, String updated) {
 		EntryBase entry = createAtomEntry();
 		// link rel="self"のhrefにキー
 		entry.setMyUri(innerIndex.getIndexUri());
@@ -169,6 +184,8 @@ public class FullTextSearchManager extends IndexCommonManager {
 		}
 		// idにID
 		entry.id = innerIndex.getId();
+		// updatedに元Entryの更新日時
+		entry.updated = updated;
 
 		// DISTKEY
 		entry.category = distkeys;
@@ -201,7 +218,8 @@ public class FullTextSearchManager extends IndexCommonManager {
 				List<Category> distkeys = BDBClientIndexUtil.getDistkeysByUri(uri, entry,
 						distkeyItems, serviceName, requestInfo);
 				for (InnerIndex innerIndex : indexes) {
-					tmpIndexInfos.add(createFullTextIndexInfo(innerIndex, distkeys, isDelete));
+					tmpIndexInfos.add(createFullTextIndexInfo(innerIndex, distkeys, isDelete,
+							entry.updated));
 				}
 			} catch (IllegalParameterException e) {
 				String msg = e.getMessage();
