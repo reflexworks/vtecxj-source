@@ -145,8 +145,8 @@ public class ExceptionUtil implements ReflexServletConst {
 				responseCode != HttpStatus.SC_FORBIDDEN &&
 				responseCode != HttpStatus.SC_PRECONDITION_FAILED &&
 				!(responseCode == HttpStatus.SC_FAILED_DEPENDENCY &&
-						(NotInServiceException.MESSAGE_PREFIX.equals(message) ||
-								NotInServiceException.MESSAGE_NULL.equals(message)))) {
+						message != null &&
+						message.startsWith(NotInServiceException.MESSAGE_PREFIX))) {
 			logBlogic.writeLogger(responseCode, message, LogLevel.INFO, e,
 					serviceName, requestInfo, connectionInfo);
 
@@ -158,7 +158,8 @@ public class ExceptionUtil implements ReflexServletConst {
 						!(e instanceof PermissionException) &&
 						!(e instanceof AuthenticationException) &&
 						!(e instanceof InvalidServiceSettingException) &&
-						!(e instanceof SignatureInvalidException)) {
+						!(e instanceof SignatureInvalidException) &&
+						!(e instanceof NotInServiceException)) {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + e.getClass().getSimpleName(), e);
 				}
 			}

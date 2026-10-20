@@ -18,11 +18,19 @@ public interface MessageQueueConst {
 	public static final String MESSAGEQUEUE_ENABLE_ACCESSLOG = "_messagequeue.enable.accesslog";
 	/** 設定 : メッセージキュー取得後の非同期削除待ち時間(ミリ秒) */
 	public static final String MESSAGEQUEUE_DELETE_WAITMILLIS = "_messagequeue.delete.wailtmillis";
+	/** 設定 : メッセージキュー取得後の削除が排他エラーの場合のリトライ回数 */
+	public static final String MESSAGEQUEUE_DELETE_RETRY_COUNT = "_messagequeue.delete.retry.count";
+	/** 設定 : メッセージキュー取得後の削除が排他エラーの場合のリトライ待ち時間(ミリ秒) */
+	public static final String MESSAGEQUEUE_DELETE_RETRY_WAITMILLIS = "_messagequeue.delete.retry.waitmillis";
 
 	/** 設定デフォルト : メッセージキュー有効期限(分) */
 	public static final int MESSAGEQUEUE_EXPIRE_MIN_DEFAULT = 5;
 	/** 設定デフォルト : メッセージキュー取得後の非同期削除待ち時間(ミリ秒) */
 	public static final int MESSAGEQUEUE_DELETE_WAITMILLIS_DEFAULT = 250;
+	/** 設定デフォルト : メッセージキュー取得後の削除が排他エラーの場合のリトライ回数 */
+	public static final int MESSAGEQUEUE_DELETE_RETRY_COUNT_DEFAULT = 10;
+	/** 設定デフォルト : メッセージキュー取得後の削除が排他エラーの場合のリトライ待ち時間(ミリ秒) */
+	public static final int MESSAGEQUEUE_DELETE_RETRY_WAITMILLIS_DEFAULT = 500;
 	
 	/** URI : メッセージキュー */
 	public static final String URI_MQ = "/_mq";
@@ -67,6 +75,12 @@ public interface MessageQueueConst {
 	
 	/** メッセージキューのキーのselfidの文字列長 */
 	public static final int MQ_NUM_LEN = 20;
+	/**
+	 * メッセージキューのキーのselfidに加算する値.
+	 * 送信先ごとの加算キー(/_mq/{チャネルの変換値}@{UID})で採番していた時の
+	 * メッセージより必ず大きい番号とし、キーの重複・順序の逆転を防ぐ。
+	 */
+	public static final long MQ_NUM_OFFSET = 1_000_000_000_000_000L;
 	/** 検索がフェッチ最大数を超えた場合のフラグ */
 	static final String MARK_FETCH_LIMIT = Constants.MARK_FETCH_LIMIT;
 

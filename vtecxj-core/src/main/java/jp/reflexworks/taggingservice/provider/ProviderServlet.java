@@ -24,6 +24,7 @@ import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.blogic.AllocateIdsBlogic;
 import jp.reflexworks.taggingservice.blogic.IncrementBlogic;
+import jp.reflexworks.taggingservice.blogic.MessageQueueBlogic;
 import jp.reflexworks.taggingservice.context.ReflexContextUtil;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
@@ -461,8 +462,14 @@ public class ProviderServlet extends ReflexServletBase {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "_mq");
 				}
 				FeedBase feed = req.getFeed();
-				reflexContext.setMessageQueue(feed, param.getUri()); 
-				retObj = createMessageFeed(ProviderConst.MSG_POST_MESSAGEQUEUE, serviceName);
+				reflexContext.setMessageQueue(feed, param.getUri());
+				if (MessageQueueBlogic.isAsyncMessageQueue(feed)) {
+					// グループ宛の場合は非同期処理のためAccepted
+					retObj = createMessageFeed(ProviderConst.MSG_POST_MESSAGEQUEUE_ACCEPTED, serviceName);
+					status = HttpStatus.SC_ACCEPTED;
+				} else {
+					retObj = createMessageFeed(ProviderConst.MSG_POST_MESSAGEQUEUE, serviceName);
+				}
 
 			} else if (param.getOption(RequestParam.PARAM_ADDGROUP) != null) {
 				// グループへの参加登録(署名はなし)

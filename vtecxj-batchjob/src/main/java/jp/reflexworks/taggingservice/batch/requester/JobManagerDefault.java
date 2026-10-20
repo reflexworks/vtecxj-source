@@ -79,8 +79,11 @@ public class JobManagerDefault implements JobManager {
 		}
 
 		ServiceBlogic serviceBlogic = new ServiceBlogic();
-		String apserverUrl = serviceBlogic.getRedirectUrlContextPath(serviceName,
-				requestInfo, connectionInfo);
+		String apserverUrl = getApserverUrl();
+		if (StringUtils.isBlank(apserverUrl)) {
+			apserverUrl = serviceBlogic.getRedirectUrlContextPath(serviceName,
+					requestInfo, connectionInfo);
+		}
 		String apiKey = serviceBlogic.getAPIKey(serviceName, requestInfo, connectionInfo);
 		String accesstoken = reflexContext.getAccessToken();
 		String jobId = getJobId(batchJobTimeEntry);
@@ -180,6 +183,14 @@ public class JobManagerDefault implements JobManager {
 	 */
 	private String getRunnerUrl() {
 		return TaggingEnvUtil.getSystemProp(BatchJobConst.PROP_BATCHJOB_RUNNER_URL, null);
+	}
+
+	/**
+	 * バッチジョブ実行サーバがリクエストするAPサーバのURLを取得.
+	 * @return APサーバのURL(コンテキストパスまで)。設定がない場合null
+	 */
+	private String getApserverUrl() {
+		return TaggingEnvUtil.getSystemProp(BatchJobConst.PROP_BATCHJOB_APSERVER_URL, null);
 	}
 
 	/**

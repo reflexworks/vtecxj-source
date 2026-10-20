@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TimeZone;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
@@ -27,12 +28,16 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.EntryDuplicatedException;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
+import jp.reflexworks.taggingservice.exception.NoExistingEntryException;
+import jp.reflexworks.taggingservice.exception.OptimisticLockingException;
 import jp.reflexworks.taggingservice.exception.PermissionException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.model.UpdatedInfo;
+import jp.reflexworks.taggingservice.plugin.DatastoreManager;
 import jp.reflexworks.taggingservice.plugin.PushNotificationManager;
 import jp.reflexworks.taggingservice.plugin.UserManager;
 import jp.reflexworks.taggingservice.sys.SystemContext;
+import jp.reflexworks.taggingservice.taskqueue.TaskQueueUtil;
 import jp.reflexworks.taggingservice.util.CheckUtil;
 import jp.reflexworks.taggingservice.util.GroupUtil;
 import jp.reflexworks.taggingservice.util.LogUtil;
@@ -159,7 +164,10 @@ public class MessageQueueBlogic {
 	}
 
 	/**
-	 * メッセージキューへメッセージ送信
+	 * メッセージキューへメッセージ送信.
+	 * 入力チェック・認可チェック・送信先の抽出は同期で行う。
+	 * グループ宛(link rel="to" href="*")のメッセージは、送信先が多数になり得るため
+	 * メッセージキュー登録・Push通知を非同期で行う。
 	 * @param messageFeed メッセージ
 	 * @param channel チャネル
 	 * @param reflexContext ReflexContext
@@ -178,27 +186,84 @@ public class MessageQueueBlogic {
 		// チャネルグループのメンバーUIDリストを取得
 		SystemContext systemContext = new SystemContext(auth, requestInfo, connectionInfo);
 		List<String> channelGroupUids = getGroupMemberUids(channelGroup, systemContext);
-		
+
+		// 全メッセージの入力チェック・送信先の抽出を先に行う。
+		// (非同期処理を受け付けた後に入力エラーとならないようにする)
+		List<MessageQueueSendInfo> sendInfos = new ArrayList<>();
 		for (EntryBase messageEntry : messageFeed.entry) {
-			setMessageQueue(messageEntry, channel, channelGroup, channelGroupUids, 
-					systemContext, reflexContext);
+			MessageQueueSendInfo sendInfo = prepareMessageQueue(messageEntry, channel,
+					channelGroup, channelGroupUids, systemContext, reflexContext);
+			if (sendInfo != null) {
+				sendInfos.add(sendInfo);
+			}
+		}
+
+		// メッセージキューの番号をメッセージごとに採番する。(送信先が複数でも1メッセージにつき1つ)
+		// 非同期処理に渡す前に採番し、feed内のメッセージの順序を番号の順序とする。
+		setMqNums(channel, sendInfos, systemContext);
+
+		for (MessageQueueSendInfo sendInfo : sendInfos) {
+			if (sendInfo.isGroup) {
+				// グループ宛は非同期でメッセージキュー登録
+				MessageQueueSendCallable callable = new MessageQueueSendCallable(sendInfo);
+				TaskQueueUtil.addTask(callable, 0, auth, requestInfo, connectionInfo);
+			} else {
+				sendMessageQueue(sendInfo, systemContext, reflexContext);
+			}
 		}
 	}
 
 	/**
-	 * メッセージキューへメッセージ送信
+	 * メッセージキュー送信が非同期処理となるかどうか.
+	 * グループ宛(link rel="to" href="*")のメッセージが含まれる場合、非同期処理となる。
+	 * @param messageFeed メッセージ
+	 * @return 非同期処理となる場合true
+	 */
+	public static boolean isAsyncMessageQueue(FeedBase messageFeed) {
+		if (messageFeed == null || messageFeed.entry == null) {
+			return false;
+		}
+		for (EntryBase messageEntry : messageFeed.entry) {
+			if (messageEntry == null || messageEntry.link == null) {
+				continue;
+			}
+			boolean isPolling = false;
+			boolean isGroup = false;
+			boolean hasTo = false;
+			for (Link link : messageEntry.link) {
+				if (MessageQueueConst.REL_TO.equals(link._$rel) &&
+						!StringUtils.isBlank(link._$href)) {
+					if (MessageQueueConst.POLLING.equals(link._$href)) {
+						isPolling = true;
+					} else if (MessageQueueConst.WILDCARD.equals(link._$href)) {
+						isGroup = true;
+					} else {
+						hasTo = true;
+					}
+				}
+			}
+			// ポーリングのみの場合は送信なし (prepareMessageQueueと同じ判定)
+			if (isGroup && !(isPolling && !hasTo)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * メッセージキュー送信の入力チェック・送信先の抽出.
 	 * @param messageEntry メッセージ
 	 * @param channel チャネル
 	 * @param channelGroup チャネルグループ
 	 * @param channelGroupUids チャネルグループの参加UIDリスト
-	 * @param systemContext SystemContext (フォルダ登録用)
-	 * @param reflexContext ReflexContext (メッセージ登録用)
+	 * @param systemContext SystemContext
+	 * @param reflexContext ReflexContext
+	 * @return メッセージキュー送信情報。ポーリングのため送信なしの場合null。
 	 */
-	private void setMessageQueue(EntryBase messageEntry, String channel, String channelGroup, 
-			List<String> channelGroupUids, SystemContext systemContext,
+	private MessageQueueSendInfo prepareMessageQueue(EntryBase messageEntry, String channel,
+			String channelGroup, List<String> channelGroupUids, SystemContext systemContext,
 			ReflexContext reflexContext)
 	throws IOException, TaggingException {
-		String serviceName = reflexContext.getServiceName();
 		ReflexAuthentication auth = reflexContext.getAuth();
 		RequestInfo requestInfo = systemContext.getRequestInfo();
 		// Push通知管理クラス
@@ -208,12 +273,12 @@ public class MessageQueueBlogic {
 			logger.warn("[setMessageQueue] PushNotificationManager setting is nothing.");
 		}
 		// このメッセージがPush通知対象かどうか
-		boolean pushMsg = !MessageQueueConst.TRUE.equals(messageEntry.rights) && 
+		boolean pushMsg = !MessageQueueConst.TRUE.equals(messageEntry.rights) &&
 				!StringUtils.isBlank(messageEntry.getContentText()) &&
 				pushNotificationManager != null;
 		// Push通知送信対象UID
 		List<String> pushNotificationUids = new ArrayList<>();
-		
+
 		if (isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
@@ -250,7 +315,7 @@ public class MessageQueueBlogic {
 			}
 		}
 		if (isPolling && tos.isEmpty()) {
-			return;	// ポーリングのため送信なし
+			return null;	// ポーリングのため送信なし
 		}
 		if (!isGroup) {
 			CheckUtil.checkNotNull(tos, "destination");
@@ -289,33 +354,61 @@ public class MessageQueueBlogic {
 			toUids.remove(myUid);
 		}
 
+		return new MessageQueueSendInfo(messageEntry, channel, channelGroup, toUids,
+				pushNotificationUids, isGroup, pushMsg);
+	}
+
+	/**
+	 * メッセージキュー登録・Push通知.
+	 * グループ宛の場合は非同期処理(MessageQueueSendCallable)から呼び出される。
+	 * @param sendInfo メッセージキュー送信情報
+	 * @param systemContext SystemContext (フォルダ登録用)
+	 * @param reflexContext ReflexContext (メッセージ登録用)
+	 */
+	void sendMessageQueue(MessageQueueSendInfo sendInfo, SystemContext systemContext,
+			ReflexContext reflexContext)
+	throws IOException, TaggingException {
+		String serviceName = reflexContext.getServiceName();
+		ReflexAuthentication auth = reflexContext.getAuth();
+		RequestInfo requestInfo = systemContext.getRequestInfo();
+		EntryBase messageEntry = sendInfo.messageEntry;
+		String channel = sendInfo.channel;
+		String channelGroup = sendInfo.channelGroup;
+		Set<String> toUids = sendInfo.toUids;
+		boolean pushMsg = sendInfo.pushMsg;
+		boolean isGroup = sendInfo.isGroup;
+		List<String> pushNotificationUids = new ArrayList<>(sendInfo.pushNotificationUids);
+		String myUid = auth.getUid();
+
+		// メッセージキュー使用設定をまとめてEntry検索する。
+		// キー: /_user/{UID}/mqstatus/{チャネルの変換値}
+		List<String> toUidList = new ArrayList<>(toUids);
+		List<String> mqstatusUris = new ArrayList<>();
+		for (String toUid : toUidList) {
+			mqstatusUris.add(getMessageQueueStatusUri(channel, toUid));
+		}
+		List<EntryBase> mqstatusEntries = getEntries(mqstatusUris, systemContext);
+
 		List<String> messageQueueUids = new ArrayList<>();
-		for (String toUid : toUids) {
-			// メッセージキュー使用設定をEntry検索する。
-			// キー: /_user/{UID}/mqstatus/{チャネルの変換値}
-			String mqstatusUri = getMessageQueueStatusUri(channel, toUid);
-			EntryBase mqstatusEntry = systemContext.getEntry(mqstatusUri);
-			boolean useMq = false;
+		// Push通知受信設定チェック対象UID
+		List<String> pushCandidateUids = new ArrayList<>();
+		for (int i = 0; i < toUidList.size(); i++) {
+			String toUid = toUidList.get(i);
+			EntryBase mqstatusEntry = mqstatusEntries.get(i);
 			if (mqstatusEntry != null && MessageQueueConst.TRUE.equals(mqstatusEntry.summary)) {
-				useMq = true;
-			}
-			
-			if (useMq) {
 				// メッセージキュー使用設定がONの場合、メッセージキューにメッセージを登録する。
-				EntryBase tmpMessageEntry = copyEntry(messageEntry, serviceName);
-				setMessageQueue(tmpMessageEntry, channel, channelGroup, toUid,
-						systemContext, reflexContext);
 				messageQueueUids.add(toUid);
-			} else {
+			} else if (pushMsg) {
 				// メッセージキュー使用設定がOFFの場合、Push通知を送信する。
 				// (メッセージキュー使用設定が登録されていない場合、OFFとみなす。)
-				// Push通知受信設定をチェック
-				if (pushMsg && !isDisablePushNotification(channelGroup, toUid, systemContext)) {
-					pushNotificationUids.add(toUid);
-				}
+				pushCandidateUids.add(toUid);
 			}
 		}
-		
+
+		// メッセージキュー登録
+		setMessageQueues(messageEntry, channel, channelGroup, messageQueueUids,
+				sendInfo.mqNum, systemContext, reflexContext);
+
 		// グループエントリーの登録があり、署名がまだのユーザにもPush送信を行う。
 		if (pushMsg && isGroup) {
 			List<String> allUidsOfGroup = getGroupEntryUids(
@@ -323,22 +416,26 @@ public class MessageQueueBlogic {
 			if (allUidsOfGroup != null) {
 				for (String uidOfGroup : allUidsOfGroup) {
 					if (!myUid.equals(uidOfGroup) && !toUids.contains(uidOfGroup)) {
-						// Push通知受信設定をチェック
-						if (!isDisablePushNotification(channelGroup, 
-								uidOfGroup, systemContext)) {
-							pushNotificationUids.add(uidOfGroup);
-						}
+						pushCandidateUids.add(uidOfGroup);
 					}
 				}
 			}
 		}
-		
+
+		// Push通知受信設定をまとめてチェック
+		if (!pushCandidateUids.isEmpty()) {
+			pushNotificationUids.addAll(getEnablePushNotificationUids(channelGroup,
+					pushCandidateUids, systemContext));
+		}
+
 		// Push通知
 		if (pushMsg && !pushNotificationUids.isEmpty()) {
+			PushNotificationManager pushNotificationManager =
+					TaggingEnvUtil.getPushNotificationManager();
 			pushNotificationManager.pushNotification(messageEntry, pushNotificationUids,
 					auth, requestInfo, systemContext.getConnectionInfo());
 		}
-		
+
 		// デバッグログ
 		if (isDebugLog(serviceName) || isEnableAccessLog()) {
 			StringBuilder sb = new StringBuilder();
@@ -379,94 +476,215 @@ public class MessageQueueBlogic {
 			sb.append(", message entry=");
 			sb.append(TaggingEnvUtil.getResourceMapper(serviceName).toJSON(messageEntry));
 			String logMsg = sb.toString();
-			
+
 			if (isEnableAccessLog()) {
 				logger.debug(LogUtil.getRequestInfoStr(requestInfo) + logMsg);
 			}
 			if (isDebugLog(serviceName)) {
-				systemContext.log(MessageQueueConst.DEBUGLOG_TITLE, 
+				systemContext.log(MessageQueueConst.DEBUGLOG_TITLE,
 						MessageQueueConst.DEBUGLOG_SUBTITLE, logMsg);
 			}
 		}
 	}
 	
 	/**
-	 * メッセージキューを登録.
+	 * メッセージキューをまとめて登録.
+	 * 親フォルダの存在チェック・登録、連番の採番、メッセージ登録を送信先ごとに直列で行わず、
+	 * 一括検索・Feed登録で行う。
 	 * @param messageEntry メッセージ
 	 * @param channel チャネル
 	 * @param channelGroup チャネルグループ
-	 * @param toUid 送信先UID
+	 * @param toUids 送信先UIDリスト
+	 * @param mqNum メッセージキューの番号 (全送信先で同じ番号を使用する)
 	 * @param systemContext SystemContext (親フォルダ登録用)
-	 * @param reflexContext ReflexContext
+	 * @param reflexContext ReflexContext (メッセージ登録用)
 	 */
-	private void setMessageQueue(EntryBase messageEntry, String channel, String channelGroup,
-			String toUid, SystemContext systemContext, ReflexContext reflexContext)
+	private void setMessageQueues(EntryBase messageEntry, String channel, String channelGroup,
+			List<String> toUids, long mqNum, SystemContext systemContext, 
+			ReflexContext reflexContext)
 	throws IOException, TaggingException {
+		if (toUids == null || toUids.isEmpty()) {
+			return;
+		}
 		String serviceName = reflexContext.getServiceName();
-		RequestInfo requestInfo = reflexContext.getRequestInfo();
+		List<String> mqParentUris = new ArrayList<>();
+		for (String toUid : toUids) {
+			mqParentUris.add(getMessageQueueParentUri(channel, toUid));
+		}
+
 		// 親階層の存在チェック
-		String mqParentUri = getMessageQueueParentUri(channel, toUid);
-		EntryBase mqParentEntry = systemContext.getEntry(mqParentUri);
-		if (mqParentEntry == null) {
-			try {
-				mqParentEntry = TaggingEntryUtil.createEntry(serviceName);
-				mqParentEntry.setMyUri(mqParentUri);
+		List<EntryBase> mqParentEntries = getEntries(mqParentUris, systemContext);
+		List<EntryBase> noParentEntries = new ArrayList<>();
+		for (int i = 0; i < toUids.size(); i++) {
+			if (mqParentEntries.get(i) == null) {
+				EntryBase mqParentEntry = TaggingEntryUtil.createEntry(serviceName);
+				mqParentEntry.setMyUri(mqParentUris.get(i));
 				TaggingEntryUtil.addAclToEntry(mqParentEntry, channelGroup, 
 						MessageQueueConst.ACL_TYPE_MQ_GROUP);
-				TaggingEntryUtil.addAclToEntry(mqParentEntry, toUid, 
+				TaggingEntryUtil.addAclToEntry(mqParentEntry, toUids.get(i), 
 						MessageQueueConst.ACL_TYPE_MQ_UID);
-				systemContext.post(mqParentEntry);
-				
+				noParentEntries.add(mqParentEntry);
+			}
+		}
+		// 親階層の登録
+		postMessageQueueParents(noParentEntries, systemContext);
+
+		// メッセージキュー登録
+		// キー: /_mq/{チャネルの変換値}@{UID}/{連番0埋め}
+		// 親フォルダが送信先ごとに異なるため、全送信先で同じ番号を使用してもキーは重複しない。
+		List<EntryBase> mqEntries = new ArrayList<>();
+		for (String mqParentUri : mqParentUris) {
+			EntryBase tmpMessageEntry = copyEntry(messageEntry, serviceName);
+			tmpMessageEntry.setMyUri(getMqUri(mqParentUri, mqNum));
+			mqEntries.add(tmpMessageEntry);
+		}
+		int limit = TaggingEnvUtil.getUpdateEntryNumberLimit();
+		for (List<EntryBase> chunkEntries : chunk(mqEntries, limit)) {
+			FeedBase mqFeed = TaggingEntryUtil.createFeed(serviceName);
+			mqFeed.entry = chunkEntries;
+			reflexContext.post(mqFeed);
+		}
+	}
+
+	/**
+	 * メッセージキューの親フォルダをまとめて登録.
+	 * 重複エラーの場合は1件ずつ登録し直す。
+	 * @param mqParentEntries 親フォルダEntryリスト
+	 * @param systemContext SystemContext
+	 */
+	private void postMessageQueueParents(List<EntryBase> mqParentEntries,
+			SystemContext systemContext)
+	throws IOException, TaggingException {
+		if (mqParentEntries.isEmpty()) {
+			return;
+		}
+		String serviceName = systemContext.getServiceName();
+		RequestInfo requestInfo = systemContext.getRequestInfo();
+		int limit = TaggingEnvUtil.getUpdateEntryNumberLimit();
+		for (List<EntryBase> chunkEntries : chunk(mqParentEntries, limit)) {
+			try {
+				FeedBase parentFeed = TaggingEntryUtil.createFeed(serviceName);
+				parentFeed.entry = chunkEntries;
+				systemContext.post(parentFeed);
+
 			} catch (EntryDuplicatedException e) {
-				// 重複エラーは別のスレッドで登録されているので何もしない
-				if (isEnableAccessLog()) {
-					logger.debug(LogUtil.getRequestInfoStr(requestInfo) + 
-							"[setMessageQueue] EntryDuplicatedException: " + mqParentUri);
+				// 別のスレッドで一部が登録されているため1件ずつ登録する
+				for (EntryBase mqParentEntry : chunkEntries) {
+					try {
+						systemContext.post(mqParentEntry);
+					} catch (EntryDuplicatedException de) {
+						// 重複エラーは別のスレッドで登録されているので何もしない
+						if (isEnableAccessLog()) {
+							logger.debug(LogUtil.getRequestInfoStr(requestInfo) + 
+									"[setMessageQueue] EntryDuplicatedException: " + 
+									mqParentEntry.getMyUri());
+						}
+					}
 				}
 			}
 		}
-		
-		// メッセージキュー登録
-		// メッセージキューのキーを生成、セット
-		String mqUri = getMqUri(systemContext, mqParentUri);
-		messageEntry.setMyUri(mqUri);
-		// キー: /_mq/{チャネルの変換値}@{UID}/{連番0埋め}
-		reflexContext.post(messageEntry, mqParentUri);
 	}
-	
+
+	/**
+	 * メッセージキューの番号を採番する.
+	 * チャネルの加算キーにメッセージ数を加算(addids)し、確保した番号をfeed内の順にメッセージへ割り当てる。
+	 * 1メッセージにつき1つの番号とし、送信先が複数の場合も同じ番号を使用する。
+	 * 加算は加算サーバで排他制御されるため、同時に送信されても番号は重複しない。
+	 * また後に送信されたメッセージほど大きい番号となるため、送信先ごとの順序は保たれる。
+	 * @param channel チャネル
+	 * @param sendInfos メッセージキュー送信情報リスト
+	 * @param systemContext SystemContext
+	 */
+	private void setMqNums(String channel, List<MessageQueueSendInfo> sendInfos,
+			SystemContext systemContext)
+	throws IOException, TaggingException {
+		int size = sendInfos.size();
+		if (size == 0) {
+			return;
+		}
+		// 番号の確保。加算後の値が返るため、(加算後の値 - 件数 + 1) ～ 加算後の値 が確保した番号。
+		String addidsUri = getMessageQueueAddidsUri(channel);
+		long lastNum = getAddidsNum(systemContext.addids(addidsUri, size));
+		long firstNum = lastNum - size + 1;
+		if (firstNum <= 0) {
+			throw new IllegalStateException("Failed to addids. uri=" + addidsUri + 
+					", num=" + lastNum + ", size=" + size);
+		}
+		for (int i = 0; i < size; i++) {
+			sendInfos.get(i).mqNum = firstNum + i;
+		}
+	}
+
+	/**
+	 * Entryをまとめて取得.
+	 * SystemContextの権限で取得するため、ACLチェックは行わない。
+	 * @param uris キーリスト
+	 * @param systemContext SystemContext
+	 * @return Entryリスト (urisと同じ順序。存在しないキーはnull)
+	 */
+	private List<EntryBase> getEntries(List<String> uris, SystemContext systemContext)
+	throws IOException, TaggingException {
+		List<EntryBase> entries = new ArrayList<>();
+		DatastoreManager datastoreManager = TaggingEnvUtil.getDatastoreManager();
+		int limit = TaggingEnvUtil.getUpdateEntryNumberLimit();
+		for (List<String> chunkUris : chunk(uris, limit)) {
+			FeedBase feed = datastoreManager.getEntries(chunkUris, true,
+					systemContext.getServiceName(), systemContext.getAuth(),
+					systemContext.getRequestInfo(), systemContext.getConnectionInfo());
+			if (feed != null && feed.entry != null) {
+				entries.addAll(feed.entry);
+			} else {
+				for (int i = 0; i < chunkUris.size(); i++) {
+					entries.add(null);
+				}
+			}
+		}
+		return entries;
+	}
+
+	/**
+	 * リストを指定件数ごとに分割.
+	 * @param list リスト
+	 * @param size 1つあたりの件数
+	 * @return 分割したリスト
+	 */
+	private <T> List<List<T>> chunk(List<T> list, int size) {
+		List<List<T>> ret = new ArrayList<>();
+		int tmpSize = size > 0 ? size : list.size();
+		for (int i = 0; i < list.size(); i += tmpSize) {
+			ret.add(new ArrayList<>(list.subList(i, Math.min(i + tmpSize, list.size()))));
+		}
+		return ret;
+	}
+
 	/**
 	 * メッセージキューのキーを取得.
-	 * @param reflexContext ReflexContext
+	 * 登録順に並べる必要があるため桁を揃える。
+	 * 送信先ごとの加算キーで採番していた時のメッセージと重複しないよう、
+	 * 確保した番号に一定値を加算する。
 	 * @param mqParentUri メッセージキューフォルダ
+	 * @param num 確保した番号
 	 * @return メッセージキューのキー
 	 */
-	private String getMqUri(ReflexContext reflexContext, String mqParentUri) 
-	throws IOException, TaggingException {
-		String mqNum = getMqNum(reflexContext, mqParentUri);
+	private String getMqUri(String mqParentUri, long num) {
 		StringBuilder sb = new StringBuilder();
 		sb.append(mqParentUri);
 		sb.append("/");
-		sb.append(mqNum);
+		sb.append(StringUtils.zeroPadding(num + MessageQueueConst.MQ_NUM_OFFSET, 
+				MessageQueueConst.MQ_NUM_LEN));
 		return sb.toString();
 	}
 
 	/**
-	 * メッセージキューのキーのselfidの取得.
-	 * 登録順に並べる必要があるため桁を揃える。
-	 * @param reflexContext ReflexContext
-	 * @param addidsUri メッセージキューフォルダ
-	 * @return メッセージキューのキーのselfid
+	 * addidsの戻り値から加算後の値を取得.
+	 * @param feed addidsの戻り値
+	 * @return 加算後の値
 	 */
-	private String getMqNum(ReflexContext reflexContext, String addidsUri)
-	throws IOException, TaggingException {
-		FeedBase feed = reflexContext.addids(addidsUri, 1);
-		if (feed != null) {
-			String num = feed.title;
-			if (!StringUtils.isBlank(num)) {
-				long numl = StringUtils.longValue(num);
-				if (numl > 0) {
-					return StringUtils.zeroPadding(numl, MessageQueueConst.MQ_NUM_LEN);
-				}
+	private long getAddidsNum(FeedBase feed) {
+		if (feed != null && !StringUtils.isBlank(feed.title)) {
+			long num = StringUtils.longValue(feed.title);
+			if (num > 0) {
+				return num;
 			}
 		}
 		throw new IllegalStateException("Failed to addids.");
@@ -577,6 +795,22 @@ public class MessageQueueBlogic {
 	}
 	
 	/**
+	 * メッセージキューの番号枠を確保する加算キーを取得.
+	 *   /_mq/{チャネルの変換値}
+	 * この加算キーには加算枠(rangeids)を設定しないこと。(番号が循環し重複するため)
+	 * @param channel チャネル
+	 * @return 加算キー
+	 */
+	private String getMessageQueueAddidsUri(String channel) {
+		String tmpChannel = convertChannel(channel);
+		StringBuilder sb = new StringBuilder();
+		sb.append(MessageQueueConst.URI_MQ);
+		sb.append("/");
+		sb.append(tmpChannel);
+		return sb.toString();
+	}
+
+	/**
 	 * メッセージキューの親URIを取得.
 	 *   /_mq/{チャネルの変換値}@{UID}
 	 * @param channel チャネル
@@ -667,6 +901,41 @@ public class MessageQueueBlogic {
 	throws IOException, TaggingException {
 		String disablePushNotificationUri = getDisablePushNotificationUri(groupUri, uid);
 		EntryBase disablePushNotificationEntry = reflexContext.getEntry(disablePushNotificationUri);
+		return isDisablePushNotification(disablePushNotificationEntry);
+	}
+	
+	/**
+	 * Push通知をオフにしていないUIDを抽出.
+	 * Push通知オフ設定をまとめて検索する。
+	 * @param groupUri グループURI
+	 * @param uids UIDリスト
+	 * @param systemContext SystemContext
+	 * @return Push通知をオフにしていないUIDリスト
+	 */
+	private List<String> getEnablePushNotificationUids(String groupUri, List<String> uids,
+			SystemContext systemContext)
+	throws IOException, TaggingException {
+		List<String> disablePushNotificationUris = new ArrayList<>();
+		for (String uid : uids) {
+			disablePushNotificationUris.add(getDisablePushNotificationUri(groupUri, uid));
+		}
+		List<EntryBase> disablePushNotificationEntries = getEntries(
+				disablePushNotificationUris, systemContext);
+		List<String> enableUids = new ArrayList<>();
+		for (int i = 0; i < uids.size(); i++) {
+			if (!isDisablePushNotification(disablePushNotificationEntries.get(i))) {
+				enableUids.add(uids.get(i));
+			}
+		}
+		return enableUids;
+	}
+
+	/**
+	 * Push通知オフ設定Entryの内容がオフかどうかを判定.
+	 * @param disablePushNotificationEntry Push通知オフ設定Entry
+	 * @return Push通知がオフの場合true
+	 */
+	private boolean isDisablePushNotification(EntryBase disablePushNotificationEntry) {
 		if (disablePushNotificationEntry != null) {
 			List<Contributor> contributors = disablePushNotificationEntry.getContributor();
 			if (contributors != null) {
@@ -679,7 +948,7 @@ public class MessageQueueBlogic {
 		}
 		return false;
 	}
-	
+
 	/**
 	 * プッシュ通知がオフかどうか判定.
 	 * @param urn contributor.uriの値
@@ -740,7 +1009,9 @@ public class MessageQueueBlogic {
 		String cursorStr = null;
 		int fetchLimit = TaggingEnvUtil.getFetchLimit();
 		int cnt = 0;
-		List<Future> futures = new ArrayList<>();
+		// 削除処理と削除対象 (削除処理が失敗した場合に削除をやり直すため、検索ページごとに保持)
+		List<List<Future<List<UpdatedInfo>>>> futuresList = new ArrayList<>();
+		List<List<EntryBase>> deleteEntriesList = new ArrayList<>();
 		do {
 			String tmpUri = TaggingEntryUtil.addCursorToUri(mqParentUri, 
 					cursorStr);
@@ -758,9 +1029,8 @@ public class MessageQueueBlogic {
 				
 				// メッセージを返却したメッセージキューを削除する。(非同期)
 				List<Future<List<UpdatedInfo>>> tmpFutures = systemContext.bulkDelete(mqFeed, true);
-				if (tmpFutures != null) {
-					futures.addAll(tmpFutures);
-				}
+				futuresList.add(tmpFutures != null ? tmpFutures : new ArrayList<>());
+				deleteEntriesList.add(new ArrayList<>(mqFeed.entry));
 			}
 			
 		} while (!StringUtils.isBlank(cursorStr) && cnt < fetchLimit);
@@ -776,33 +1046,12 @@ public class MessageQueueBlogic {
 		}
 		
 		// メッセージキュー削除処理の終了を待つ。(メッセージ二重取得を防ぐため)
-		int sleepMillis = TaggingEnvUtil.getSystemPropInt(
-				MessageQueueConst.MESSAGEQUEUE_DELETE_WAITMILLIS, 
-				MessageQueueConst.MESSAGEQUEUE_DELETE_WAITMILLIS_DEFAULT);
-		int i = -1;
-		int futruesSize = futures.size();
-		for (Future future : futures) {
-			if (logger.isDebugEnabled()) {
-				i++;
-				StringBuilder sb = new StringBuilder();
-				sb.append(LogUtil.getRequestInfoStr(requestInfo));
-				sb.append("[getMessageQueue] delete message ");
-				sb.append(i);
-				sb.append("/");
-				sb.append(futruesSize);
-				logger.debug(sb.toString());
-			}
-			int sleepCnt = 0;
-			while (!future.isDone()) {
-				if (logger.isDebugEnabled()) {
-					sleepCnt++;
-					StringBuilder sb = new StringBuilder();
-					sb.append(LogUtil.getRequestInfoStr(requestInfo));
-					sb.append("[getMessageQueue] delete message - sleep ");
-					sb.append(sleepCnt);
-					logger.debug(sb.toString());
-				}
-				RetryUtil.sleep(sleepMillis);
+		// 削除処理が失敗した場合は1件ずつ削除をやり直す。
+		// (メッセージキュー登録処理の排他が解除される前に削除するとOptimisticLockingExceptionとなるため)
+		for (int i = 0; i < futuresList.size(); i++) {
+			boolean isSucceeded = waitDeleteMessageQueue(futuresList.get(i), requestInfo);
+			if (!isSucceeded) {
+				retryDeleteMessageQueue(deleteEntriesList.get(i), systemContext);
 			}
 		}
 
@@ -840,6 +1089,88 @@ public class MessageQueueBlogic {
 	}
 	
 	/**
+	 * メッセージキュー削除処理の終了を待つ.
+	 * @param futures 削除処理のFutureリスト
+	 * @param requestInfo リクエスト情報
+	 * @return 全ての削除処理が成功した場合true
+	 */
+	private boolean waitDeleteMessageQueue(List<Future<List<UpdatedInfo>>> futures,
+			RequestInfo requestInfo)
+	throws IOException {
+		boolean isSucceeded = true;
+		for (Future<List<UpdatedInfo>> future : futures) {
+			try {
+				future.get();
+			} catch (ExecutionException e) {
+				Throwable cause = e.getCause();
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+							"[getMessageQueue] delete message failed. " + 
+							(cause != null ? cause.getClass().getSimpleName() + ": " + 
+									cause.getMessage() : e.getMessage()));
+				}
+				isSucceeded = false;
+			} catch (InterruptedException e) {
+				if (logger.isInfoEnabled()) {
+					logger.info(LogUtil.getRequestInfoStr(requestInfo) +
+							"[getMessageQueue] InterruptedException: " + e.getMessage());
+				}
+				throw new IOException(e);
+			}
+		}
+		return isSucceeded;
+	}
+
+	/**
+	 * メッセージキューを1件ずつ削除する. (一括削除が失敗した場合のやり直し)
+	 * 排他エラー(OptimisticLockingException)の場合は待機して再実行する。
+	 * 削除済み(NoExistingEntryException)の場合は成功とみなす。
+	 * 再実行しても削除できない場合は警告ログを出力する。(次回受信時に同じメッセージが返る)
+	 * @param mqEntries 削除対象メッセージキューEntryリスト
+	 * @param systemContext SystemContext
+	 */
+	private void retryDeleteMessageQueue(List<EntryBase> mqEntries, SystemContext systemContext) {
+		RequestInfo requestInfo = systemContext.getRequestInfo();
+		int numRetries = TaggingEnvUtil.getSystemPropInt(
+				MessageQueueConst.MESSAGEQUEUE_DELETE_RETRY_COUNT, 
+				MessageQueueConst.MESSAGEQUEUE_DELETE_RETRY_COUNT_DEFAULT);
+		int waitMillis = TaggingEnvUtil.getSystemPropInt(
+				MessageQueueConst.MESSAGEQUEUE_DELETE_RETRY_WAITMILLIS, 
+				MessageQueueConst.MESSAGEQUEUE_DELETE_RETRY_WAITMILLIS_DEFAULT);
+		for (EntryBase mqEntry : mqEntries) {
+			String uri = mqEntry.getMyUri();
+			for (int r = 0; r <= numRetries; r++) {
+				try {
+					// リビジョン指定なしで削除する
+					systemContext.delete(uri);
+					break;
+				} catch (NoExistingEntryException e) {
+					// 一括削除で削除済み
+					break;
+				} catch (OptimisticLockingException e) {
+					if (r >= numRetries) {
+						logger.warn(LogUtil.getRequestInfoStr(requestInfo) +
+								"[getMessageQueue] delete message retry failed. uri=" + uri + 
+								" " + e.getMessage());
+						break;
+					}
+					if (logger.isDebugEnabled()) {
+						logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+								"[getMessageQueue] delete message retry. uri=" + uri + 
+								" " + RetryUtil.getRetryLog(e, r));
+					}
+					RetryUtil.sleep(waitMillis);
+				} catch (IOException | TaggingException | RuntimeException e) {
+					logger.warn(LogUtil.getRequestInfoStr(requestInfo) +
+							"[getMessageQueue] delete message failed. uri=" + uri + 
+							" " + e.getClass().getSimpleName() + ": " + e.getMessage());
+					break;
+				}
+			}
+		}
+	}
+
+	/**
 	 * グループに登録されているUIDリストを取得.
 	 * 自身の署名の有無は判定せず、グループ管理者の署名のあるすべてのUIDを返却する。
 	 * @param groupUri グループ
@@ -851,7 +1182,8 @@ public class MessageQueueBlogic {
 		List<String> uids = new ArrayList<String>();
 		String cursorStr = null;
 		do {
-			FeedBase feed = systemContext.getFeed(groupUri, true);
+			String tmpUri = TaggingEntryUtil.addCursorToUri(groupUri, cursorStr);
+			FeedBase feed = systemContext.getFeed(tmpUri, true);
 			cursorStr = TaggingEntryUtil.getCursorFromFeed(feed);
 			if (TaggingEntryUtil.isExistData(feed)) {
 				for (EntryBase groupEntry : feed.entry) {
@@ -1040,7 +1372,7 @@ public class MessageQueueBlogic {
 	 * メッセージキュー機能のアクセスログを出力するかどうか.
 	 * @return メッセージキュー機能へのアクセスログを出力する場合true
 	 */
-	private boolean isEnableAccessLog() {
+	boolean isEnableAccessLog() {
 		return logger.isDebugEnabled() && TaggingEnvUtil.getSystemPropBoolean(
 				MessageQueueConst.MESSAGEQUEUE_ENABLE_ACCESSLOG, false);
 	}

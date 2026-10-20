@@ -58,12 +58,12 @@ public class ReflexStripeEnv {
 			}
 			Stripe.apiKey = secretKey;
 
-			if (isEnableAccessLog()) {
-				StringBuilder sb = new StringBuilder();
-				sb.append("[setup] secretKey=");
-				sb.append(this.secretKey);
-				logger.info(sb.toString());
-			}
+			//if (isEnableAccessLog()) {
+			//	StringBuilder sb = new StringBuilder();
+			//	sb.append("[setup] secretKey=");
+			//	sb.append(this.secretKey);
+			//	logger.info(sb.toString());
+			//}
 
 		} catch (TaggingException | IOException | RuntimeException e) {
 			logger.warn("[setup] Error occured. " + e.getMessage(), e);

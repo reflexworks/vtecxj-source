@@ -32,6 +32,7 @@ import jp.reflexworks.taggingservice.servlet.TaggingRequest;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.ExceptionUtil;
+import jp.reflexworks.taggingservice.util.InternalRequestUtil;
 import jp.reflexworks.taggingservice.util.LogUtil;
 import jp.reflexworks.taggingservice.util.NamespaceUtil;
 import jp.reflexworks.taggingservice.util.UserUtil;
@@ -72,7 +73,8 @@ public class ReflexSecurityManagerDefault implements ReflexSecurityManager {
 	 */
 	public void checkRequestHost(ReflexRequest req, ReflexResponse resp)
 	throws TaggingException {
-		checkRequestHost(req, resp, false);
+		// 内部リクエストポートで受け付けた場合は内部リクエストのチェックを行う。
+		checkRequestHost(req, resp, InternalRequestUtil.isInternalRequest(req));
 	}
 
 	/**
@@ -353,6 +355,11 @@ public class ReflexSecurityManagerDefault implements ReflexSecurityManager {
 	 */
 	public void checkWhiteRemoteAddress(ReflexRequest req, SystemContext systemContext)
 	throws IOException, TaggingException {
+		// 内部リクエスト(バッチジョブ実行サーバ等のシステム起点)の場合はチェックしない。
+		// 送信元がPodのIPアドレスとなり、サービス管理者の指定するIPアドレスと一致しないため。
+		if (InternalRequestUtil.isInternalRequest(req)) {
+			return;
+		}
 		String serviceName = req.getServiceName();
 		Set<String> whiteAddresses = TaggingEnvUtil.getPropSet(serviceName,
 				SettingConst.WHITE_REMOTEADDR_PREFIX);
