@@ -502,11 +502,6 @@ public class FullTextSearchBDBManager {
 			String distkeyItem, String distkeyValue,
 			FullTextSearchContext reflexContext)
 	throws IOException, TaggingException {
-		// SIDが未設定の場合はエラー
-		if (StringUtils.isBlank(reflexContext.getSessionId())) {
-			throw new IllegalParameterException("Session is required.");
-		}
-
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
 		ConnectionInfo connectionInfo = reflexContext.getConnectionInfo();
 
@@ -526,14 +521,9 @@ public class FullTextSearchBDBManager {
 				param.getOption(FullTextSearchRequestParam.PARAM_NEXT));
 		String endKeyStr = FullTextSearchIndexUtil.getEndKeyStr(index);
 		BDBCondition bdbCondition = new BDBCondition(index, endKeyStr, cursorStr);
-		Map<String, String> currentCache = null;
-		FeedBase currentCacheFeed = null;
-		if (param.getOption(FullTextSearchRequestParam.PARAM_CLEARCACHE) != null) {
-			currentCache = new HashMap<>();
-		} else {
-			currentCacheFeed = getFullTextCacheFeed(index, reflexContext);
-			currentCache = convertFullTextCacheMap(currentCacheFeed);
-		}
+		// 同一Entryの重複はリクエスト内はBDBQueryのキャッシュで、前ページまでの分は
+		// 全文検索インデックスAncestorで判定する。(セッションは使用しない)
+		// _clearcacheオプションは互換性のため受け付けるが使用しない。
 
 		int numRetries = BDBEnvUtil.getBDBRetryCount();
 		int waitMillis = BDBEnvUtil.getBDBRetryWaitmillis();
@@ -545,11 +535,17 @@ public class FullTextSearchBDBManager {
 					return null;
 				}
 				BDBDatabase db = bdbEnv.getDb(FullTextSearchBDBConst.DB_FULL_TEXT_INDEX);
+				BDBQueryFetchedChecker fetchedChecker = null;
+				if (!StringUtils.isBlank(cursorStr)) {
+					// 2ページ目以降の場合、前ページまでに取得済みかどうかをAncestorで判定
+					BDBDatabase dbAncestor = bdbEnv.getDb(
+							FullTextSearchBDBConst.DB_FULL_TEXT_INDEX_ANCESTOR);
+					fetchedChecker = (foundKeyStr, id) -> isFetchedByAncestor(namespace,
+							dbAncestor, index, foundKeyStr, id, requestInfo, connectionInfo);
+				}
 				FetchInfo<String> fetchInfo = bdbQuery.getByQuery(namespace, null, db,
-						binding, bdbCondition, limit, currentCache, requestInfo);
-
-				// キャッシュをセッションに登録
-				setFullTextCache(index, currentCacheFeed, fetchInfo, reflexContext);
+						binding, bdbCondition, limit, new HashMap<>(), fetchedChecker,
+						requestInfo);
 
 				return fetchInfo;
 
@@ -1018,106 +1014,37 @@ public class FullTextSearchBDBManager {
 	}
 
 	/**
-	 * セッション用キーを取得.
-	 * @param uriStr 検索条件
-	 * @return セッション用キー
+	 * 全文検索で検索されたEntryが、前ページまでに取得済みかどうか判定する.
+	 * Entryの全文検索インデックス(Ancestor)のうち、今回の検索条件に合致し、
+	 * 検索されたキーより小さいものが存在すれば、前ページまでに取得済みと判定する。
+	 * @param namespace 名前空間
+	 * @param dbAncestor 全文検索インデックスAncestor
+	 * @param index 検索用インデックス (前方一致の開始キー)
+	 * @param foundKeyStr 検索された全文検索インデックス
+	 * @param id EntryのID
+	 * @param requestInfo リクエスト情報
+	 * @param connectionInfo コネクション情報
+	 * @return 前ページまでに取得済みの場合true
 	 */
-	private String getSessionKey(String uriStr) {
-		return FullTextSearchBDBConst.SESSION_FULLTEXTSEARCH + uriStr;
-	}
-
-	/**
-	 * 全文検索検索済みキーリストFeedを取得.
-	 * @param uri 検索条件
-	 * @param reflexContext ReflexContext
-	 * @return 全文検索検索済みキーリストFeed
-	 */
-	private FeedBase getFullTextCacheFeed(String uri, FullTextSearchContext reflexContext)
-	throws IOException, TaggingException {
-		String name = getSessionKey(uri);
-		return reflexContext.getSessionFeed(name);
-	}
-
-	/**
-	 * 全文検索検索済みキーリストFeedをMapに変換.
-	 * @param feed 全文検索検索済みキーリストFeed (id:entry.id、index:entry.title)
-	 * @return 全文検索検索済みキーMap (キー:ID URI、値:全文検索インデックス値)
-	 */
-	private Map<String, String> convertFullTextCacheMap(FeedBase feed)
-	throws IOException, TaggingException {
-		Map<String, String> currentCache = new HashMap<>();
-		if (TaggingEntryUtil.isExistData(feed)) {
-			for (EntryBase entry : feed.entry) {
-				String id = entry.id;	// TODO
-				String index = entry.title;
-				currentCache.put(id, index);
+	private boolean isFetchedByAncestor(String namespace, BDBDatabase dbAncestor,
+			String index, String foundKeyStr, String id,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo) {
+		if (StringUtils.isBlank(id)) {
+			return false;
+		}
+		BDBGet<List<String>> bdbGetAncestor = new BDBGet<>();
+		List<String> ancestorIndexes = bdbGetAncestor.get(namespace, null, dbAncestor,
+				BDBUtil.getListBinding(), BDBUtil.getLockMode(),
+				TaggingEntryUtil.getUriById(id), requestInfo, connectionInfo);
+		if (ancestorIndexes == null) {
+			return false;
+		}
+		for (String ancestorIndex : ancestorIndexes) {
+			if (ancestorIndex.startsWith(index) && ancestorIndex.compareTo(foundKeyStr) < 0) {
+				return true;
 			}
 		}
-		return currentCache;
-	}
-
-	/**
-	 * 全文検索検索済みキーリストFeedをセッションに登録
-	 * @param uri 検索条件
-	 * @param currentCacheFeed 登録済みIDリスト (id:entry.id、index:entry.title)
-	 * @param fetchInfo 今回の検索結果
-	 * @param reflexContext ReflexContext
-	 */
-	private void setFullTextCache(String uri, FeedBase currentCacheFeed,
-			FetchInfo<String> fetchInfo, FullTextSearchContext reflexContext)
-	throws IOException, TaggingException {
-		if (fetchInfo == null) {
-			return;
-		}
-		// 取得結果は キー:インデックス、値:ID URI
-		Map<String, String> result = fetchInfo.getResult();
-		if (result == null || result.isEmpty()) {
-			return;
-		}
-
-		boolean setSession = false;
-		List<EntryBase> entries = convertFullTextCacheMap(result);
-		if (currentCacheFeed != null && currentCacheFeed.entry != null &&
-				!currentCacheFeed.entry.isEmpty()) {
-			// セッションに登録済みの場合、末尾のインデックスを比較する。(titleにインデックス)
-			String currentLastIndex = currentCacheFeed.entry.get(
-					currentCacheFeed.entry.size() - 1).title;
-			String fetchLastIndex = entries.get(entries.size() - 1).title;
-			if (fetchLastIndex.compareTo(currentLastIndex) > 0) {
-				currentCacheFeed.entry.addAll(entries);
-				setSession = true;
-			}
-		} else {
-			// セッションに未登録の場合
-			currentCacheFeed = TaggingEntryUtil.createAtomFeed();
-			currentCacheFeed.entry = entries;
-			setSession = true;
-		}
-
-		// セッションに登録
-		if (setSession) {
-			String name = getSessionKey(uri);
-			reflexContext.setSessionFeed(name, currentCacheFeed);
-		}
-	}
-
-	/**
-	 * 検索結果を検索済みキーリスト形式に変換
-	 * @param result 検索結果
-	 * @return 検索済みIDリスト (id:entry.id、index:entry.title)
-	 */
-	private List<EntryBase> convertFullTextCacheMap(Map<String, String> result) {
-		List<EntryBase> entries = new ArrayList<>();
-		// 取得結果は キー:インデックス、値:ID
-		for (Map.Entry<String, String> mapEntry : result.entrySet()) {
-			String index = mapEntry.getKey();
-			String id = mapEntry.getValue();
-			EntryBase entry = TaggingEntryUtil.createAtomEntry();
-			entry.id = id;
-			entry.title = index;
-			entries.add(entry);
-		}
-		return entries;
+		return false;
 	}
 
 	/**

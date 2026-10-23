@@ -69,6 +69,30 @@ public class BDBQuery<T> {
 	FetchInfo<T> getByQuery(String namespace, BDBTransaction txn,
 			BDBDatabase db, EntryBinding<T> binding, BDBCondition bdbCondition,
 			int limit, Map<String, String> currentCache, RequestInfo requestInfo) {
+		return getByQuery(namespace, txn, db, binding, bdbCondition, limit, currentCache,
+				null, requestInfo);
+	}
+
+	/**
+	 * クエリ検索
+	 * @param namespace 名前空間 (ログ用)
+	 * @param txn トランザクション
+	 * @param db データベース
+	 * @param binding バインディングクラス
+	 * @param bdbCondition 検索条件リスト
+	 *        (開始キー、終了キー、デコード済みカーソル)
+	 * @param limit 結果データ最大数
+	 * @param currentCache 同じ条件で読み込み済みキャッシュ(全文検索インデックス検索で使用)
+	 *                     キャッシュを使用する場合はnullでなくオブジェクトを引き渡すこと。
+	 *                     キー:値、値:検索キー
+	 * @param fetchedChecker 前ページまでの取得済み判定 (全文検索インデックス検索で使用)
+	 *                       currentCacheがnullの場合は使用しない。
+	 * @param requestInfo リクエスト情報
+	 */
+	FetchInfo<T> getByQuery(String namespace, BDBTransaction txn,
+			BDBDatabase db, EntryBinding<T> binding, BDBCondition bdbCondition,
+			int limit, Map<String, String> currentCache,
+			BDBQueryFetchedChecker fetchedChecker, RequestInfo requestInfo) {
 		String newPointerStr = null;
 		int fetchCnt = 0;
 		int fetchLimit = BDBEnvUtil.getFetchLimit();
@@ -208,6 +232,11 @@ public class BDBQuery<T> {
 				if (isCheckCache) {
 					val = (String)foundDataVal;
 					hasCache = hasCache(val, foundKeyStr, currentCache, newCache);
+					if (!hasCache && fetchedChecker != null && !newCache.containsKey(val) &&
+							!currentCache.containsKey(val)) {
+						// このリクエストで初めて検索された値の場合、前ページまでに取得済みか判定
+						hasCache = fetchedChecker.isFetched(foundKeyStr, val);
+					}
 				}
 				if (!hasCache) {
 					// 件数チェック

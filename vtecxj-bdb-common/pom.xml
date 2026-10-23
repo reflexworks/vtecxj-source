@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-bdb-common</artifactId>
-  <version>10.0.5</version>
+  <version>10.0.6</version>
   <packaging>jar</packaging>
 
   <description>vte.cx BDB common</description>

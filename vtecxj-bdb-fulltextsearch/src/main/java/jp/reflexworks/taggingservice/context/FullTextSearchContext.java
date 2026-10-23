@@ -23,7 +23,6 @@ import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.model.FetchInfo;
 import jp.reflexworks.taggingservice.model.FullTextSearchRequestParam;
 import jp.reflexworks.taggingservice.model.ReflexBDBRequestInfo;
-import jp.reflexworks.taggingservice.redis.JedisSessionManager;
 import jp.reflexworks.taggingservice.taskqueue.FullTextSearchTaskQueueUtil;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.ReflexBDBBackupUtil;
@@ -336,28 +335,6 @@ public class FullTextSearchContext implements BaseReflexContext {
 	 */
 	public String getSessionId() {
 		return sid;
-	}
-
-	/**
-	 * セッションからFeedを取得
-	 * @param name 第二キー
-	 * @return Feed
-	 */
-	public FeedBase getSessionFeed(String name) throws IOException, TaggingException {
-		JedisSessionManager sessionManager = new JedisSessionManager();
-		return sessionManager.getFeed(sid, name, this);
-	}
-
-	/**
-	 * セッションへFeedを登録
-	 * @param name 第二キー
-	 * @param feed Feed
-	 * @return 登録したFeed
-	 */
-	public FeedBase setSessionFeed(String name, FeedBase feed)
-	throws IOException, TaggingException {
-		JedisSessionManager sessionManager = new JedisSessionManager();
-		return sessionManager.setFeed(sid, name, feed, this);
 	}
 
 	/**
