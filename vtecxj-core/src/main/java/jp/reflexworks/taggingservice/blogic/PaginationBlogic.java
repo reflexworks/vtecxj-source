@@ -140,16 +140,18 @@ public class PaginationBlogic {
 
 	/**
 	 * セッション存在チェック.
+	 * 未ログインユーザ(UID、SIDともになし)の場合は未ログインユーザ用共有ストアを使用するためOKとする。
+	 * セッションを持たない認証済みユーザ(アクセストークン・リンクトークン認証)はエラー。
 	 * @param auth 認証情報
-	 * @param auth
 	 */
-	private void checkSession(ReflexAuthentication auth) 
+	private void checkSession(ReflexAuthentication auth)
 	throws PermissionException {
-		if (auth == null || auth.getSessionId() == null) {
-			PermissionException pe = new PermissionException();
-			pe.setSubMessage("The session is required.");
-			throw new PermissionException();
+		if (auth != null && (auth.getSessionId() != null || PaginationStore.isAnonymous(auth))) {
+			return;
 		}
+		PermissionException pe = new PermissionException();
+		pe.setSubMessage("The session is required.");
+		throw pe;
 	}
 
 	/**
@@ -235,8 +237,12 @@ public class PaginationBlogic {
 
 		//   開始ページ数指定の場合、セッションに「開始ページ数-1ページ」のカーソルが登録されていなければエラー
 		if (startPage > 1) {
-			FeedBase cursorListFeed = getCursorList(conditionName, targetServiceName,
-					reflexContext);
+			PaginationStore store = PaginationStore.of(reflexContext);
+			FeedBase cursorListFeed = null;
+			// 未ログインユーザの場合、有効期間を過ぎたカーソルリストは存在しないものとする。
+			if (!store.isAnonymous() || isFreshAnonymous(conditionName, targetServiceName, store)) {
+				cursorListFeed = getCursorList(conditionName, targetServiceName, store);
+			}
 			checkStartPageNumber(cursorListFeed, startPage);
 		}
 	}
@@ -271,14 +277,14 @@ public class PaginationBlogic {
 	 * カーソルリストを取得
 	 * @param conditionName キー+検索条件文字列
 	 * @param targetServiceName 対象サービス名
-	 * @param reflexContext ReflexContext
+	 * @param store データ格納先
 	 * @return カーソルリスト格納Feed
 	 */
 	private FeedBase getCursorList(String conditionName, String targetServiceName,
-			ReflexContext reflexContext)
+			PaginationStore store)
 	throws IOException, TaggingException {
 		String cursorListKey = getCursorListKey(conditionName, targetServiceName);
-		return reflexContext.getSessionFeed(cursorListKey);
+		return store.getFeed(cursorListKey);
 	}
 
 	/**
@@ -386,6 +392,66 @@ public class PaginationBlogic {
 	}
 
 	/**
+	 * インメモリソート処理排他フラグの格納キーを取得.
+	 * <ul>
+	 * <li>セッションの場合 : `_INMEMORYSORT_LOCK` (セッションで1つ。新しい条件で上書きされると実行中のインメモリソートを停止する。)</li>
+	 * <li>未ログインユーザ用共有ストアの場合 : `_INMEMORYSORT_LOCK`+キー+検索条件 (条件単位。他の条件のインメモリソートを停止しない。)</li>
+	 * </ul>
+	 * @param conditionName キー+検索条件文字列.
+	 * @param serviceName サービス名
+	 * @param isAnonymous 未ログインユーザ用共有ストアの場合true
+	 * @return インメモリソート処理排他フラグの格納キー
+	 */
+	public String getMemorySortLockKey(String conditionName, String serviceName,
+			boolean isAnonymous) {
+		if (!isAnonymous) {
+			return PaginationConst.SESSION_KEY_MEMORYSORT_LOCK;
+		}
+		StringBuilder sb = new StringBuilder();
+		sb.append(PaginationConst.SESSION_KEY_MEMORYSORT_LOCK);
+		sb.append(Constants.SVC_PREFIX_VAL);
+		sb.append(serviceName);
+		sb.append(Constants.SVC_PREFIX_VAL);
+		sb.append(conditionName);
+		return sb.toString();
+	}
+
+	/**
+	 * カーソルリスト作成時刻の格納キーを取得. (未ログインユーザ用共有ストアのみ)
+	 * _PAGINATION_CREATED+キー+検索条件
+	 * @param conditionName キー+検索条件文字列.
+	 * @param serviceName サービス名
+	 * @return カーソルリスト作成時刻の格納キー
+	 */
+	private String getCreatedKey(String conditionName, String serviceName) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(PaginationConst.SESSION_KEY_CREATED);
+		sb.append(Constants.SVC_PREFIX_VAL);
+		sb.append(serviceName);
+		sb.append(Constants.SVC_PREFIX_VAL);
+		sb.append(conditionName);
+		return sb.toString();
+	}
+
+	/**
+	 * 未ログインユーザ用共有ストアのカーソルリストが有効期間内かどうか.
+	 * @param conditionName キー+検索条件文字列.
+	 * @param serviceName サービス名
+	 * @param store データ格納先
+	 * @return 有効期間内の場合true
+	 */
+	private boolean isFreshAnonymous(String conditionName, String serviceName,
+			PaginationStore store)
+	throws IOException, TaggingException {
+		Long created = store.getLong(getCreatedKey(conditionName, serviceName));
+		if (created == null) {
+			return false;
+		}
+		long expireMillis = store.getAnonymousExpireSec() * 1000L;
+		return new Date().getTime() - created <= expireMillis;
+	}
+
+	/**
 	 * ページング処理
 	 * @param param 検索条件
 	 * @param conditionName 検索条件
@@ -415,14 +481,48 @@ public class PaginationBlogic {
 					requestInfo, connectionInfo);
 		}
 
+		// データ格納先 (セッションまたは未ログインユーザ用共有ストア)
+		PaginationStore store = PaginationStore.of(reflexContext);
+		boolean isAnonymous = store.isAnonymous();
+		boolean isSort = param.getSort() != null;
+
+		// 未ログインユーザの場合、有効期間内の作成済みカーソルリストがあれば再利用する。
+		if (isAnonymous) {
+			FeedBase cachedFeed = getCachedPagingResult(conditionName, targetServiceName,
+					startPageNum, endPageNum, isSort, sourceServiceName, store);
+			if (cachedFeed != null) {
+				if (logger.isDebugEnabled()) {
+					StringBuilder sb = new StringBuilder();
+					sb.append(LogUtil.getRequestInfoStr(requestInfo));
+					sb.append("[pagingProc] anonymous cursor list was reused. conditionName=");
+					sb.append(conditionName);
+					logger.debug(sb.toString());
+				}
+				return cachedFeed;
+			}
+		}
+
 		// 処理中フラグキー
 		String lockKey = getLockKey(conditionName, targetServiceName);
 		long lock = 0;
 		boolean callMemorySort = false;
 		try {
 			// 処理中フラグをONにする。
-			lock = reflexContext.incrementSession(lockKey, 1);
+			if (isAnonymous) {
+				lock = lockAnonymous(lockKey, store);
+			} else {
+				lock = store.increment(lockKey, 1);
+			}
 			if (lock > 1) {
+				if (isAnonymous) {
+					// 他の未ログインユーザが同じ条件で処理中の場合、処理終了を待って作成済みのカーソルリストを返す。
+					checkLock(conditionName, targetServiceName, reflexContext);
+					FeedBase cachedFeed = getCachedPagingResult(conditionName, targetServiceName,
+							startPageNum, endPageNum, isSort, sourceServiceName, store);
+					if (cachedFeed != null) {
+						return cachedFeed;
+					}
+				}
 				if (logger.isDebugEnabled()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
@@ -437,11 +537,25 @@ public class PaginationBlogic {
 			// インメモリソート非同期処理を呼び出すかどうか
 			String currentMemorySortConditionName = null;
 			// インメモリソート対象の場合、インメモリソート処理排他フラグをONにする。
-			if (param.getSort() != null) {
-				String memorySortLockKey = PaginationConst.SESSION_KEY_MEMORYSORT_LOCK;
-				currentMemorySortConditionName = reflexContext.getSessionString(memorySortLockKey);
-				if (!conditionName.equals(currentMemorySortConditionName) ||
-						startPageNum <= 1) {
+			if (isSort) {
+				String memorySortLockKey = getMemorySortLockKey(conditionName,
+						targetServiceName, isAnonymous);
+				boolean isStartMemorySort = false;
+				if (isAnonymous) {
+					// 未ログインユーザの場合、排他フラグは条件単位。
+					// ページング処理ロックを取得しているため、同じ条件のインメモリソートは実行中でない。
+					String pageNumKey = getMemorySortPagenumKey(conditionName, targetServiceName);
+					if (startPageNum <= 1 || store.getLong(pageNumKey) == null) {
+						// 古いソート結果を参照させないよう、総ページ数を削除してソート完了を待たせる。
+						store.deleteLong(pageNumKey);
+						isStartMemorySort = true;
+					}
+				} else {
+					currentMemorySortConditionName = store.getString(memorySortLockKey);
+					isStartMemorySort = !conditionName.equals(currentMemorySortConditionName) ||
+							startPageNum <= 1;
+				}
+				if (isStartMemorySort) {
 					if (logger.isDebugEnabled()) {
 						StringBuilder sb = new StringBuilder();
 						sb.append(LogUtil.getRequestInfoStr(requestInfo));
@@ -452,7 +566,7 @@ public class PaginationBlogic {
 						logger.debug(sb.toString());
 					}
 					// 上書きされたインメモリソートは、スレッド側で停止する。
-					reflexContext.setSessionString(memorySortLockKey, conditionName);
+					store.setString(memorySortLockKey, conditionName);
 					callMemorySort = true;
 				}
 			}
@@ -466,28 +580,26 @@ public class PaginationBlogic {
 			}
 
 			// カーソルリストアクセス時間を設定
-			setAccessTime(conditionName, targetServiceName, reflexContext);
+			setAccessTime(conditionName, targetServiceName, store);
 
 			// カーソルリスト数チェック
 			// カーソルリスト一覧を取得
-			List<String> keys = reflexContext.getSessionFeedKeys();
+			List<String> keys = store.getFeedKeys();
 			List<String> cursorListKeys = getCursorListKeys(keys);
 			int cursorListCnt = 0;
 			if (cursorListKeys != null) {
 				cursorListCnt = cursorListKeys.size();
 			}
-			int cursorListLimit = TaggingEnvUtil.getSystemPropInt(
-					TaggingEnvConst.POINTERSLIST_LIMIT,
-					TaggingEnvConst.POINTERSLIST_LIMIT_DEFAULT);
+			int cursorListLimit = getCursorListLimit(isAnonymous);
 			if (cursorListCnt >= cursorListLimit) {
 				// アクセス時刻の古いカーソルリストを削除
-				deleteCursorList(cursorListKeys, cursorListLimit, reflexContext);
+				deleteCursorList(cursorListKeys, cursorListLimit, store, reflexContext);
 			}
 
 			// セッションからカーソルリスト取得
 			int startIdx = startPageNum - 1;
 			FeedBase cursorListFeed = getCursorList(conditionName, targetServiceName,
-					reflexContext);
+					store);
 			if (cursorListFeed == null) {
 				cursorListFeed = TaggingEntryUtil.createFeed(sourceServiceName);
 			}
@@ -523,16 +635,18 @@ public class PaginationBlogic {
 
 				// 検索
 				FeedBase feed = targetReflexContext.getFeed(conditionUri);
+				int pageEntryCnt = 0;
 				if (TaggingEntryUtil.isExistData(feed)) {
-					entryCnt += feed.entry.size();
+					pageEntryCnt = feed.entry.size();
+					entryCnt += pageEntryCnt;
 				}
 
 				// カーソルがあれば格納、なければlast指定し終了
 				cursorStr = TaggingEntryUtil.getCursorFromFeed(feed);
 				if (!StringUtils.isBlank(cursorStr)) {
-					setCursorToList(cursorListFeed, cursorStr);
+					setCursorToList(cursorListFeed, cursorStr, pageEntryCnt);
 				} else {
-					setLastToList(cursorListFeed);
+					setLastToList(cursorListFeed, pageEntryCnt);
 					hasNext = false;
 					if (i == 0 && (feed == null || feed.entry == null || feed.entry.isEmpty())) {
 						noEntry = true;
@@ -549,7 +663,12 @@ public class PaginationBlogic {
 
 			// カーソルリストを登録
 			String cursorListKey = getCursorListKey(conditionName, targetServiceName);
-			reflexContext.setSessionFeed(cursorListKey, cursorListFeed);
+			store.setFeed(cursorListKey, cursorListFeed);
+			// 未ログインユーザの場合、1ページ目から作成した時刻を有効期間の起点とする。
+			if (isAnonymous && startPageNum <= 1) {
+				store.setLong(getCreatedKey(conditionName, targetServiceName),
+						new Date().getTime());
+			}
 			if (logger.isDebugEnabled()) {
 				StringBuilder sb = new StringBuilder();
 				sb.append(LogUtil.getRequestInfoStr(requestInfo));
@@ -564,22 +683,9 @@ public class PaginationBlogic {
 				logger.debug(sb.toString());
 			}
 
-			FeedBase feed = TaggingEntryUtil.createFeed(sourceServiceName);
-			feed.title = String.valueOf(lastPageNum);
-			feed.subtitle = String.valueOf(entryCnt);
-			if (hasNext) {
-				Link link = new Link();
-				link._$rel = Link.REL_NEXT;
-				feed.link = new ArrayList<>();
-				feed.link.add(link);
-			}
 			// メモリソート検索の場合一度に全てのカーソルインデックスを作成するため、その旨を伝える。
-			if (callMemorySort) {
-				feed.rights = PAGINATION_MEMORYSORT;
-			} else {
-				feed.rights = PAGINATION_GETFEED;
-			}
-			return feed;
+			return createPagingResult(lastPageNum, entryCnt, hasNext, callMemorySort,
+					sourceServiceName);
 
 		} finally {
 			if (lock == 1 && !callMemorySort) {
@@ -606,7 +712,142 @@ public class PaginationBlogic {
 			ReflexContext reflexContext)
 	throws IOException, TaggingException {
 		String lockKey = getLockKey(conditionName, targetServiceName);
-		reflexContext.setSessionLong(lockKey, 0);
+		PaginationStore store = PaginationStore.of(reflexContext);
+		if (store.isAnonymous()) {
+			// 未ログインユーザ用共有ストアのロックは取得時刻を値とするため削除する。
+			store.deleteLong(lockKey);
+		} else {
+			store.setLong(lockKey, 0);
+		}
+	}
+
+	/**
+	 * 未ログインユーザ用共有ストアのページング処理ロックを取得.
+	 * 値はロック取得時刻(ミリ秒)。ロック有効時間を過ぎたロックは無効とし、ロックを取得し直す。
+	 * (共有ストアはセッション切れによりロックが消えることがないため)
+	 * @param lockKey ページング処理ロックキー
+	 * @param store データ格納先
+	 * @return ロックを取得できた場合1、他の処理がロック中の場合2
+	 */
+	private long lockAnonymous(String lockKey, PaginationStore store)
+	throws IOException, TaggingException {
+		long now = new Date().getTime();
+		Long lockTime = store.setLongIfAbsent(lockKey, now);
+		if (lockTime == null) {
+			return 1;
+		}
+		if (lockTime <= 0 || now - lockTime > PaginationStore.getAnonymousLockExpireMillis()) {
+			// ロック有効時間を過ぎているため、ロックを取得し直す。
+			store.setLong(lockKey, now);
+			return 1;
+		}
+		return 2;
+	}
+
+	/**
+	 * 未ログインユーザ用共有ストアの作成済みカーソルリストから、ページング処理の戻り値を作成.
+	 * 以下の場合はnullを返す。(カーソルリストを作成する必要がある。)
+	 * <ul>
+	 * <li>カーソルリストが存在しない、または有効期間を過ぎている。</li>
+	 * <li>指定されたページ範囲のカーソルリストが作成されていない。</li>
+	 * <li>インメモリソート対象で、インメモリソートが完了も実行中もしていない。</li>
+	 * </ul>
+	 * @param conditionName キー+検索条件文字列
+	 * @param targetServiceName 対象サービス名
+	 * @param startPageNum 開始ページ番号
+	 * @param endPageNum 終了ページ番号
+	 * @param isSort インメモリソート対象の場合true
+	 * @param serviceName 戻り値のFeedのサービス名
+	 * @param store データ格納先
+	 * @return ページング処理の戻り値
+	 */
+	private FeedBase getCachedPagingResult(String conditionName, String targetServiceName,
+			int startPageNum, int endPageNum, boolean isSort, String serviceName,
+			PaginationStore store)
+	throws IOException, TaggingException {
+		if (!isFreshAnonymous(conditionName, targetServiceName, store)) {
+			return null;
+		}
+		FeedBase cursorListFeed = getCursorList(conditionName, targetServiceName, store);
+		if (cursorListFeed == null || cursorListFeed.link == null ||
+				cursorListFeed.link.size() < startPageNum) {
+			return null;
+		}
+		int size = cursorListFeed.link.size();
+		if (size < endPageNum && !isLastPage(cursorListFeed.link.get(size - 1))) {
+			return null;
+		}
+		if (isSort) {
+			Long pageNum = store.getLong(getMemorySortPagenumKey(conditionName,
+					targetServiceName));
+			String memorySortLock = store.getString(getMemorySortLockKey(conditionName,
+					targetServiceName, true));
+			if (pageNum == null && !conditionName.equals(memorySortLock)) {
+				return null;
+			}
+		}
+
+		int lastPageNum = Math.min(size, endPageNum);
+		long entryCnt = 0;
+		for (int i = startPageNum - 1; i < lastPageNum; i++) {
+			String pageEntryCnt = cursorListFeed.link.get(i)._$length;
+			if (!StringUtils.isLong(pageEntryCnt)) {
+				return null;
+			}
+			entryCnt += Long.parseLong(pageEntryCnt);
+		}
+		boolean hasNext = !isLastPage(cursorListFeed.link.get(lastPageNum - 1));
+		if (startPageNum <= 1 && !hasNext && lastPageNum == 1 && entryCnt == 0) {
+			// データなし
+			lastPageNum = 0;
+		}
+		return createPagingResult(lastPageNum, entryCnt, hasNext, isSort, serviceName);
+	}
+
+	/**
+	 * ページング処理の戻り値を作成.
+	 * @param lastPageNum 最終ページ番号
+	 * @param entryCnt 範囲内のエントリー件数
+	 * @param hasNext 続きのデータがある場合true
+	 * @param isMemorySort インメモリソートの場合true
+	 * @param serviceName サービス名
+	 * @return title:最終ページ番号、subtitle:範囲内のエントリー件数、
+	 *         link rel="next" があれば続きのデータあり。
+	 *         rights:通常検索の場合"f"、メモリソートの場合"memorysort"
+	 */
+	private FeedBase createPagingResult(int lastPageNum, long entryCnt, boolean hasNext,
+			boolean isMemorySort, String serviceName) {
+		FeedBase feed = TaggingEntryUtil.createFeed(serviceName);
+		feed.title = String.valueOf(lastPageNum);
+		feed.subtitle = String.valueOf(entryCnt);
+		if (hasNext) {
+			Link link = new Link();
+			link._$rel = Link.REL_NEXT;
+			feed.link = new ArrayList<>();
+			feed.link.add(link);
+		}
+		if (isMemorySort) {
+			feed.rights = PAGINATION_MEMORYSORT;
+		} else {
+			feed.rights = PAGINATION_GETFEED;
+		}
+		return feed;
+	}
+
+	/**
+	 * カーソルリスト数上限を取得.
+	 * @param isAnonymous 未ログインユーザ用共有ストアの場合true
+	 * @return カーソルリスト数上限
+	 */
+	private int getCursorListLimit(boolean isAnonymous) {
+		if (isAnonymous) {
+			return TaggingEnvUtil.getSystemPropInt(
+					TaggingEnvConst.PAGINATION_ANONYMOUS_POINTERSLIST_LIMIT,
+					TaggingEnvConst.PAGINATION_ANONYMOUS_POINTERSLIST_LIMIT_DEFAULT);
+		}
+		return TaggingEnvUtil.getSystemPropInt(
+				TaggingEnvConst.POINTERSLIST_LIMIT,
+				TaggingEnvConst.POINTERSLIST_LIMIT_DEFAULT);
 	}
 
 	/**
@@ -654,15 +895,15 @@ public class PaginationBlogic {
 	 * カーソルリストを上限数まで削除.
 	 * @param cursorListKeys カーソルリストキーリスト
 	 * @param cursorListLimit カーソルリスト上限数
+	 * @param store データ格納先
 	 * @param reflexContext ReflexContext
 	 */
 	private void deleteCursorList(List<String> cursorListKeys, int cursorListLimit,
-			ReflexContext reflexContext)
+			PaginationStore store, ReflexContext reflexContext)
 	throws IOException, TaggingException {
-		String serviceName = reflexContext.getServiceName();
 		// カーソルリストキーリストのうちアクセス時刻が新しいものを上限数-1分取得
 		List<String> recentAccessKeys = getRecentAccessKeys(cursorListKeys,
-				cursorListLimit - 1, reflexContext);
+				cursorListLimit - 1, store);
 
 		// アクセス時刻が新しいキーリストに含まれないものを削除する。
 		for (String cursorListKey : cursorListKeys) {
@@ -673,23 +914,28 @@ public class PaginationBlogic {
 				String lockKey = getLockKey(conditionName, targetServiceName);
 				long lock = 0;
 				try {
-					lock = reflexContext.incrementSession(lockKey, 1);
+					lock = store.increment(lockKey, 1);
 					if (lock == 1) {
 						// カーソルリスト削除
-						reflexContext.deleteSessionFeed(cursorListKey);
+						store.deleteFeed(cursorListKey);
 						// アクセス時刻削除
-						String accessTimeKey = getAccessTimeKey(conditionName, serviceName);
-						reflexContext.deleteSessionLong(accessTimeKey);
+						String accessTimeKey = getAccessTimeKey(conditionName, targetServiceName);
+						store.deleteLong(accessTimeKey);
+						// 作成時刻削除 (未ログインユーザ用共有ストアのみ存在)
+						if (store.isAnonymous()) {
+							store.deleteLong(getCreatedKey(conditionName, targetServiceName));
+						}
 
 						// インメモリソートリストが存在する場合、そちらも削除する。
-						String pageNumKey = getMemorySortPagenumKey(conditionName, serviceName);
-						Long pageNum = reflexContext.getSessionLong(pageNumKey);
+						String pageNumKey = getMemorySortPagenumKey(conditionName, targetServiceName);
+						Long pageNum = store.getLong(pageNumKey);
 						if (pageNum != null) {
 							for (int i = 1; i <= pageNum; i++) {
-								String listKey = getMemorySortListKey(conditionName, i, serviceName);
-								reflexContext.deleteSessionFeed(listKey);
+								String listKey = getMemorySortListKey(conditionName, i,
+										targetServiceName);
+								store.deleteFeed(listKey);
 							}
-							reflexContext.deleteSessionLong(pageNumKey);
+							store.deleteLong(pageNumKey);
 						}
 
 						if (logger.isDebugEnabled()) {
@@ -705,7 +951,7 @@ public class PaginationBlogic {
 				} finally {
 					if (lock == 1) {
 						// ロック削除
-						reflexContext.deleteSessionLong(lockKey);
+						store.deleteLong(lockKey);
 					}
 				}
 			}
@@ -716,11 +962,11 @@ public class PaginationBlogic {
 	 * アクセス時刻の新しいものからカーソルリスト保持上限数分のキーリストを返却.
 	 * @param accessListMap カーソルリストキーとアクセス時刻のMap
 	 * @param cursorListLimit カーソルリスト保持上限数
-	 * @param targetServiceName 対象サービス名
+	 * @param store データ格納先
 	 * @return カーソルリスト保持上限数分のキーリスト
 	 */
 	private List<String> getRecentAccessKeys(List<String> cursorListKeys,
-			int cursorListLimit, ReflexContext reflexContext)
+			int cursorListLimit, PaginationStore store)
 	throws IOException, TaggingException {
 		// キー: カーソルリストのキー、値: アクセス時刻
 		Map<String, Long> accessTimeMap = new HashMap<String, Long>();
@@ -728,7 +974,7 @@ public class PaginationBlogic {
 			String conditionName = getConditionNameByCursorListKey(cursorListKey);
 			String targetServiceName = getTargetServiceNameByCursorListKey(cursorListKey);
 			String accesstimeKey = getAccessTimeKey(conditionName, targetServiceName);
-			Long accessTime = reflexContext.getSessionLong(accesstimeKey);
+			Long accessTime = store.getLong(accesstimeKey);
 			accessTimeMap.put(cursorListKey, accessTime);
 		}
 
@@ -768,20 +1014,24 @@ public class PaginationBlogic {
 	 * カーソルをカーソルリストに追加.
 	 * @param cursorListFeed カーソルリスト
 	 * @param cursorStr カーソル
+	 * @param pageEntryCnt そのページのエントリー件数
 	 */
-	private void setCursorToList(FeedBase cursorListFeed, String cursorStr) {
+	private void setCursorToList(FeedBase cursorListFeed, String cursorStr, int pageEntryCnt) {
 		Link link = new Link();
 		link._$href = cursorStr;
+		link._$length = String.valueOf(pageEntryCnt);
 		cursorListFeed.link.add(link);
 	}
 
 	/**
 	 * 最終ページフラグをカーソルリストに追加.
 	 * @param cursorListFeed カーソルリスト
+	 * @param pageEntryCnt そのページのエントリー件数
 	 */
-	private void setLastToList(FeedBase cursorListFeed) {
+	private void setLastToList(FeedBase cursorListFeed, int pageEntryCnt) {
 		Link link = new Link();
 		link._$title = PaginationBlogic.CURSORLIST_LAST;
+		link._$length = String.valueOf(pageEntryCnt);
 		cursorListFeed.link.add(link);
 	}
 
@@ -833,10 +1083,17 @@ public class PaginationBlogic {
 
 		// カーソルリストアクセス時間を設定
 		String conditionName = getConditionName(param);
-		setAccessTime(conditionName, tmpServiceName, reflexContext);
+		PaginationStore store = PaginationStore.of(reflexContext);
+		setAccessTime(conditionName, tmpServiceName, store);
 
 		// 処理中の場合一定時間待つ
-		checkLock(conditionName, targetServiceName, reflexContext);
+		// (ロックキーはページング処理と同じく検索対象サービス名で作成する)
+		checkLock(conditionName, tmpServiceName, reflexContext);
+
+		// 未ログインユーザの場合、有効期間を過ぎたカーソルリストは使用しない。
+		if (store.isAnonymous() && !isFreshAnonymous(conditionName, tmpServiceName, store)) {
+			throw new IllegalParameterException("Please make a pagination index in advance.");
+		}
 
 		// インメモリソートか、カーソルリストからの取得かを判定
 		if (param.getSort() == null) {
@@ -866,7 +1123,7 @@ public class PaginationBlogic {
 
 		// カーソルリストと入力値のチェック
 		FeedBase cursorListFeed = getCursorList(conditionName, tmpServiceName,
-				reflexContext);
+				PaginationStore.of(reflexContext));
 		checkCursorList(cursorListFeed, page);
 
 		// カーソル取得
@@ -917,7 +1174,7 @@ public class PaginationBlogic {
 
 		// 指定ページのIDリストを取得。
 		String idsKey = getMemorySortListKey(conditionName, page, targetServiceName);
-		FeedBase idsFeed = reflexContext.getSessionFeed(idsKey);
+		FeedBase idsFeed = PaginationStore.of(reflexContext).getFeed(idsKey);
 		if (idsFeed == null || idsFeed.link == null || idsFeed.link.isEmpty()) {
 			throw new NoEntryException();
 		}
@@ -1024,13 +1281,13 @@ public class PaginationBlogic {
 	 * カーソルリストアクセス時間を設定.
 	 * @param conditionName URI+検索条件
 	 * @param targetServiceName 対象サービス名
-	 * @param reflexContext ReflexContext
+	 * @param store データ格納先
 	 */
 	private void setAccessTime(String conditionName, String targetServiceName,
-			ReflexContext reflexContext)
+			PaginationStore store)
 	throws IOException, TaggingException {
 		String accessTimeKey = getAccessTimeKey(conditionName, targetServiceName);
-		reflexContext.setSessionLong(accessTimeKey, new Date().getTime());
+		store.setLong(accessTimeKey, new Date().getTime());
 	}
 
 	/**
@@ -1056,6 +1313,9 @@ public class PaginationBlogic {
 	throws IOException, TaggingException {
 		// インメモリソートリストの総ページ数を読んでページ数チェック
 		String memorysortPageNum = getMemorySortPagenumKey(conditionName, tmpServiceName);
+		PaginationStore store = PaginationStore.of(reflexContext);
+		String memorySortLockKey = getMemorySortLockKey(conditionName, tmpServiceName,
+				store.isAnonymous());
 
 		String myServiceName = reflexContext.getServiceName();
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
@@ -1063,12 +1323,11 @@ public class PaginationBlogic {
 		int waitMillis = getProcessingGetRetryWaitmillis(myServiceName, requestInfo);
 		for (int r = 0; r <= numRetries; r++) {
 			boolean isRetry = false;
-			Long pageNum = reflexContext.getSessionLong(memorysortPageNum);
+			Long pageNum = store.getLong(memorysortPageNum);
 			if (pageNum == null) {
 				// ページネーション未処理
 				// インメモリソート処理排他フラグを読み、処理中かどうかをチェックする。
-				String lockConditionName = reflexContext.getSessionString(
-						PaginationConst.SESSION_KEY_MEMORYSORT_LOCK);
+				String lockConditionName = store.getString(memorySortLockKey);
 				if (conditionName.equals(lockConditionName)) {
 					// 処理中
 					isRetry = true;
@@ -1217,6 +1476,7 @@ public class PaginationBlogic {
 	throws IOException, TaggingException {
 		// 処理中フラグキー
 		String lockKey = getLockKey(conditionName, targetServiceName);
+		PaginationStore store = PaginationStore.of(reflexContext);
 
 		String myServiceName = reflexContext.getServiceName();
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
@@ -1224,8 +1484,13 @@ public class PaginationBlogic {
 		int numRetries = getProcessingGetRetryCount(myServiceName, requestInfo);
 		int waitMillis = getProcessingGetRetryWaitmillis(myServiceName, requestInfo);
 		for (int r = 0; r <= numRetries; r++) {
-			Long lock = reflexContext.getSessionLong(lockKey);
+			Long lock = store.getLong(lockKey);
 			if (lock == null || lock == 0) {
+				return;
+			}
+			// 未ログインユーザ用共有ストアのロックは取得時刻。ロック有効時間を過ぎたロックは無効。
+			if (store.isAnonymous() && new Date().getTime() - lock >
+					PaginationStore.getAnonymousLockExpireMillis()) {
 				return;
 			}
 			// 処理中のためスリープ

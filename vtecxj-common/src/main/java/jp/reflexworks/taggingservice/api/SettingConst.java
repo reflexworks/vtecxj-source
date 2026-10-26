@@ -32,6 +32,8 @@ public interface SettingConst {
 	public static final String PROCESSING_GET_RETRY_COUNT = "_processing.get.retry.count";
 	/** 検索でインメモリソートなど処理中の場合の待ち時間(ミリ秒) **/
 	public static final String PROCESSING_GET_RETRY_WAITMILLIS = "_processing.get.retry.waitmillis";
+	/** 未ログインユーザのページング結果(共有ストア)の有効期間(秒) **/
+	public static final String PAGINATION_ANONYMOUS_EXPIRE_SEC = "_pagination.anonymous.expire.sec";
 	/** ログアラートのレベルパターン設定 **/
 	public static final String LOGALERT_LEVEL_PATTERN = "_logalert.level.pattern";
 	/** ログアラートメール送信のメールアドレス設定 **/

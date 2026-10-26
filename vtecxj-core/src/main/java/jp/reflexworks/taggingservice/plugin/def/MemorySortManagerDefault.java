@@ -26,6 +26,7 @@ import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.blogic.PaginationBlogic;
 import jp.reflexworks.taggingservice.blogic.PaginationConst;
+import jp.reflexworks.taggingservice.blogic.PaginationStore;
 import jp.reflexworks.taggingservice.blogic.ServiceBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
@@ -113,7 +114,10 @@ public class MemorySortManagerDefault implements MemorySortManager {
 		try {
 			if (!isEnabledMemorySort(tmpAuth.getServiceName())) {
 				reflexContext.log(TITLE, Constants.WARN, "can't sort in memory.");
-				reflexContext.deleteSessionString(PaginationConst.SESSION_KEY_MEMORYSORT_LOCK);
+				PaginationStore store = PaginationStore.of(reflexContext);
+				PaginationBlogic paginationBlogic = new PaginationBlogic();
+				store.deleteString(paginationBlogic.getMemorySortLockKey(conditionName,
+						targetServiceName, store.isAnonymous()));
 				// エラーを返す
 				throw new IllegalParameterException("can't sort in memory.");
 			}
@@ -172,8 +176,19 @@ public class MemorySortManagerDefault implements MemorySortManager {
 			request(urlStr, method, targetServiceName, reflexContext);
 
 		} finally {
-			// 処理中フラグをOFFにする。
 			PaginationBlogic paginationBlogic = new PaginationBlogic();
+			PaginationStore store = PaginationStore.of(reflexContext);
+			if (store.isAnonymous()) {
+				// 未ログインユーザの場合、インメモリソートサーバが処理できずに排他フラグが残っていれば削除する。
+				// (正常終了時はインメモリソートサーバで削除済み。
+				//  ページング処理ロック取得中のため、同じ条件の別のインメモリソートは実行されていない。)
+				String memorySortLockKey = paginationBlogic.getMemorySortLockKey(conditionName,
+						targetServiceName, true);
+				if (conditionName.equals(store.getString(memorySortLockKey))) {
+					store.deleteString(memorySortLockKey);
+				}
+			}
+			// 処理中フラグをOFFにする。
 			paginationBlogic.releaseLock(conditionName, targetServiceName, reflexContext);
 			if (logger.isDebugEnabled()) {
 				StringBuilder sb = new StringBuilder();
@@ -250,11 +265,17 @@ public class MemorySortManagerDefault implements MemorySortManager {
 					requestInfo, connectionInfo);
 			reqHeader.put(HEADER_SERVICEKEY, serviceKey);
 		}
-		StringBuilder cookieVal = new StringBuilder();
-		cookieVal.append(COOKIE_SID);
-		cookieVal.append("=");
-		cookieVal.append(sid);
-		reqHeader.put(HEADER_COOKIE, cookieVal.toString());
+		if (PaginationStore.isAnonymous(reflexContext.getAuth())) {
+			// 未ログインユーザの場合、セッションの代わりに未ログインユーザであることを伝える。
+			reqHeader.put(PaginationConst.HEADER_PAGINATION_ANONYMOUS,
+					PaginationConst.HEADER_VALUE_PAGINATION_ANONYMOUS);
+		} else {
+			StringBuilder cookieVal = new StringBuilder();
+			cookieVal.append(COOKIE_SID);
+			cookieVal.append("=");
+			cookieVal.append(sid);
+			reqHeader.put(HEADER_COOKIE, cookieVal.toString());
+		}
 
 		Requester requester = new Requester();
 		int timeoutMillis = getMemorySortRequestTimeoutMillis();

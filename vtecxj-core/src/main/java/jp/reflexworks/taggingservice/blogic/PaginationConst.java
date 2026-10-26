@@ -19,5 +19,17 @@ public class PaginationConst {
 	public static final String SESSION_KEY_MEMORYSORT_LIST = "_INMEMORYSORT_LIST";
 	/** セッション格納キー : インメモリソート用キーリストのページ数区切り文字 */
 	public static final String SESSION_KEY_MEMORYSORT_LIST_DELIMITER = "#";
+	/** 格納キー : カーソルリスト作成時刻接頭辞 (未ログインユーザ用共有ストアのみ) */
+	public static final String SESSION_KEY_CREATED = "_PAGINATION_CREATED";
+
+	/**
+	 * 未ログインユーザ用共有ストアの予約SID.
+	 * このSIDのハッシュにはUIDを登録しないため、CookieにこのSIDを指定しても認証に使用できない。
+	 */
+	public static final String ANONYMOUS_SID = "_ANONYMOUS";
+	/** Header : 未ログインユーザのインメモリソートリクエスト (APサーバ→インメモリソートサーバ) */
+	public static final String HEADER_PAGINATION_ANONYMOUS = "X-PAGINATION-ANONYMOUS";
+	/** Header値 : 未ログインユーザのインメモリソートリクエスト */
+	public static final String HEADER_VALUE_PAGINATION_ANONYMOUS = "true";
 
 }

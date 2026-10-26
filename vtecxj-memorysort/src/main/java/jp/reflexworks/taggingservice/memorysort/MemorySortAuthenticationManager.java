@@ -12,6 +12,7 @@ import jp.reflexworks.taggingservice.api.ReflexRequest;
 import jp.reflexworks.taggingservice.api.ReflexResponse;
 import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.auth.Authentication;
+import jp.reflexworks.taggingservice.blogic.PaginationConst;
 import jp.reflexworks.taggingservice.blogic.SessionBlogic;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.AuthenticationException;
@@ -102,6 +103,17 @@ public class MemorySortAuthenticationManager implements AuthenticationManager {
 				ae.setSubMessage(msg);
 				throw ae;
 			}
+		} else if (PaginationConst.HEADER_VALUE_PAGINATION_ANONYMOUS.equals(
+				req.getHeader(PaginationConst.HEADER_PAGINATION_ANONYMOUS))) {
+			// 未ログインユーザのインメモリソート (APサーバからのリクエストのみ。インメモリソートサーバは外部非公開。)
+			// 認証情報はサービス名のみ設定し、未ログインユーザのACLで検索する。
+			// 結果は未ログインユーザ用共有ストアに格納する。
+			if (logger.isDebugEnabled()) {
+				logger.debug(LogUtil.getRequestInfoStr(requestInfo) +
+						"[authenticate] anonymous pagination.");
+			}
+			return createAuth(null, null, null, null, serviceName);
+
 		} else {
 			StringBuilder msgBld = new StringBuilder();
 			msgBld.append("SessionId is null.");
@@ -222,7 +234,8 @@ public class MemorySortAuthenticationManager implements AuthenticationManager {
 	public void setGroups(ReflexAuthentication auth, SystemContext systemContext)
 	throws IOException, TaggingException {
 		String uid = auth.getUid();
-		if (uid.equals(SystemAuthentication.UID_SYSTEM) ||
+		if (StringUtils.isBlank(uid) ||
+				uid.equals(SystemAuthentication.UID_SYSTEM) ||
 				uid.equals(Constants.NULL_UID)) {
 			return;
 		}
