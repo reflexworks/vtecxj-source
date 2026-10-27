@@ -40,7 +40,4 @@ public class FullTextSearchBDBConst {
 	/** 1トランザクションでまとめて更新するIDの最大数 */
 	static final int UPDATE_BATCH_SIZE = 20;
 
-	/** 全文検索条件の検索済みキー格納キー */
-	static final String SESSION_FULLTEXTSEARCH = "_FTGET_";
-
 }

@@ -80,7 +80,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 
 	/** 
 	 * BigQuery接続オブジェクト(com.google.cloud.bigquery.BigQuery)はスレッドセーフのため使い回す。
-	 * キー:サービス名、値:BigQueryオブジェクト
+	 * キー:サービス名(サービスアカウント指定時は サービス名#サービスアカウント)、値:BigQueryオブジェクト
 	 */
 	private static final Cache<String, BigQuery> clientCache = Caffeine.newBuilder()
 			.expireAfterAccess(BigQueryConst.CACHE_EXPIRE_MIN, TimeUnit.MINUTES)
@@ -808,13 +808,18 @@ public class ReflexBigQueryManager implements BigQueryManager {
 		String projectId = BigQueryUtil.getProjectId(serviceName);
 		String datasetId = BigQueryUtil.getDatasetId(serviceName);
 		String location = BigQueryUtil.getLocation(serviceName);
+		// サービスアカウント指定(権限借用)を秘密鍵JSONより優先する。
+		String serviceAccount = getServiceAccount(serviceName);
 		byte[] secret = null;
-		ReflexContentInfo contentInfo = systemContext.getContent(BigQueryConst.URI_SECRET_JSON);
-		if (contentInfo != null) {
-			secret = contentInfo.getData();
+		if (serviceAccount == null) {
+			ReflexContentInfo contentInfo = systemContext.getContent(BigQueryConst.URI_SECRET_JSON);
+			if (contentInfo != null) {
+				secret = contentInfo.getData();
+				if (secret != null && secret.length == 0) {
+					secret = null;
+				}
+			}
 		}
-		String serviceAccount = TaggingEnvUtil.getProp(serviceName, 
-				BigQuerySettingConst.BIGQUERY_SERVICEACCOUNT, null);
 
 		if (StringUtils.isBlank(datasetId)) {
 			if (logger.isTraceEnabled()) {
@@ -824,8 +829,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 		}
 
 		if (TaggingServiceUtil.isBaaS()) {
-			if ((secret == null || secret.length == 0) &&
-					 StringUtils.isBlank(serviceAccount)) {
+			if (secret == null && StringUtils.isBlank(serviceAccount)) {
 				if (logger.isTraceEnabled()) {
 					logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getBigQueryInfo] (BaaS) No settings. (serviceAccount)");
 				}
@@ -833,8 +837,45 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			}
 		}
 
+		// サービスアカウントの権限借用の場合、秘密鍵JSONからプロジェクトIDを取得できないため指定必須
+		if (secret == null && !StringUtils.isBlank(serviceAccount) &&
+				StringUtils.isBlank(projectId)) {
+			if (logger.isTraceEnabled()) {
+				logger.info(LogUtil.getRequestInfoStr(requestInfo) + "[getBigQueryInfo] No projectId settings.");
+			}
+			throw new InvalidServiceSettingException(BigQueryConst.MSG_NO_SETTINGS + " (projectid)");
+		}
+
 		return new BigQueryInfo(projectId, datasetId, location, secret, serviceAccount);
 
+	}
+
+	/**
+	 * サービスに指定された権限借用対象のサービスアカウントを取得.
+	 * @param serviceName サービス名
+	 * @return サービスアカウント。指定がない場合null。
+	 */
+	private String getServiceAccount(String serviceName) {
+		String serviceAccount = TaggingEnvUtil.getProp(serviceName,
+				BigQuerySettingConst.BIGQUERY_SERVICEACCOUNT, null);
+		if (StringUtils.isBlank(serviceAccount)) {
+			return null;
+		}
+		return StringUtils.trim(serviceAccount);
+	}
+
+	/**
+	 * BigQuery接続オブジェクトキャッシュのキーを取得.
+	 * サービスアカウントの設定変更をすぐに反映させるため、キーにサービスアカウントを含める。
+	 * @param serviceName サービス名
+	 * @return キャッシュのキー
+	 */
+	private String getClientCacheKey(String serviceName) {
+		String serviceAccount = getServiceAccount(serviceName);
+		if (serviceAccount == null) {
+			return serviceName;
+		}
+		return serviceName + "#" + serviceAccount;
 	}
 
 	/**
@@ -1128,7 +1169,7 @@ public class ReflexBigQueryManager implements BigQueryManager {
 			ConnectionInfo connectionInfo) 
 					throws IOException, TaggingException, ReflexBigQueryException {
 		try {
-			return clientCache.get(serviceName, key -> {
+			return clientCache.get(getClientCacheKey(serviceName), key -> {
 				try {
 					return createBigQuery(serviceName, requestInfo, connectionInfo);
 				} catch (IOException | TaggingException | ReflexBigQueryException e) {

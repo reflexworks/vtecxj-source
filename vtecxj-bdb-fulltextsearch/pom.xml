@@ -4,7 +4,7 @@
 
   <groupId>jp.reflexworks</groupId>
   <artifactId>vtecxj-bdb-fulltextsearch</artifactId>
-  <version>10.0.5</version>
+  <version>10.0.6</version>
   <packaging>jar</packaging>
 
   <name>vte.cx BDB full text search</name>
@@ -18,8 +18,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <basedir>.</basedir>
-    <vtecxj-bdb-common-version>10.0.5</vtecxj-bdb-common-version>
-    <vtecxj-redis-version>10.0.5</vtecxj-redis-version>
+    <vtecxj-bdb-common-version>10.0.6</vtecxj-bdb-common-version>
     <maven.compiler.source>25</maven.compiler.source>
     <maven.compiler.target>25</maven.compiler.target>
   </properties>
@@ -29,12 +28,6 @@
       <groupId>jp.reflexworks</groupId>
       <artifactId>vtecxj-bdb-common</artifactId>
       <version>${vtecxj-bdb-common-version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>jp.reflexworks</groupId>
-      <artifactId>vtecxj-redis</artifactId>
-      <version>${vtecxj-redis-version}</version>
     </dependency>
 
   </dependencies>

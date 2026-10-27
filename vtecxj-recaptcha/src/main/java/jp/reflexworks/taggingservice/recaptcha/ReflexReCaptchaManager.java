@@ -55,7 +55,7 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 
 	/** 
 	 * reCAPTCHA Enterprise接続オブジェクト(com.google.cloud.bigquery.BigQuery)はスレッドセーフのため使い回す。
-	 * キー:サービス名、値:reCAPTCHA Enterprise接続オブジェクト
+	 * キー:サービス名(サービスアカウント指定時は サービス名#サービスアカウント)、値:reCAPTCHA Enterprise接続オブジェクト
 	 */
 	private static final Cache<String, RecaptchaEnterpriseServiceClient> clientCache = 
 			Caffeine.newBuilder()
@@ -369,10 +369,11 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 				recaptchaEnterpriseServiceSettings =
 						RecaptchaEnterpriseServiceSettings.newBuilder().build();
 			} else {
-				if (logger.isInfoEnabled()) {	// TODO test
+				if (logger.isTraceEnabled()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
-					sb.append("[getRecaptchaEnterpriseServiceSettings] userCredentials");
+					sb.append("[getRecaptchaEnterpriseServiceSettings] userCredentials. serviceAccount=");
+					sb.append(reCaptchaInfo.getServiceAccount());
 					logger.info(sb.toString());
 				}
 				// 1. ユーザのSAになりすますためのCredentialを作成
@@ -386,7 +387,23 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 						);
 
 				// クレデンシャルをリフレッシュして有効化を確認
-				userCredentials.refreshIfExpired();
+				// 利用者側で権限借用の許可設定がなされていない場合はここでエラーになるため、設定エラーとする。
+				try {
+					userCredentials.refreshIfExpired();
+				} catch (IOException e) {
+					if (logger.isInfoEnabled()) {
+						StringBuilder sb = new StringBuilder();
+						sb.append(LogUtil.getRequestInfoStr(requestInfo));
+						sb.append("[getRecaptchaEnterpriseServiceSettings] impersonation failed. serviceAccount=");
+						sb.append(reCaptchaInfo.getServiceAccount());
+						sb.append(" ");
+						sb.append(e.getClass().getName());
+						sb.append(": ");
+						sb.append(e.getMessage());
+						logger.info(sb.toString());
+					}
+					throw new InvalidServiceSettingException(e);
+				}
 
 				// 2. クライアント設定に認証情報を注入
 				recaptchaEnterpriseServiceSettings = RecaptchaEnterpriseServiceSettings.newBuilder()
@@ -455,20 +472,27 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 	
 	/**
 	 * サービスアカウント秘密鍵を取得
+	 * @param reCaptchaInfo reCaptcha設定情報
 	 * @param serviceName サービス名
 	 * @param requestInfo リクエスト情報
 	 * @param connectionInfo コネクション情報
 	 * @return サービスアカウント秘密鍵
 	 */
-	private byte[] getSecret(String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
+	private byte[] getSecret(ReCaptchaInfo reCaptchaInfo, String serviceName,
+			RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		// サービスアカウント指定(権限借用)を秘密鍵JSONより優先する。
+		if (!StringUtils.isBlank(reCaptchaInfo.getServiceAccount())) {
+			return null;
+		}
+
 		SystemContext systemContext = new SystemContext(serviceName,
 				requestInfo, connectionInfo);
 
 		// サービスごとの設定を取得。なければデフォルトの秘密鍵を使用する。
 		byte[] secret = null;
 		ReflexContentInfo contentInfo = systemContext.getContent(ReCaptchaConst.URI_SECRET_JSON);
-		if (contentInfo != null) {
+		if (contentInfo != null && contentInfo.getData() != null && contentInfo.getData().length > 0) {
 			secret = contentInfo.getData();
 		} else {
 			// デフォルト秘密鍵の取得
@@ -521,8 +545,13 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 	private RecaptchaEnterpriseServiceClient getReCaptchaClient(ReCaptchaInfo recaptchaInfo,
 			String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
+		// サービスアカウントの設定変更をすぐに反映させるため、キーにサービスアカウントを含める。
+		String cacheKey = serviceName;
+		if (!StringUtils.isBlank(recaptchaInfo.getServiceAccount())) {
+			cacheKey = serviceName + "#" + recaptchaInfo.getServiceAccount();
+		}
 		try {
-			return clientCache.get(serviceName, key -> {
+			return clientCache.get(cacheKey, key -> {
 				try {
 					return createReCaptchaClient(
 							recaptchaInfo, serviceName, requestInfo, connectionInfo);
@@ -554,7 +583,7 @@ public class ReflexReCaptchaManager implements CaptchaManager {
 	private RecaptchaEnterpriseServiceClient createReCaptchaClient(ReCaptchaInfo reCaptchaInfo,
 			String serviceName, RequestInfo requestInfo, ConnectionInfo connectionInfo)
 	throws IOException, TaggingException {
-		byte[] secret = getSecret(serviceName, requestInfo, connectionInfo);
+		byte[] secret = getSecret(reCaptchaInfo, serviceName, requestInfo, connectionInfo);
 		RecaptchaEnterpriseServiceSettings settings = getRecaptchaEnterpriseServiceSettings(
 				reCaptchaInfo, secret, requestInfo);
 		return RecaptchaEnterpriseServiceClient.create(settings);

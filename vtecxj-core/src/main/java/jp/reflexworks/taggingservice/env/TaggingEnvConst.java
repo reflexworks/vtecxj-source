@@ -48,6 +48,10 @@ public interface TaggingEnvConst extends ReflexEnvConst {
 	public static final String PAGINATION_LIMIT = "_pagination.limit";
 	/** ページネーション : セッションに格納する検索パターン数 */
 	public static final String POINTERSLIST_LIMIT = "_pointerslist.limit";
+	/** ページネーション : 未ログインユーザ用共有ストアに格納する検索パターン数 */
+	public static final String PAGINATION_ANONYMOUS_POINTERSLIST_LIMIT = "_pagination.anonymous.pointerslist.limit";
+	/** ページネーション : 未ログインユーザ用共有ストアのロック有効時間(ミリ秒) */
+	public static final String PAGINATION_ANONYMOUS_LOCK_EXPIRE_MILLIS = "_pagination.anonymous.lock.expire.millis";
 	/** エラーCookie存続時間(秒) */
 	public static final String ERRORCOOKIE_MAXAGE = "_errorcookie.maxage";
 	/** HTML格納フォルダ(/d/_html)を省略せず元のままとするかどうか */
@@ -183,6 +187,12 @@ public interface TaggingEnvConst extends ReflexEnvConst {
 	public static final int PAGINATION_LIMIT_DEFAULT = 100;
 	/** カーソルリスト数上限 デフォルト */
 	public static final int POINTERSLIST_LIMIT_DEFAULT = 10;
+	/** 未ログインユーザ用共有ストアのカーソルリスト数上限 デフォルト */
+	public static final int PAGINATION_ANONYMOUS_POINTERSLIST_LIMIT_DEFAULT = 100;
+	/** 未ログインユーザ用共有ストアのロック有効時間(ミリ秒) デフォルト */
+	public static final long PAGINATION_ANONYMOUS_LOCK_EXPIRE_MILLIS_DEFAULT = 360000;
+	/** 未ログインユーザ用共有ストアの有効期間(秒) デフォルト */
+	public static final int PAGINATION_ANONYMOUS_EXPIRE_SEC_DEFAULT = 300;
 	/** エラーステータスCookie存続時間(秒) デフォルト */
 	public static final int ERRORCOOKIE_MAXAGE_DEFAULT = 10;
 	/** WSSEにおいてキャプチャ不要な失敗回数 デフォルト */

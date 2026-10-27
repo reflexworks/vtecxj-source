@@ -20,7 +20,7 @@ import jp.reflexworks.taggingservice.api.RequestInfo;
 import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.blogic.DatastoreBlogic;
 import jp.reflexworks.taggingservice.blogic.PaginationBlogic;
-import jp.reflexworks.taggingservice.blogic.PaginationConst;
+import jp.reflexworks.taggingservice.blogic.PaginationStore;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.IllegalParameterException;
 import jp.reflexworks.taggingservice.exception.LockingException;
@@ -62,6 +62,14 @@ public class MemorySortBlogic {
 		RequestInfo requestInfo = reflexContext.getRequestInfo();
 		PaginationBlogic paginationBlogic = new PaginationBlogic();
 		String conditionName = paginationBlogic.getConditionName(param);
+		// データ格納先 (セッションまたは未ログインユーザ用共有ストア)
+		PaginationStore store = PaginationStore.of(reflexContext);
+		String lockServiceName = targetServiceName;
+		if (StringUtils.isBlank(lockServiceName)) {
+			lockServiceName = reflexContext.getServiceName();
+		}
+		String memorySortLockKey = paginationBlogic.getMemorySortLockKey(conditionName,
+				lockServiceName, store.isAnonymous());
 		if (logger.isDebugEnabled()) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(LogUtil.getRequestInfoStr(requestInfo));
@@ -108,7 +116,7 @@ public class MemorySortBlogic {
 				}
 
 				// 検索の合間にインメモリソート処理排他フラグを読む。
-				String memoryLock = reflexContext.getSessionString(PaginationConst.SESSION_KEY_MEMORYSORT_LOCK);
+				String memoryLock = store.getString(memorySortLockKey);
 				if (!conditionName.equals(memoryLock)) {
 					// 処理停止
 					if (logger.isInfoEnabled()) {
@@ -168,7 +176,7 @@ public class MemorySortBlogic {
 					FeedBase pageFeed = createMemorySortPage(tmpEntries, serviceName);
 					String sessionKey = paginationBlogic.getMemorySortListKey(
 							conditionName, pageNum, tmpServiceName);
-					reflexContext.setSessionFeed(sessionKey, pageFeed);
+					store.setFeed(sessionKey, pageFeed);
 					tmpEntries.clear();
 					cnt = 0;
 				}
@@ -178,13 +186,13 @@ public class MemorySortBlogic {
 				FeedBase pageFeed = createMemorySortPage(tmpEntries, serviceName);
 				String sessionKey = paginationBlogic.getMemorySortListKey(conditionName, pageNum,
 						tmpServiceName);
-				reflexContext.setSessionFeed(sessionKey, pageFeed);
+				store.setFeed(sessionKey, pageFeed);
 			}
 
 			// インメモリソートリストの総ページ数を登録する。
 			String sessionKey = paginationBlogic.getMemorySortPagenumKey(conditionName, 
 					tmpServiceName);
-			reflexContext.setSessionLong(sessionKey, pageNum);
+			store.setLong(sessionKey, pageNum);
 
 			if (logger.isDebugEnabled()) {
 				StringBuilder sb = new StringBuilder();
@@ -200,9 +208,9 @@ public class MemorySortBlogic {
 
 		} finally {
 			// インメモリソート処理排他フラグを削除
-			String memoryLock = reflexContext.getSessionString(PaginationConst.SESSION_KEY_MEMORYSORT_LOCK);
+			String memoryLock = store.getString(memorySortLockKey);
 			if (conditionName.equals(memoryLock)) {
-				reflexContext.deleteSessionString(PaginationConst.SESSION_KEY_MEMORYSORT_LOCK);
+				store.deleteString(memorySortLockKey);
 				if (logger.isDebugEnabled()) {
 					StringBuilder sb = new StringBuilder();
 					sb.append(LogUtil.getRequestInfoStr(requestInfo));
