@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ImpersonatedCredentials;
+import com.google.firebase.ErrorCode;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.BatchResponse;
@@ -271,6 +272,9 @@ public class ReflexFCMManager {
 								RetryUtil.getRetryLog(e, r));
 					}
 					RetryUtil.sleep(waitMillis);
+				} else if (isSettingError(e)) {
+					// 権限借用の許可設定、サービスアカウントの権限が不足している場合は設定エラー
+					throw new InvalidServiceSettingException(e);
 				} else {
 					throw new IOException(e);
 				}
@@ -460,7 +464,31 @@ public class ReflexFCMManager {
 		if (errMsgLower.indexOf("timed out") > -1) {
 			return true;
 		}
-		
+
+		return false;
+	}
+
+	/**
+	 * 設定エラーの場合trueを返す.
+	 * サービスアカウントの権限借用に失敗した場合、サービスアカウントの権限が不足している場合が該当。
+	 * @param e FirebaseMessagingException
+	 * @return 設定エラーの場合true
+	 */
+	private boolean isSettingError(FirebaseMessagingException e) {
+		if (e.getErrorCode() == ErrorCode.PERMISSION_DENIED ||
+				e.getErrorCode() == ErrorCode.UNAUTHENTICATED) {
+			return true;
+		}
+		// アクセストークン取得失敗はcauseに格納される
+		Throwable cause = e.getCause();
+		while (cause != null) {
+			String msg = cause.getMessage();
+			if (msg != null && (msg.startsWith("Error requesting access token") ||
+					msg.indexOf("iam.serviceAccounts.getAccessToken") > -1)) {
+				return true;
+			}
+			cause = cause.getCause();
+		}
 		return false;
 	}
 	

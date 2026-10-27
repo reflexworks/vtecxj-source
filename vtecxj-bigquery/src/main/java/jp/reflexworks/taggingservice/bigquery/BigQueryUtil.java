@@ -47,7 +47,9 @@ public class BigQueryUtil {
 	/** IOException メッセージの正規表現 */
 	private static final String REGEX_SETTINGERROR_IO =
 			"^Unexpected exception reading" +
-			"|^Unrecognized";
+			"|^Unrecognized" +
+			"|^Error requesting access token" +
+			"|iam\\.serviceAccounts\\.getAccessToken";
 
 	/** Pattern (IOException) */
 	private static Pattern PATTERN_SETTINGERROR_IO = Pattern.compile(REGEX_SETTINGERROR_IO);
