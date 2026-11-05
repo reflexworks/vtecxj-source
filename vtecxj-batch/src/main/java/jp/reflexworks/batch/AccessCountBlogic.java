@@ -17,7 +17,6 @@ import jp.reflexworks.taggingservice.api.RequestParam;
 import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.TaggingException;
 import jp.reflexworks.taggingservice.service.TaggingServiceUtil;
-import jp.reflexworks.taggingservice.storage.CloudStorageConst;
 import jp.reflexworks.taggingservice.storage.CloudStorageUtil;
 import jp.reflexworks.taggingservice.sys.SystemContext;
 import jp.reflexworks.taggingservice.util.Constants;
@@ -35,7 +34,6 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 	private static final String FORMAT_YYYYMM = "yyyyMM";
 	
 	/** Storageサイズ取得時のバケット未存在エラーメッセージ */
-	//private static final String OUTERR_BUCKETNOTFOUND_PREFIX = "BucketNotFoundException: 404";
 	private static final String OUTERR_BUCKETNOTFOUND = "not found: 404";
 
 	/** ロガー. */
@@ -103,11 +101,20 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 			String gcloudDir)
 	throws IOException, TaggingException {
 		String serviceName = TaggingServiceUtil.getServiceNameFromServiceUri(serviceEntry.getMyUri());
+		// Redisのtodayのアクセスカウンタを0に設定(0以外の場合)
+		String logPrefix = "[execForEachService] serviceName = " + serviceName + " ";
+		boolean isEnableAccessLog = isEnableAccessLog();
+		if (isEnableAccessLog) {
+			logger.info(logPrefix + "start.");
+		}
 		try {
 			String serviceStatus = TaggingServiceUtil.getServiceStatus(serviceEntry);
 			// サービスステータスが削除または失敗の場合、処理を抜ける。
 			if (Constants.SERVICE_STATUS_DELETED.equals(serviceStatus) ||
 					Constants.SERVICE_STATUS_FAILURE.equals(serviceStatus)) {
+				if (isEnableAccessLog) {
+					logger.info(logPrefix + "return (Do nothing.) serviceStatus = " + serviceStatus);
+				}
 				return;
 			}
 
@@ -121,14 +128,36 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 					// 昨日の年月を取得
 					String accessCountYMUri = getAccessCountYMUri(serviceName);
 					// BDBにアクセスカウンタをインクリメント
-					if (isEnableAccessLog()) {
-						logger.info("[addAccessCount] uri = " + accessCountYMUri + " , addids = " + todaysCount);
+					if (isEnableAccessLog) {
+						logger.info(logPrefix + "[addAccessCount] uri = " + accessCountYMUri + " , addids = " + todaysCount);
 					}
 					systemContext.addids(accessCountYMUri, todaysCount);
+					if (isEnableAccessLog) {
+						// 確認
+						FeedBase getidsFeed = systemContext.getids(accessCountYMUri);
+						String tmpCountStr = null;
+						if (getidsFeed != null) {
+							tmpCountStr = getidsFeed.title;
+						}
+						logger.info(logPrefix + "[addAccessCount][get] uri = " + accessCountYMUri + " , getids = " + tmpCountStr);
+					}
 				}
 
 				// Redisのtodayのアクセスカウンタを0に設定(0以外の場合)
+				if (isEnableAccessLog) {
+					logger.info(logPrefix + "[clearAccessCount] uri = " + todayUri);
+				}
 				systemContext.setCacheLong(todayUri, 0);
+				if (isEnableAccessLog) {
+					// 確認
+					Long tmpCount = systemContext.getCacheLong(todayUri);
+					logger.info(logPrefix + "[clearAccessCount][get] uri = " + todayUri + " , value = " + tmpCount);
+				}
+
+			} else {
+				if (isEnableAccessLog) {
+					logger.info(logPrefix + "AccessCount was not cleared. todaysCount = " + todaysCount);
+				}
 			}
 
 			// ・ストレージ容量取得
@@ -144,7 +173,15 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 			// ・バッチジョブ実行時間
 			//  Redisのバッチジョブをクリア
 			String batchjobExectimeUri = TaggingServiceUtil.getBatchjobExectimeUri(serviceName);
+			if (isEnableAccessLog) {
+				logger.info(logPrefix + "[clearBatchjobExecTime] uri = " + batchjobExectimeUri);
+			}
 			systemContext.setCacheLong(batchjobExectimeUri, 0);
+			if (isEnableAccessLog) {
+				// 確認
+				Long tmpCount = systemContext.getCacheLong(batchjobExectimeUri);
+				logger.info(logPrefix + "[clearBatchjobExecTime][get] uri = " + batchjobExectimeUri + " , value = " + tmpCount);
+			}
 
 		} catch (IOException | TaggingException | RuntimeException | Error e) {
 			// サービス単位でエラーをワーニング出力し、処理を続ける。
@@ -191,8 +228,9 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 	throws IOException, TaggingException {
 		// バケット名取得
 		String bucketName = CloudStorageUtil.getBucketNameByEntry(serviceName, systemContext);
+		boolean isEnableAccessLog = isEnableAccessLog();
 		if (StringUtils.isBlank(bucketName)) {
-			if (isEnableAccessLog()) {
+			if (isEnableAccessLog) {
 				logger.info("[getStorageTotalsize] bucketName is null. serviceName = " + serviceName);
 			}
 			return null;
@@ -229,7 +267,7 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 				sb.append(line + Constants.NEWLINE);
 			}
 			String str = sb.toString();
-			if (isEnableAccessLog()) {
+			if (isEnableAccessLog) {
 				logger.info(logprefix + " [out] " + str);
 			}
 
@@ -274,7 +312,7 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 			} else {
 				usage = str;
 			}
-			if (isEnableAccessLog()) {
+			if (isEnableAccessLog) {
 				logger.info(logprefix + " [usage] " + usage);
 			}
 
@@ -309,7 +347,7 @@ public class AccessCountBlogic implements ReflexBlogic<ReflexContext, Boolean> {
 	 */
 	public boolean isEnableAccessLog() {
 		return TaggingEnvUtil.getSystemPropBoolean(
-				CloudStorageConst.STORAGE_ENABLE_ACCESSLOG, false);
+				AccessCountConst.ACCESSCOUNT_ENABLE_ACCESSLOG, false);
 	}
 
 }

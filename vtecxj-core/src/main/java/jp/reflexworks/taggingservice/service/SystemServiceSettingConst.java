@@ -9,4 +9,7 @@ public class SystemServiceSettingConst {
 	/** サービスの予約語設定 "_service.reserved.{連番}={予約語} */
 	public static final String SERVICE_RESERVED_PREFIX = "_service.reserved.";
 
+	/** サーバサイドJSの実行を許可するサービス "_javascript.enable.service.{連番}={サービス名} */
+	public static final String JAVASCRIPT_ENABLE_SERVICE_PREFIX = "_javascript.enable.service.";
+
 }

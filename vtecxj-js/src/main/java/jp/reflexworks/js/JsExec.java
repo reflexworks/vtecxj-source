@@ -33,6 +33,7 @@ import jp.reflexworks.taggingservice.env.TaggingEnvUtil;
 import jp.reflexworks.taggingservice.exception.InvalidServiceSettingException;
 import jp.reflexworks.taggingservice.exception.NoExistingEntryException;
 import jp.reflexworks.taggingservice.exception.TaggingException;
+import jp.reflexworks.taggingservice.service.SystemServiceSettingConst;
 import jp.reflexworks.taggingservice.taskqueue.TaskQueueUtil;
 import jp.reflexworks.taggingservice.util.Constants;
 import jp.reflexworks.taggingservice.util.LogUtil;
@@ -58,6 +59,12 @@ public class JsExec {
 	public static final String JSEXEC_AWAITTERMINATION_SEC = "_jsexec.awaittermination.sec";
 	/** 設定 : サーバサイドJSアクセスログを出力するかどうか */
 	public static final String JAVASCRIPT_ENABLE_ACCESSLOG = "_javascript.enable.accesslog";
+	/**
+	 * 設定 : サーバサイドJSの実行を許可するサービス(前方一致).
+	 *       システム管理サービスに登録されたサービスのみサーバサイドJSを実行可能。
+	 */
+	public static final String JAVASCRIPT_ENABLE_SERVICE_PREFIX =
+			SystemServiceSettingConst.JAVASCRIPT_ENABLE_SERVICE_PREFIX;
 
 	/** サーバサイドJS実行タイムアウト時間(秒) デフォルト値 */
 	public static final int JAVASCRIPT_EXECTIMEOUT_DEFAULT = 300;
@@ -112,6 +119,9 @@ public class JsExec {
 	 */
 	public static JsContext doExec(ReflexRequest req, ReflexResponse resp, String func, String method)
 			throws IOException {
+		// サーバサイドJSの実行が許可されたサービスかどうかチェック
+		checkEnabledService(req, func);
+
 		ReflexAuthentication auth = null;
 		String uid = null;
 		if (req != null) {
@@ -527,6 +537,51 @@ public class JsExec {
 				logger.debug(sb.toString());
 			}
 		}
+	}
+
+	/**
+	 * サーバサイドJSの実行が許可されたサービスかどうかチェック.
+	 * 許可されていない場合、404エラー(NoExistingEntryException)とする。
+	 * 廃止機能のため、サーバサイドJSが使用できない旨はレスポンスに含めない。
+	 * @param req リクエスト
+	 * @param func サーバサイドJS名
+	 */
+	private static void checkEnabledService(ReflexRequest req, String func)
+	throws IOException {
+		String serviceName = null;
+		if (req != null) {
+			serviceName = req.getServiceName();
+		}
+		if (isEnabledService(serviceName)) {
+			return;
+		}
+		if (logger.isInfoEnabled()) {
+			StringBuilder sb = new StringBuilder();
+			if (req != null) {
+				sb.append(LogUtil.getRequestInfoStr(req.getRequestInfo()));
+			}
+			sb.append("[checkEnabledService] serverside js is not enabled. serviceName=");
+			sb.append(serviceName);
+			sb.append(", js=");
+			sb.append(func);
+			logger.info(sb.toString());
+		}
+		throw new IOException(new NoExistingEntryException());
+	}
+
+	/**
+	 * サーバサイドJSの実行が許可されたサービスかどうかを取得.
+	 * システム管理サービスの設定 "_javascript.enable.service.{連番}={サービス名}" に
+	 * 登録されたサービスのみ許可する。
+	 * @param serviceName サービス名
+	 * @return サーバサイドJSの実行が許可されている場合true
+	 */
+	public static boolean isEnabledService(String serviceName) {
+		if (StringUtils.isBlank(serviceName)) {
+			return false;
+		}
+		return JsUtil.isEnabledService(serviceName,
+				TaggingEnvUtil.getSystemPropSet(JAVASCRIPT_ENABLE_SERVICE_PREFIX));
 	}
 
 	/**

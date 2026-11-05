@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import jakarta.servlet.http.Cookie;
 
@@ -455,6 +456,19 @@ public class JsUtil {
 		}else {
 			return feedstr;
 		}
+	}
+
+	/**
+	 * サーバサイドJSの実行が許可されたサービスかどうかを取得.
+	 * @param serviceName サービス名
+	 * @param enabledServices サーバサイドJSの実行を許可するサービス一覧
+	 * @return サーバサイドJSの実行が許可されている場合true
+	 */
+	public static boolean isEnabledService(String serviceName, Set<String> enabledServices) {
+		if (StringUtils.isBlank(serviceName) || enabledServices == null) {
+			return false;
+		}
+		return enabledServices.contains(serviceName);
 	}
 
 }
